@@ -239,6 +239,8 @@
      Make every file with tools/process_art.py from yard/raw/.
      Until a file exists: a cat shows Tapuz as a stand-in, and an item shows its
      old SVG drawing (kept at the bottom of this script as a fallback). */
+  const USE_COMBOS = false;     // true: show a cat already on its object (combos/) when one exists.
+                                // Off while the layered art is the main path.
   const ART_OK = new Set();     // files that have loaded
   const artPath = {
     cat: (catId, pose, n) => `cats/${catId}/${n > 1 ? pose + '-' + n : pose}.webp`,
@@ -254,17 +256,18 @@
      cat:      where the cat's feet go, as percentages of the object image
                (x from the left, y from the top). Every cat is drawn at the
                same size, so there is no per-item scale.
-               Measured from the art: the cushion's top is y 74-97; the basket's
-               inside is y 48-55 and its front y 55-97; the tent's doorway is
-               centre-bottom. The box has no art yet, so its values are a guess. */
+               Anchors come from the Tapuz combos (the reference cat), checked
+               by overlay: the cushion's cat rests at y 82; the box and basket
+               cats sit inside, so their feet are hidden behind the front; the
+               ball and yarn sit left of the cat, so the cat is pushed right. */
   const CAT_WIDTH = 100;        // a cat's image is the full spot width, at its natural size
   const ITEMS = {
-    cushion: { he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 100, pose: 'sleep', cat: { x: 50, y: 82 } },
-    ball:    { he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 72, y: 95 } },
-    box:     { he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
-    yarn:    { he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 76, y: 95 } },
-    basket:  { he: 'סַל', tr: 'sal', en: 'basket', price: 300, pose: 'sleep', hasFront: true, cat: { x: 50, y: 60 } },
-    tent:    { he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 92 } }
+    cushion: { he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 100, pose: 'sleep', cat: { x: 50, y: 87.5 } },
+    ball:    { he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
+    box:     { he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 87.5 } },
+    yarn:    { he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
+    basket:  { he: 'סַל', tr: 'sal', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
+    tent:    { he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } }
   };
   const ITEM_ORDER = ['cushion', 'ball', 'box', 'yarn', 'basket', 'tent'];
   const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying' };
@@ -383,7 +386,7 @@
     Object.keys(ITEMS).forEach((id) => {
       required.push(artPath.item(id));
       if (ITEMS[id].hasFront) required.push(artPath.front(id));
-      Object.keys(CATS).forEach((c) => optional.push(artPath.combo(c, id)));
+      if (USE_COMBOS) Object.keys(CATS).forEach((c) => optional.push(artPath.combo(c, id)));
     });
     probe(required, false);
     probe(optional, true);
@@ -501,7 +504,7 @@
         label = 'Empty spot. Put out an item.';
       } else {
         const it = ITEMS[itemId], L = itemLayers(itemId);
-        const combo = v && ART_OK.has(artPath.combo(v.cat, itemId)) ? artPath.combo(v.cat, itemId) : null;
+        const combo = USE_COMBOS && v && ART_OK.has(artPath.combo(v.cat, itemId)) ? artPath.combo(v.cat, itemId) : null;
         if (combo) {
           // One image with the cat already on the object: the best fit, so use it alone.
           inner = `<img class="layer${v.fresh ? ' cat-in' : ''}" src="${combo}" alt="">`;

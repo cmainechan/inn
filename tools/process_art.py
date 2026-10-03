@@ -40,6 +40,11 @@ W, H = 480, 400
 BASELINE_PAD = 12     # px between the lowest cat/item pixel and the canvas bottom
 SIT_HEIGHT = 250      # each cat's sitting pose is scaled to this content height;
                       # the same factor is used for that cat's other poses
+CAT_SIZE = 0.85       # cats in the layers are drawn at this fraction of SIT_HEIGHT. Measured
+                      # against the Tapuz combos (the reference): their cat is about 0.85 of
+                      # the layer's sitting height, while the objects match the combos at 1.0
+OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8}  # extra size factor per object, on top of the shared item scale (cats are unchanged)
+OBJECT_SHIFT = {'ball': -60, 'yarn': -20}  # canvas px, sideways. Keeps the ball out of the paw's reach (the cat sits to its right)
 REF_CAT = 'tapuz'     # items use the same scale as this cat's sitting pose, so sizes carry over
 TRIM_ALPHA = 0.1      # alpha below this is ignored when finding the content box
 WEBP_QUALITY = 90
@@ -48,10 +53,20 @@ GRASS = np.array([0x9D, 0xCC, 0x6E], np.float32)
 # Front walls, as polygons in canvas percent (x, y from top-left). The wall is
 # the part a cat sits behind (box front, basket rim). It becomes the object's
 # front layer; the back layer is the object with the wall cut away.
-# PLACEHOLDER coordinates: tune by eye once the box and basket art exists.
+# Measured on the Tapuz combos: the box front starts at about y 310 of 400 and the
+# basket rim at about y 280; both span x 27-73% (the object's front face).
+# Curved front cuts, in RAW pixels (the raw image is 1254 px). For the basket, the cut is the top
+# edge of the front rim, where the inside of the basket meets the rope, measured on raw/basket.png:
+# it sits at about y 502 at the centre and rises to about y 430 at the handles. Everything below it
+# (the rope and the front weave) is the front layer, so a cat inside the basket is hidden from there down.
+FRONT_CURVES = {
+    # The box's front face has a nearly straight top edge at about y 604 (its rim). A cat inside is
+    # hidden below it, so the front layer is everything below that line.
+    'box': [(222, 604), (400, 604), (627, 604), (850, 604), (1032, 604)],
+    'basket': [(180, 430), (250, 455), (350, 475), (450, 490), (550, 498), (627, 502), (700, 498),
+               (800, 490), (900, 478), (1000, 455), (1075, 430)],
+}
 FRONT_WALLS = {
-    'box':    [(15, 60), (85, 60), (85, 98), (15, 98)],
-    'basket': [(15, 55), (85, 55), (85, 98), (15, 98)],
 }
 
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie)(?:-(?P<n>\d+))?$')
@@ -164,11 +179,16 @@ def save_webp(canvas, path):
         path, 'WEBP', quality=WEBP_QUALITY, method=6)
 
 
-def wall_mask(points):
-    S = 4  # supersample for smooth polygon edges
+def wall_mask(points_px):
+    """Polygon in canvas pixels -> 0..1 mask, supersampled for smooth edges."""
+    S = 4
     m = Image.new('L', (W * S, H * S), 0)
-    ImageDraw.Draw(m).polygon([(x / 100 * W * S, y / 100 * H * S) for x, y in points], fill=255)
+    ImageDraw.Draw(m).polygon([(x * S, y * S) for x, y in points_px], fill=255)
     return np.asarray(m.resize((W, H), Image.Resampling.BOX), np.float32)[..., None] / 255
+
+
+def percent_to_px(points):
+    return [(x / 100 * W, y / 100 * H) for x, y in points]
 
 
 def over_grass(canvas):
@@ -190,8 +210,8 @@ def process_cat(cat, frames, log):
         cut[key] = trim(rgba)
         log(f'  {path.name}: backdrop {bg.round().astype(int).tolist()}{" (green spill fix)" if green else ""}, '
             f'content {cut[key].shape[1]}x{cut[key].shape[0]}')
-    s = SIT_HEIGHT / cut[('sit', 1)].shape[0]
-    log(f'  {cat}: scale {s:.4f} (sit height {cut[("sit", 1)].shape[0]} px -> {SIT_HEIGHT} px)')
+    s = SIT_HEIGHT * CAT_SIZE / cut[('sit', 1)].shape[0]
+    log(f'  {cat}: scale {s:.4f} (sit height {cut[("sit", 1)].shape[0]} px -> {SIT_HEIGHT * CAT_SIZE:.0f} px)')
     rows = []
     for key in sorted(frames):
         pose, n = key
@@ -205,17 +225,34 @@ def process_cat(cat, frames, log):
 def process_item(name, path, scale, log):
     """scale is shared by every item, so an object drawn at the reference cat's size
     comes out at the reference cat's size in the yard."""
+    scale = scale * OBJECT_SIZE.get(name, 1.0)
     rgba, bg, green = cut_out(load(path))
+    ys, xs = np.where(rgba[..., 3] > TRIM_ALPHA)
+    x_raw, y_raw = xs.min(), ys.min()          # where the trimmed content starts in the raw image
     rgba = trim(rgba)
     h, w = rgba.shape[:2]
     log(f'  {path.name}: backdrop {bg.round().astype(int).tolist()}, content {w}x{h}, '
         f'scale {scale:.4f} -> {round(h * scale)}x{round(w * scale)} px')
     canvas = compose(rgba, scale, name)
+    dx = OBJECT_SHIFT.get(name, 0)
+    if dx:
+        moved = np.zeros_like(canvas)
+        moved[:, max(0, dx):W + min(0, dx)] = canvas[:, max(0, -dx):W - max(0, dx)]
+        canvas = moved
     outputs = [OBJ_OUT / f'{name}.webp']
-    if name not in FRONT_WALLS:
+    if name not in FRONT_WALLS and name not in FRONT_CURVES:
         save_webp(canvas, outputs[0])
         return outputs, canvas
-    wall = wall_mask(FRONT_WALLS[name])
+    if name in FRONT_CURVES:
+        # Raw-pixel points -> canvas pixels, using the same placement compose() gives the content.
+        nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
+        x0, y0 = round(W / 2 - nw / 2), H - BASELINE_PAD - nh
+        sx, sy = nw / w, nh / h
+        pts = [(x0 + (x - x_raw) * sx, y0 + (y - y_raw) * sy) for x, y in FRONT_CURVES[name]]
+        pts += [(pts[-1][0], H + 20), (pts[0][0], H + 20)]     # close the cut below the canvas
+        wall = wall_mask(pts)
+    else:
+        wall = wall_mask(percent_to_px(FRONT_WALLS[name]))
     back, front = canvas.copy(), canvas.copy()
     back[..., 3:] *= 1 - wall      # back: the object without the wall
     front[..., 3:] *= wall         # front: only the wall
@@ -263,6 +300,9 @@ def main():
             cat_frames[m['cat']][(m['pose'], int(m['n'] or 1))] = p
         else:
             items[p.stem] = p
+    # yarn2.png is the current yarn (ball with the string toward the cat); yarn.png is kept in raw/ but not used.
+    if 'yarn2' in items:
+        items['yarn'] = items.pop('yarn2')
 
     log = print
     sheet_rows = []
@@ -270,7 +310,8 @@ def main():
         log(f'cat {cat}')
         sheet_rows.extend(process_cat(cat, cat_frames[cat], log))
 
-    combos = sorted((RAW / 'combos').glob('*.png'))
+    # Only the reference cat's combos are kept; the layered art covers every other cat.
+    combos = sorted(p for p in (RAW / 'combos').glob('*.png') if p.stem.split('-', 1)[0] == REF_CAT)
     if items or combos:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
         if ref is None:
