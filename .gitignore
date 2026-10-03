@@ -1,0 +1,7 @@
+# Original generator files (large, local only)
+raw/
+
+# Local-only
+.DS_Store
+tools/contact-sheet.png
+__pycache__/
