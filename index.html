@@ -206,7 +206,7 @@
   <section id="test" class="test" hidden>
     <strong>Testing tools</strong> <span class="muted">(only shown when the address ends in ?test)</span>
     <div class="row">
-      <button class="btn plain" data-test="fish">Add 10 fish</button>
+      <button class="btn plain" data-test="fish">Add 50 fish</button>
       <button class="btn plain" data-test="skip">Skip 30 minutes</button>
       <button class="btn plain" data-test="reset">Reset everything</button>
     </div>
@@ -259,12 +259,12 @@
                centre-bottom. The box has no art yet, so its values are a guess. */
   const CAT_WIDTH = 100;        // a cat's image is the full spot width, at its natural size
   const ITEMS = {
-    cushion: { he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 10, pose: 'sleep', cat: { x: 50, y: 82 } },
-    ball:    { he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 12, pose: 'lie', wobble: true, cat: { x: 72, y: 95 } },
-    box:     { he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 15, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
-    yarn:    { he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 20, pose: 'lie', wobble: true, cat: { x: 76, y: 95 } },
-    basket:  { he: 'סַל', tr: 'sal', en: 'basket', price: 30, pose: 'sleep', hasFront: true, cat: { x: 50, y: 60 } },
-    tent:    { he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 50, pose: 'sit', cat: { x: 50, y: 92 } }
+    cushion: { he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 100, pose: 'sleep', cat: { x: 50, y: 82 } },
+    ball:    { he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 72, y: 95 } },
+    box:     { he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
+    yarn:    { he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 76, y: 95 } },
+    basket:  { he: 'סַל', tr: 'sal', en: 'basket', price: 300, pose: 'sleep', hasFront: true, cat: { x: 50, y: 60 } },
+    tent:    { he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 92 } }
   };
   const ITEM_ORDER = ['cushion', 'ball', 'box', 'yarn', 'basket', 'tent'];
   const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying' };
@@ -645,7 +645,7 @@
     $('test').addEventListener('click', (e) => {
       const b = e.target.closest('[data-test]');
       if (!b) return;
-      if (b.dataset.test === 'fish') setFish(getFish() + 10);
+      if (b.dataset.test === 'fish') setFish(getFish() + 50);
       if (b.dataset.test === 'skip') {
         const ms = 30 * 60e3;
         if (state.lastCheck != null) state.lastCheck -= ms;
