@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Yard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #E7EFD8;
+    --paper: #FFFEF6;
+    --ink: #3F3530;
+    --muted: #7C6F63;
+    --line: #D3DCC0;
+    --sun: #F6B93B;
+    --pond: #4F86B5;
+    --leaf: #5E8F4A;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.45;
+  }
+  .he {
+    font-family: "Frank Ruhl Libre", "Times New Roman", "David", serif;
+    direction: rtl;
+    unicode-bidi: isolate;
+    font-weight: 700;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: max(14px, env(safe-area-inset-top)) 14px max(40px, env(safe-area-inset-bottom));
+  }
+
+  /* Top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 12px; flex-wrap: wrap; }
+  .title { display: flex; align-items: baseline; gap: 10px; margin: 0; font-weight: 600; font-size: 1.5rem; }
+  .title .he { font-size: 1.9rem; color: var(--leaf); }
+  .wallet { display: flex; align-items: center; gap: 8px; }
+  .fish {
+    background: var(--pond); color: #fff; font-weight: 600; font-size: 1.15rem;
+    padding: 5px 14px; border-radius: 999px; border: 2.5px solid var(--ink);
+    min-width: 76px; text-align: center; transition: transform .2s;
+  }
+  .fish.bump { transform: scale(1.15); }
+
+  /* Buttons */
+  .btn {
+    font: inherit; font-weight: 600; color: var(--ink);
+    background: var(--sun); border: 2.5px solid var(--ink); border-radius: 999px;
+    padding: 6px 16px; cursor: pointer; box-shadow: 0 3px 0 var(--ink);
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+  .btn:disabled { background: #E6E1D6; color: var(--muted); cursor: default; box-shadow: 0 3px 0 #B8AFA2; border-color: #B8AFA2; }
+  .btn.plain { background: var(--paper); }
+  .btn:focus-visible, .spot:focus-visible, .tab:focus-visible, a:focus-visible { outline: 3px solid var(--pond); outline-offset: 3px; }
+
+  /* Yard */
+  .yard {
+    position: relative; width: 100%; aspect-ratio: 16 / 11;
+    border-radius: 26px; overflow: hidden; border: 3px solid var(--ink);
+    background: #9DCC6E;
+  }
+  .scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .spot {
+    position: absolute; width: 27%; aspect-ratio: 120 / 100;
+    transform: translateX(-50%); padding: 0; border: 0; background: none;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 14px;
+  }
+  .spot.back { width: 23.5%; }
+  .spot svg { width: 100%; height: 100%; overflow: visible; display: block; }
+  .spot .empty-mark { opacity: .75; transition: opacity .2s; }
+  .spot:hover .empty-mark { opacity: 1; }
+
+  .hint { color: var(--muted); margin: 10px 4px 18px; font-size: .95rem; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab {
+    font: inherit; font-weight: 600; color: var(--ink); background: transparent;
+    border: 2.5px solid transparent; border-radius: 999px; padding: 5px 16px; cursor: pointer;
+  }
+  .tab .he { margin-left: 6px; font-size: 1.1rem; color: var(--leaf); }
+  .tab[aria-selected="true"] { background: var(--paper); border-color: var(--ink); }
+
+  /* Shop + album */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--paper); border: 2px solid var(--line); border-radius: 18px;
+    padding: 10px 10px 14px; text-align: center; display: flex; flex-direction: column; align-items: center;
+  }
+  .card svg { width: 100%; max-width: 136px; height: auto; overflow: visible; }
+  .card .he { font-size: 1.6rem; line-height: 1.3; margin-top: 4px; }
+  .card .tr { font-size: .95rem; }
+  .card .en { color: var(--muted); font-size: .9rem; margin-bottom: 10px; }
+  .card .btn { margin-top: auto; }
+  .tag { margin-top: auto; font-weight: 600; color: var(--leaf); padding: 7px 0; }
+  .sil * { fill: #CFC6B8 !important; stroke: #CFC6B8 !important; }
+  .sil .zzz { display: none; }
+
+  .earn { margin-top: 26px; padding: 14px 16px; background: var(--paper); border: 2px dashed var(--line); border-radius: 18px; }
+  .earn a { color: var(--pond); font-weight: 600; }
+
+  /* Sheet */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(40, 33, 28, .45);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 30;
+  }
+  .overlay[hidden] { display: none; }
+  .sheet {
+    background: var(--paper); width: 100%; max-width: 520px; border: 3px solid var(--ink); border-bottom: 0;
+    border-radius: 26px 26px 0 0; padding: 18px 18px calc(22px + env(safe-area-inset-bottom));
+    animation: up .25s ease-out;
+  }
+  @keyframes up { from { transform: translateY(40px); opacity: 0; } }
+  .sheet h2 { margin: 0 0 4px; font-weight: 600; font-size: 1.3rem; }
+  .sheet .portrait { display: flex; gap: 14px; align-items: center; }
+  .sheet .portrait svg { width: 130px; flex: none; overflow: visible; }
+  .sheet .he.big { font-size: 2.2rem; display: block; line-height: 1.2; }
+  .sheet .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 12px; }
+  .pick button {
+    font: inherit; color: var(--ink); background: #F4F7EC; border: 2px solid var(--line); border-radius: 16px;
+    padding: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  }
+  .pick button:hover { border-color: var(--ink); }
+  .pick svg { width: 84px; height: auto; overflow: visible; }
+  .muted { color: var(--muted); }
+
+  /* Toasts */
+  #toasts {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    top: max(12px, env(safe-area-inset-top)); z-index: 40;
+    display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: min(92vw, 440px);
+  }
+  .toast {
+    background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 16px;
+    font-weight: 500; text-align: center; animation: toast 3.8s ease forwards;
+  }
+  .toast .he { font-size: 1.15rem; }
+  @keyframes toast { 0% { opacity: 0; transform: translateY(-8px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+  .test { margin-top: 18px; padding: 12px 14px; border: 2px dashed #C9A0A0; border-radius: 16px; background: #FFF5F2; }
+  .test .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+  /* Cat animation */
+  .cat .tail { transform-box: fill-box; transform-origin: 0% 100%; animation: swish 2.8s ease-in-out infinite; animation-delay: var(--d); }
+  @keyframes swish { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(9deg); } }
+  .cat .eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 5s infinite; animation-delay: var(--d); }
+  @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 93% { transform: scaleY(.12); } 96% { transform: scaleY(1); } }
+  .cat .ear-r { transform-box: fill-box; transform-origin: 30% 100%; animation: twitch 7s infinite; animation-delay: var(--d); }
+  @keyframes twitch { 0%, 94%, 100% { transform: rotate(0); } 96% { transform: rotate(-14deg); } 98% { transform: rotate(4deg); } }
+  .cat .head { transform-box: fill-box; transform-origin: 50% 100%; animation: bob 6s ease-in-out infinite; animation-delay: var(--d); }
+  @keyframes bob { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+  .cat .head.tilt { animation: tilt 1.6s ease-in-out infinite; }
+  @keyframes tilt { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(-3deg); } }
+  .cat .swat { transform-box: fill-box; transform-origin: 0% 100%; animation: swat 1.6s ease-in-out infinite; }
+  @keyframes swat { 0%, 100% { transform: rotate(8deg); } 40% { transform: rotate(-22deg); } 55% { transform: rotate(10deg); } }
+  .cat .breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: breathe 3.4s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, 1.05); } }
+  .cat .tail-sleep { transform-box: fill-box; transform-origin: 100% 0%; animation: tailsleep 6s ease-in-out infinite; animation-delay: var(--d); }
+  @keyframes tailsleep { 0%, 85%, 100% { transform: rotate(0); } 90% { transform: rotate(-4deg); } 95% { transform: rotate(2deg); } }
+  .cat .zzz text { opacity: 0; animation: zf 3s ease-in infinite; }
+  .cat .zzz text:nth-child(2) { animation-delay: 1.5s; }
+  @keyframes zf { 0% { opacity: 0; transform: translate(0, 4px); } 30% { opacity: .7; } 100% { opacity: 0; transform: translate(4px, -8px); } }
+  .wobble { transform-box: fill-box; transform-origin: 50% 50%; animation: wob 1.6s ease-in-out infinite; }
+  @keyframes wob { 0%, 100% { transform: translateX(0) rotate(0); } 40% { transform: translateX(2px) rotate(10deg); } }
+  .cat-in { animation: catin .7s ease-out both; }
+  @keyframes catin { from { opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .cat .zzz text { opacity: .6; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1 class="title"><span class="he" lang="he">הֶחָצֵר</span><span>The Yard</span></h1>
+    <div class="wallet">
+      <button id="giftBtn" class="btn" hidden></button>
+      <div id="fish" class="fish" aria-live="polite">🐟 0</div>
+    </div>
+  </header>
+
+  <div id="yard" class="yard">
+    <svg class="scene" id="scene" viewBox="0 0 160 110" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+    <div id="spots"></div>
+  </div>
+  <p class="hint" id="hint"></p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="shop" aria-selected="true">Shop <span class="he" lang="he">חֲנוּת</span></button>
+    <button class="tab" role="tab" data-tab="album" aria-selected="false">Cats <span class="he" lang="he">חֲתוּלִים</span></button>
+  </div>
+  <section id="shop" class="grid"></section>
+  <section id="album" class="grid" hidden></section>
+
+  <div class="earn">
+    Earn fish by practicing: <a href="../hwg/">Word builder</a> and <a href="../hbt/">Interlinear practice</a>.
+  </div>
+
+  <section id="test" class="test" hidden>
+    <strong>Testing tools</strong> <span class="muted">(only shown when the address ends in ?test)</span>
+    <div class="row">
+      <button class="btn plain" data-test="fish">Add 10 fish</button>
+      <button class="btn plain" data-test="skip">Skip 30 minutes</button>
+      <button class="btn plain" data-test="reset">Reset everything</button>
+    </div>
+  </section>
+</main>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="overlay" class="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Settings you can tweak ---------- */
+  const ARRIVAL_MINUTES = 10;   // on average, how long until a cat finds an empty item
+  const STAY_MIN = 20, STAY_MAX = 60; // how many minutes a cat stays
+  const MAX_AWAY_HOURS = 24;    // time away is counted up to this many hours
+  const TICK_MS = 15000;        // how often the yard checks for visitors while open
+  const WELCOME_FISH = 10;      // fish given on the very first visit
+
+  /* ---------- Shared storage keys ---------- */
+  const FISH_KEY = 'fish';      // the shared wallet that hwg and hbt will add to
+  const SAVE_KEY = 'yard-save-v1';
+
+  const OUT = '#4A3B32';
+
+  /* ---------- Items ---------- */
+  const ITEMS = {
+    cushion: { he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 10, pose: 'sleep', catT: 'translate(0,-8)' },
+    ball:    { he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 12, pose: 'play', catT: 'translate(-12,0)' },
+    box:     { he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 15, pose: 'sit', catT: 'translate(0,4)' },
+    yarn:    { he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 20, pose: 'play', catT: 'translate(-12,0)' },
+    basket:  { he: 'סַל', tr: 'sal', en: 'basket', price: 30, pose: 'sleep', catT: 'translate(0,-14)' },
+    tent:    { he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 50, pose: 'sit', catT: 'translate(12,19) scale(0.8)' }
+  };
+  const ITEM_ORDER = ['cushion', 'ball', 'box', 'yarn', 'basket', 'tent'];
+
+  /* ---------- Cats ---------- */
+  const CATS = {
+    tapuz:  { he: 'תַּפּוּז', tr: 'Tapuz', en: 'orange', body: '#F2A65A', stripe: '#D47A34', belly: '#FCE3C4', iris: '#E0A526', pattern: 'tabby', rarity: 1, likes: { cushion: 3, ball: 2 }, gift: [1, 3] },
+    pilpel: { he: 'פִּלְפֵּל', tr: 'Pilpel', en: 'pepper', body: '#3B3536', belly: '#4A4344', iris: '#F2D04B', ear: '#9A6A70', whisker: '#D8CFC6', pattern: 'solid', rarity: 1, likes: { box: 3, tent: 2 }, gift: [1, 3] },
+    sheleg: { he: 'שֶׁלֶג', tr: 'Sheleg', en: 'snow', body: '#FBF8F3', belly: '#FFFFFF', iris: '#79B4E6', pattern: 'solid', rarity: .8, likes: { basket: 3, cushion: 2 }, gift: [1, 3] },
+    dvash:  { he: 'דְּבַשׁ', tr: 'Dvash', en: 'honey', body: '#EDCF9F', stripe: '#D3A764', belly: '#FFF3DF', iris: '#8BBF5A', pattern: 'tabby', rarity: .9, likes: { yarn: 3, ball: 2 }, gift: [1, 3] },
+    shoko:  { he: 'שׁוֹקוֹ', tr: 'Shoko', en: 'chocolate milk', body: '#7A5236', belly: '#C9A27E', paw: '#FFF6EA', iris: '#8BBF5A', pattern: 'solid', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
+    rimon:  { he: 'רִמּוֹן', tr: 'Rimon', en: 'pomegranate', body: '#FFF8EF', belly: '#FFFFFF', patchA: '#E08A3C', patchB: '#3B3536', iris: '#8BBF5A', pattern: 'calico', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
+    kokhav: { he: 'כּוֹכָב', tr: 'Kokhav', en: 'star', body: '#9AA4AE', belly: '#E5E8EB', iris: '#F2D04B', pattern: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] }
+  };
+  const CAT_ORDER = ['tapuz', 'pilpel', 'sheleg', 'dvash', 'shoko', 'rimon', 'kokhav'];
+
+  /* Spot positions in the yard: x = centre (%), y = bottom edge (%) */
+  const SPOTS = [
+    { x: 20, y: 58, back: true }, { x: 50, y: 54, back: true }, { x: 80, y: 58, back: true },
+    { x: 21, y: 90 }, { x: 51, y: 94 }, { x: 80, y: 90 }
+  ];
+
+  /* ---------- Storage (falls back to memory if the browser blocks it) ---------- */
+  const mem = {};
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return k in mem ? mem[k] : null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } },
+    remove(k) { try { localStorage.removeItem(k); } catch (e) { delete mem[k]; } }
+  };
+  function getFish() {
+    const n = parseInt(store.get(FISH_KEY) || '0', 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function setFish(n) { store.set(FISH_KEY, String(Math.max(0, Math.floor(n)))); renderWallet(true); }
+
+  function freshState() {
+    return { owned: [], spots: [null, null, null, null, null, null], visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false };
+  }
+  function load() {
+    const s = freshState();
+    try {
+      const raw = store.get(SAVE_KEY);
+      if (raw) Object.assign(s, JSON.parse(raw));
+    } catch (e) { /* corrupted save: start fresh */ }
+    while (s.spots.length < SPOTS.length) s.spots.push(null);
+    return s;
+  }
+  let state = load();
+  function save() { store.set(SAVE_KEY, JSON.stringify(state)); }
+
+  /* ---------- Helpers ---------- */
+  const $ = (id) => document.getElementById(id);
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const randInt = (a, b) => Math.floor(rand(a, b + 1));
+  const heSpan = (t) => `<span class="he" lang="he">${t}</span>`;
+  function starPts(cx, cy, R, r) {
+    const p = [];
+    for (let i = 0; i < 10; i++) {
+      const rad = i % 2 ? r : R, a = -Math.PI / 2 + i * Math.PI / 5;
+      p.push((cx + rad * Math.cos(a)).toFixed(1) + ',' + (cy + rad * Math.sin(a)).toFixed(1));
+    }
+    return p.join(' ');
+  }
+
+  /* ---------- Drawing: cats ---------- */
+  function catSit(c, play) {
+    const paw = c.paw || c.body, ear = c.ear || '#F4B3B3', wh = c.whisker || OUT;
+    const tailD = 'M78 88 C100 88 106 66 96 54';
+    let s = `<g class="tail"><path d="${tailD}" fill="none" stroke="${OUT}" stroke-width="12" stroke-linecap="round"/><path d="${tailD}" fill="none" stroke="${c.body}" stroke-width="7" stroke-linecap="round"/></g>`;
+    s += `<path d="M60 52 C40 52 34 72 36 86 C37 95 48 97 60 97 C72 97 83 95 84 86 C86 72 80 52 60 52 Z" fill="${c.body}" stroke="${OUT}" stroke-width="2.5"/>`;
+    s += `<ellipse cx="60" cy="80" rx="12" ry="14" fill="${c.belly}"/>`;
+    if (c.pattern === 'tabby') s += `<g stroke="${c.stripe}" stroke-width="3" stroke-linecap="round"><path d="M38 68 L46 70"/><path d="M37 78 L45 78"/><path d="M82 68 L74 70"/><path d="M83 78 L75 78"/></g>`;
+    if (c.pattern === 'calico') s += `<ellipse cx="46" cy="76" rx="8" ry="9" fill="${c.patchA}"/><ellipse cx="74" cy="67" rx="5.5" ry="6.5" fill="${c.patchB}"/>`;
+    s += `<ellipse cx="51" cy="95" rx="7" ry="4.5" fill="${paw}" stroke="${OUT}" stroke-width="2.2"/>`;
+    if (!play) {
+      s += `<ellipse cx="69" cy="95" rx="7" ry="4.5" fill="${paw}" stroke="${OUT}" stroke-width="2.2"/>`;
+    } else {
+      const legD = 'M70 86 Q80 76 86 66';
+      s += `<g class="swat"><path d="${legD}" fill="none" stroke="${OUT}" stroke-width="11" stroke-linecap="round"/><path d="${legD}" fill="none" stroke="${paw}" stroke-width="6.5" stroke-linecap="round"/></g>`;
+    }
+    // head
+    s += `<g class="head${play ? ' tilt' : ''}">`;
+    s += `<path d="M38 34 L40 12 L56 24 Z" fill="${c.body}" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/><path d="M42 29 L43 18 L52 25 Z" fill="${ear}"/>`;
+    s += `<g class="ear-r"><path d="M82 34 L80 12 L64 24 Z" fill="${c.body}" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/><path d="M78 29 L77 18 L68 25 Z" fill="${ear}"/></g>`;
+    s += `<ellipse cx="60" cy="38" rx="25" ry="21" fill="${c.body}" stroke="${OUT}" stroke-width="2.5"/>`;
+    if (c.pattern === 'tabby') s += `<g stroke="${c.stripe}" stroke-width="3" stroke-linecap="round"><path d="M60 19 L60 26"/><path d="M53 20 L55 26"/><path d="M67 20 L65 26"/></g>`;
+    if (c.pattern === 'calico') s += `<ellipse cx="70" cy="29" rx="9" ry="7" fill="${c.patchA}"/><ellipse cx="49" cy="30" rx="6" ry="5" fill="${c.patchB}"/>`;
+    if (c.pattern === 'star') s += `<polygon points="${starPts(60, 25, 5, 2.2)}" fill="#FFFFFF"/>`;
+    s += `<circle cx="45" cy="46" r="4" fill="#F28C9B" opacity=".35"/><circle cx="75" cy="46" r="4" fill="#F28C9B" opacity=".35"/>`;
+    const pupil = play ? 'rx="2.6" ry="3.2"' : 'rx="1.6" ry="3.6"';
+    s += `<g class="eyes">`;
+    [51, 69].forEach((x) => {
+      s += `<ellipse cx="${x}" cy="38" rx="4.6" ry="5.2" fill="${c.iris}" stroke="${OUT}" stroke-width="1.4"/><ellipse cx="${x}" cy="38.4" ${pupil} fill="#231B17"/><circle cx="${x + 1.4}" cy="36" r="1.2" fill="#fff"/>`;
+    });
+    s += `</g>`;
+    s += `<path d="M57 45 L63 45 L60 48.5 Z" fill="#E88F96" stroke="${OUT}" stroke-width="1" stroke-linejoin="round"/>`;
+    s += `<path d="M60 48.5 Q57.5 52 54.5 50 M60 48.5 Q62.5 52 65.5 50" fill="none" stroke="${OUT}" stroke-width="1.6" stroke-linecap="round"/>`;
+    s += `<g stroke="${wh}" stroke-width="1.2" stroke-linecap="round" opacity=".65"><path d="M44 45 L29 42"/><path d="M44 48 L29 50"/><path d="M76 45 L91 42"/><path d="M76 48 L91 50"/></g>`;
+    s += `</g>`;
+    return s;
+  }
+
+  function catSleep(c) {
+    const paw = c.paw || c.body, ear = c.ear || '#F4B3B3';
+    let s = `<g class="breathe"><ellipse cx="66" cy="80" rx="36" ry="18" fill="${c.body}" stroke="${OUT}" stroke-width="2.5"/>`;
+    if (c.pattern === 'tabby') s += `<g stroke="${c.stripe}" stroke-width="3.2" stroke-linecap="round" fill="none"><path d="M62 63 Q64 69 60 74"/><path d="M74 63 Q76 69 72 74"/><path d="M86 66 Q88 72 84 76"/></g>`;
+    if (c.pattern === 'calico') s += `<ellipse cx="62" cy="72" rx="11" ry="7" fill="${c.patchA}"/><ellipse cx="86" cy="78" rx="8" ry="6" fill="${c.patchB}"/>`;
+    s += `</g>`;
+    s += `<path d="M21 72 L17 53 L33 63 Z" fill="${c.body}" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/><path d="M22 67 L20 57 L29 63 Z" fill="${ear}"/>`;
+    s += `<path d="M38 62 L46 49 L51 66 Z" fill="${c.body}" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/><path d="M40 62 L45 54 L48 64 Z" fill="${ear}"/>`;
+    s += `<ellipse cx="36" cy="77" rx="20" ry="16" fill="${c.body}" stroke="${OUT}" stroke-width="2.5"/>`;
+    if (c.pattern === 'tabby') s += `<g stroke="${c.stripe}" stroke-width="3" stroke-linecap="round"><path d="M33 63 L34 68"/><path d="M39 63 L38 68"/></g>`;
+    if (c.pattern === 'calico') s += `<ellipse cx="29" cy="70" rx="7" ry="5" fill="${c.patchA}"/>`;
+    if (c.pattern === 'star') s += `<polygon points="${starPts(36, 67, 4.5, 2)}" fill="#FFFFFF"/>`;
+    s += `<circle cx="25" cy="83" r="3.5" fill="#F28C9B" opacity=".35"/><circle cx="47" cy="83" r="3.5" fill="#F28C9B" opacity=".35"/>`;
+    s += `<path d="M26 78 Q29.5 81 33 78 M39 78 Q42.5 81 46 78" fill="none" stroke="${OUT}" stroke-width="1.8" stroke-linecap="round"/>`;
+    s += `<path d="M34 84 L38 84 L36 86.5 Z" fill="#E88F96"/>`;
+    s += `<ellipse cx="51" cy="92" rx="8" ry="4" fill="${paw}" stroke="${OUT}" stroke-width="2.2"/>`;
+    const tailD = 'M100 84 C112 98 72 101 46 97';
+    s += `<g class="tail-sleep"><path d="${tailD}" fill="none" stroke="${OUT}" stroke-width="12" stroke-linecap="round"/><path d="${tailD}" fill="none" stroke="${c.body}" stroke-width="7" stroke-linecap="round"/></g>`;
+    s += `<g class="zzz" fill="${OUT}" font-family="Fredoka, sans-serif" font-weight="600"><text x="58" y="56" font-size="9">z</text><text x="66" y="46" font-size="12">z</text></g>`;
+    return s;
+  }
+
+  function catSVG(id, pose, extra) {
+    const c = CATS[id];
+    const d = (-Math.random() * 4).toFixed(2) + 's';
+    const inner = pose === 'sleep' ? catSleep(c) : catSit(c, pose === 'play');
+    return `<g class="cat ${extra || ''}" style="--d:${d}">${inner}</g>`;
+  }
+
+  /* ---------- Drawing: items ---------- */
+  function itemBack(id) {
+    let s = `<ellipse cx="60" cy="98" rx="46" ry="4.5" fill="rgba(40,60,20,.18)"/>`;
+    if (id === 'cushion') {
+      s += `<rect x="14" y="80" width="92" height="18" rx="9" fill="#EE93A3" stroke="${OUT}" stroke-width="2.5"/>`;
+      s += `<path d="M22 85 Q60 79 98 85" stroke="#F7B9C4" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+      s += `<g fill="#C9657A"><circle cx="40" cy="91" r="1.8"/><circle cx="60" cy="92" r="1.8"/><circle cx="80" cy="91" r="1.8"/></g>`;
+    } else if (id === 'basket') {
+      s += `<ellipse cx="60" cy="74" rx="46" ry="8" fill="#8B5A2B" stroke="${OUT}" stroke-width="2.5"/>`;
+    } else if (id === 'box') {
+      s += `<path d="M24 64 L32 52 L88 52 L96 64 Z" fill="#9E6B3A" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    } else if (id === 'tent') {
+      s += `<path d="M60 16 L60 9" stroke="${OUT}" stroke-width="2"/><path d="M60 9 L71 12.5 L60 16 Z" fill="#F2C14E" stroke="${OUT}" stroke-width="1.2" stroke-linejoin="round"/>`;
+      s += `<path d="M8 98 L60 16 L112 98 Z" fill="#8DC0B4" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      s += `<path d="M36 98 L60 50 L84 98 Z" fill="#3E625B"/>`;
+      s += `<path d="M60 18 L60 50" stroke="#6FA396" stroke-width="2"/>`;
+    }
+    return s;
+  }
+  function itemFront(id) {
+    if (id === 'basket') {
+      return `<path d="M14 74 Q60 86 106 74 L98 97 Q60 101 22 97 Z" fill="#C98B4E" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/>` +
+        `<g stroke="#9C6531" stroke-width="1.6" fill="none"><path d="M19 84 Q60 94 101 84"/><path d="M22 91 Q60 100 98 91"/><path d="M40 81 L38 98"/><path d="M60 83 L60 99"/><path d="M80 81 L82 98"/></g>`;
+    }
+    if (id === 'box') {
+      return `<path d="M24 64 L8 57 L13 50 L30 58 Z" fill="#C88F50" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/>` +
+        `<path d="M96 64 L112 57 L107 50 L90 58 Z" fill="#C88F50" stroke="${OUT}" stroke-width="2.5" stroke-linejoin="round"/>` +
+        `<rect x="24" y="64" width="72" height="34" rx="2" fill="#D9A465" stroke="${OUT}" stroke-width="2.5"/>` +
+        `<rect x="52" y="65.5" width="16" height="10" fill="#EBD3A8" opacity=".85"/>`;
+    }
+    if (id === 'yarn') {
+      return `<g class="wobble"><path d="M88 94 Q70 100 52 97" fill="none" stroke="#6E98CF" stroke-width="2" stroke-linecap="round"/>` +
+        `<circle cx="99" cy="87" r="11" fill="#86AEE0" stroke="${OUT}" stroke-width="2.5"/>` +
+        `<path d="M90 82 Q99 88 107 80 M89 89 Q99 95 109 88 M95 77 Q100 88 96 97" fill="none" stroke="#5E88C2" stroke-width="1.6"/></g>`;
+    }
+    if (id === 'ball') {
+      return `<g class="wobble"><circle cx="100" cy="89" r="9" fill="#E9705F" stroke="${OUT}" stroke-width="2.5"/>` +
+        `<path d="M91.5 86 Q100 91 108.5 86" fill="none" stroke="#FFF5E8" stroke-width="3"/></g>`;
+    }
+    return '';
+  }
+  function itemSVG(id) { return `<svg viewBox="0 0 120 100" aria-hidden="true">${itemBack(id)}${itemFront(id)}</svg>`; }
+  function portraitSVG(catId, sil) { return `<svg viewBox="0 0 120 100" class="${sil ? 'sil' : ''}" aria-hidden="true">${catSVG(catId, 'sit')}</svg>`; }
+
+  /* ---------- Yard scene ---------- */
+  const PALETTES = {
+    day:     { sky1: '#A9DBF3', sky2: '#E3F4FA', sun: '#FFD66B', hill: '#B5D99A', grass: '#9DCC6E', grass2: '#B2D985', fence: '#F3E3C8', cloud: .9, stars: 0 },
+    evening: { sky1: '#F29E7A', sky2: '#FBDDB8', sun: '#FFB25B', hill: '#A9C98A', grass: '#8FBC64', grass2: '#A1C877', fence: '#EBD3B0', cloud: .6, stars: 0 },
+    night:   { sky1: '#26305A', sky2: '#4B5A8C', sun: '#F2EBC9', hill: '#4E6B57', grass: '#56824C', grass2: '#62905A', fence: '#A99A88', cloud: .12, stars: .9 }
+  };
+  function drawScene() {
+    let pickets = '';
+    for (let x = 1; x < 160; x += 8) pickets += `<path d="M${x} 45 V28 L${x + 3} 24.5 L${x + 6} 28 V45 Z"/>`;
+    let stars = '';
+    [[12, 8], [30, 15], [52, 6], [75, 12], [98, 5], [112, 18], [146, 26], [88, 22]].forEach(([x, y]) => { stars += `<circle cx="${x}" cy="${y}" r=".8"/>`; });
+    $('scene').innerHTML = `
+      <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" style="stop-color:var(--sky1)"/><stop offset="1" style="stop-color:var(--sky2)"/>
+      </linearGradient></defs>
+      <rect width="160" height="110" fill="url(#sky)"/>
+      <g fill="#fff" style="opacity:var(--stars)">${stars}</g>
+      <circle cx="132" cy="13" r="7" style="fill:var(--sun)"/>
+      <g fill="#fff" style="opacity:var(--cloud)">
+        <ellipse cx="28" cy="13" rx="10" ry="4"/><ellipse cx="35" cy="10" rx="7" ry="4.5"/>
+        <ellipse cx="92" cy="19" rx="9" ry="3.4"/><ellipse cx="98" cy="16.5" rx="6" ry="3.5"/>
+      </g>
+      <path d="M0 36 Q25 25 55 33 T110 31 T160 29 V46 H0Z" style="fill:var(--hill)"/>
+      <g style="fill:var(--fence)" stroke="${OUT}" stroke-width=".6" stroke-linejoin="round">
+        <rect x="0" y="30" width="160" height="2.6"/><rect x="0" y="38.5" width="160" height="2.6"/>${pickets}
+      </g>
+      <rect x="0" y="44" width="160" height="66" style="fill:var(--grass)"/>
+      <g style="fill:var(--grass2)">
+        <ellipse cx="35" cy="56" rx="22" ry="4"/><ellipse cx="120" cy="60" rx="26" ry="4.5"/>
+        <ellipse cx="80" cy="78" rx="30" ry="5"/><ellipse cx="22" cy="102" rx="24" ry="4"/><ellipse cx="140" cy="100" rx="22" ry="4"/>
+      </g>
+      <g stroke="${OUT}" stroke-width=".5">
+        <circle cx="8" cy="47" r="1.6" fill="#F7E07A"/><circle cx="12" cy="49" r="1.4" fill="#F4A6B8"/>
+        <circle cx="150" cy="48" r="1.6" fill="#F4A6B8"/><circle cx="154" cy="46" r="1.4" fill="#FFFFFF"/>
+        <circle cx="66" cy="47" r="1.3" fill="#FFFFFF"/>
+      </g>`;
+  }
+  function applyTimeOfDay() {
+    const h = new Date().getHours();
+    const key = (h >= 7 && h < 17) ? 'day' : ((h >= 17 && h < 20) || (h >= 5 && h < 7)) ? 'evening' : 'night';
+    const p = PALETTES[key], el = $('yard');
+    Object.keys(p).forEach((k) => el.style.setProperty('--' + k, p[k]));
+  }
+
+  /* ---------- Visiting logic ---------- */
+  function pickCat(itemId, present) {
+    const pool = CAT_ORDER.filter((id) => !present.has(id)).map((id) => {
+      const c = CATS[id];
+      return { id, w: c.rarity * (c.likes[itemId] || 0.4) };
+    });
+    const total = pool.reduce((a, b) => a + b.w, 0);
+    if (!total) return null;
+    let r = Math.random() * total;
+    for (const p of pool) { r -= p.w; if (r <= 0) return p.id; }
+    return pool[pool.length - 1].id;
+  }
+
+  function simulate(now) {
+    const ev = { arrived: [], changed: false, span: 0 };
+    if (state.lastCheck == null) { state.lastCheck = now; ev.changed = true; return ev; }
+    const span = Math.max(0, Math.min(now - state.lastCheck, MAX_AWAY_HOURS * 3600e3));
+    const start = now - span;
+    ev.span = span;
+
+    // Cats whose time is up leave a gift.
+    Object.keys(state.visitors).forEach((k) => {
+      const v = state.visitors[k];
+      if (now >= v.leave || !state.spots[k]) {
+        state.gifts += v.gift;
+        delete state.visitors[k];
+        ev.changed = true;
+      }
+    });
+
+    // Empty items may attract a new cat.
+    const present = new Set(Object.values(state.visitors).map((v) => v.cat));
+    if (span > 0) {
+      state.spots.forEach((itemId, i) => {
+        if (!itemId || state.visitors[i]) return;
+        const p = 1 - Math.exp(-span / (ARRIVAL_MINUTES * 60e3));
+        if (Math.random() >= p) return;
+        const cat = pickCat(itemId, present);
+        if (!cat) return;
+        present.add(cat);
+        const arrive = start + Math.random() * span;
+        const leave = arrive + rand(STAY_MIN, STAY_MAX) * 60e3;
+        const gift = randInt(CATS[cat].gift[0], CATS[cat].gift[1]);
+        state.seen[cat] = (state.seen[cat] || 0) + 1;
+        ev.arrived.push(cat);
+        ev.changed = true;
+        if (leave <= now) state.gifts += gift;            // came and went while you were away
+        else state.visitors[i] = { cat, arrive, leave, gift, fresh: true };
+      });
+    }
+    state.lastCheck = now;
+    return ev;
+  }
+
+  function tick(summary) {
+    const ev = simulate(Date.now());
+    if (ev.changed) { save(); renderYard(); renderAlbum(); renderWallet(); }
+    if (!ev.arrived.length) return;
+    if (summary && ev.span > 60e3) {
+      const n = ev.arrived.length;
+      toast(`While you were away, ${n} cat${n > 1 ? 's' : ''} visited.`);
+    } else {
+      ev.arrived.forEach((id) => toast(`${heSpan(CATS[id].he)} ${CATS[id].tr} came to visit!`));
+    }
+  }
+
+  /* ---------- Rendering ---------- */
+  function renderWallet(bump) {
+    const el = $('fish');
+    el.textContent = '🐟 ' + getFish();
+    if (bump) { el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 220); }
+    const g = $('giftBtn');
+    g.hidden = !state.gifts;
+    g.textContent = `🎁 Collect ${state.gifts}`;
+    renderShop();
+    renderHint();
+  }
+
+  function renderHint() {
+    const placed = state.spots.some(Boolean);
+    const unplaced = state.owned.filter((id) => !state.spots.includes(id));
+    let t;
+    if (!state.owned.length) t = 'Buy something from the shop below, then tap a spot in the yard to put it out.';
+    else if (unplaced.length) t = 'Tap an empty spot in the yard to put out what you bought.';
+    else if (placed && !Object.keys(state.visitors).length) t = 'Cats wander in over time. Go practice and check back later.';
+    else t = 'Tap a cat to meet it. Cats leave fish as a thank-you when they go.';
+    $('hint').textContent = t;
+  }
+
+  function renderYard() {
+    $('spots').innerHTML = SPOTS.map((p, i) => {
+      const itemId = state.spots[i], v = state.visitors[i];
+      let inner, label;
+      if (!itemId) {
+        inner = `<g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(255,255,255,.22)" stroke="#fff" stroke-width="2" stroke-dasharray="5 5"/>` +
+          `<path d="M60 84 V96 M54 90 H66" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></g>`;
+        label = 'Empty spot. Put out an item.';
+      } else {
+        const it = ITEMS[itemId];
+        inner = itemBack(itemId);
+        if (v) inner += `<g transform="${it.catT}">${catSVG(v.cat, it.pose, v.fresh ? 'cat-in' : '')}</g>`;
+        inner += itemFront(itemId);
+        label = v ? `${CATS[v.cat].tr} on the ${it.en}` : `${it.tr} (${it.en})`;
+        if (v) v.fresh = false;
+      }
+      return `<button class="spot${p.back ? ' back' : ''}" data-i="${i}" aria-label="${label}" style="left:${p.x}%;bottom:${100 - p.y}%;z-index:${p.y}"><svg viewBox="0 0 120 100">${inner}</svg></button>`;
+    }).join('');
+    renderHint();
+  }
+
+  function renderShop() {
+    const fish = getFish();
+    $('shop').innerHTML = ITEM_ORDER.map((id) => {
+      const it = ITEMS[id];
+      const owned = state.owned.includes(id);
+      const action = owned
+        ? `<div class="tag">${state.spots.includes(id) ? 'In your yard' : 'Owned'}</div>`
+        : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>Buy for ${it.price} 🐟</button>`;
+      return `<div class="card">${itemSVG(id)}${heSpan(it.he)}<div class="tr">${it.tr}</div><div class="en">${it.en}</div>${action}</div>`;
+    }).join('');
+  }
+
+  function renderAlbum() {
+    $('album').innerHTML = CAT_ORDER.map((id) => {
+      const c = CATS[id], n = state.seen[id] || 0;
+      if (!n) return `<div class="card">${portraitSVG(id, true)}<div class="he">?</div><div class="tr">Not met yet</div><div class="en">&nbsp;</div></div>`;
+      const fav = Object.keys(c.likes).sort((a, b) => c.likes[b] - c.likes[a])[0];
+      return `<div class="card">${portraitSVG(id)}${heSpan(c.he)}<div class="tr">${c.tr}</div><div class="en">“${c.en}”</div>` +
+        `<div class="muted" style="font-size:.88rem">Visits: ${n}<br>Loves the ${heSpan(ITEMS[fav].he)}</div></div>`;
+    }).join('');
+  }
+
+  /* ---------- Sheet (bottom panel) ---------- */
+  let sheetSpot = null;
+  function openSheet(html) {
+    $('sheet').innerHTML = html;
+    $('overlay').hidden = false;
+    const first = $('sheet').querySelector('button');
+    if (first) first.focus();
+  }
+  function closeSheet() { $('overlay').hidden = true; sheetSpot = null; }
+
+  function openSpot(i) {
+    sheetSpot = i;
+    const itemId = state.spots[i], v = state.visitors[i];
+    if (v) {
+      const c = CATS[v.cat], it = ITEMS[itemId];
+      const mins = Math.max(1, Math.round((v.leave - Date.now()) / 60e3));
+      const doing = it.pose === 'sleep' ? 'napping' : it.pose === 'play' ? 'playing' : 'sitting';
+      openSheet(`<div class="portrait">${portraitSVG(v.cat)}<div>
+          <span class="he big" lang="he">${c.he}</span>
+          <h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
+          <p>${doing[0].toUpperCase() + doing.slice(1)} on the ${heSpan(it.he)} (${it.tr}). Staying about ${mins} more minute${mins > 1 ? 's' : ''}.</p>
+        </div></div>
+        <div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+    } else if (itemId) {
+      const it = ITEMS[itemId];
+      openSheet(`<div class="portrait">${itemSVG(itemId)}<div>
+          <span class="he big" lang="he">${it.he}</span><h2>${it.tr}</h2><div class="muted">${it.en}</div>
+          <p>No one here yet. Cats find items on their own.</p></div></div>
+        <div class="row"><button class="btn plain" data-act="remove">Put it away</button><button class="btn" data-act="close">Close</button></div>`);
+    } else {
+      const free = state.owned.filter((id) => !state.spots.includes(id));
+      const body = free.length
+        ? `<div class="pick">${free.map((id) => `<button data-place="${id}">${itemSVG(id)}${heSpan(ITEMS[id].he)}<span>${ITEMS[id].tr}</span></button>`).join('')}</div>`
+        : `<p class="muted">${state.owned.length ? 'Everything you own is already out in the yard.' : 'You don’t own any items yet.'} Buy one in the shop below.</p>`;
+      openSheet(`<h2>Put out an item</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+    }
+  }
+
+  /* ---------- Toasts ---------- */
+  function toast(html) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = html;
+    $('toasts').appendChild(t);
+    setTimeout(() => t.remove(), 3900);
+  }
+
+  /* ---------- Events ---------- */
+  $('spots').addEventListener('click', (e) => {
+    const b = e.target.closest('.spot');
+    if (b) openSpot(+b.dataset.i);
+  });
+
+  $('sheet').addEventListener('click', (e) => {
+    const place = e.target.closest('[data-place]');
+    const act = e.target.closest('[data-act]');
+    if (place && sheetSpot != null) {
+      state.spots[sheetSpot] = place.dataset.place;
+      save(); closeSheet(); renderYard(); renderShop();
+    } else if (act && act.dataset.act === 'remove' && sheetSpot != null) {
+      state.spots[sheetSpot] = null;
+      save(); closeSheet(); renderYard(); renderShop();
+    } else if (act) {
+      closeSheet();
+    }
+  });
+  $('overlay').addEventListener('click', (e) => { if (e.target.id === 'overlay') closeSheet(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('overlay').hidden) closeSheet(); });
+
+  $('shop').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-buy]');
+    if (!b) return;
+    const id = b.dataset.buy, it = ITEMS[id], fish = getFish();
+    if (state.owned.includes(id) || fish < it.price) return;
+    state.owned.push(id);
+    save();
+    setFish(fish - it.price);
+    toast(`Bought ${heSpan(it.he)} ${it.tr}! Tap a spot in the yard to put it out.`);
+  });
+
+  $('giftBtn').addEventListener('click', () => {
+    const n = state.gifts;
+    if (!n) return;
+    state.gifts = 0;
+    save();
+    setFish(getFish() + n);
+    toast(`Collected ${n} 🐟 from your visitors.`);
+  });
+
+  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', x === t ? 'true' : 'false'));
+    $('shop').hidden = t.dataset.tab !== 'shop';
+    $('album').hidden = t.dataset.tab !== 'album';
+  }));
+
+  // If hwg or hbt adds fish in another tab, update the count here.
+  window.addEventListener('storage', (e) => { if (e.key === FISH_KEY) renderWallet(true); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { applyTimeOfDay(); renderWallet(); tick(true); } });
+
+  /* ---------- Testing tools (visit /yard/?test) ---------- */
+  if (/[?&]test\b/.test(location.search)) {
+    $('test').hidden = false;
+    $('test').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-test]');
+      if (!b) return;
+      if (b.dataset.test === 'fish') setFish(getFish() + 10);
+      if (b.dataset.test === 'skip') {
+        const ms = 30 * 60e3;
+        if (state.lastCheck != null) state.lastCheck -= ms;
+        Object.values(state.visitors).forEach((v) => { v.arrive -= ms; v.leave -= ms; });
+        tick(true);
+      }
+      if (b.dataset.test === 'reset' && confirm('Erase your yard, cats, and fish?')) {
+        store.remove(SAVE_KEY); store.remove(FISH_KEY);
+        state = freshState(); start();
+      }
+    });
+  }
+
+  /* ---------- Start ---------- */
+  function start() {
+    if (!state.welcomed) {
+      state.welcomed = true;
+      save();
+      setFish(getFish() + WELCOME_FISH);
+      toast(`Welcome to your yard! Here are ${WELCOME_FISH} 🐟 to start.`);
+    }
+    applyTimeOfDay();
+    renderYard();
+    renderAlbum();
+    renderWallet();
+    tick(true);
+  }
+  drawScene();
+  start();
+  setInterval(() => { applyTimeOfDay(); tick(false); }, TICK_MS);
+})();
+</script>
+</body>
+</html>
