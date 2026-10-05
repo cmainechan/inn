@@ -7,11 +7,13 @@ Reads yard/raw/ and writes:
   objects/<item>.webp
   objects/<item>-front.webp      items listed in FRONT_WALLS
   combos/<cat>/<item>.webp       one image per cat on one object (from raw/combos/)
-  scene/<name>.webp              backgrounds (from raw/scene/)
+  scene/<name>.webp              backgrounds (from raw/scene/), 16:11
+  scene/room-<id>.webp           room pictures (from raw/scene/room-<id>.png), 9:16
 
 Raw names:
   raw/<cat>-<pose>[-<n>].png     e.g. tapuz-sit.png, tapuz-sleep-2.png
   raw/<item>.png                 e.g. box.png
+  raw/scene/room-<id>.png        e.g. room-zashiki.png (see ROOM_IDS in index.html)
 
 Usage (from anywhere):
   python3 yard/tools/process_art.py [--sheet PATH]
@@ -35,6 +37,9 @@ SCENE_OUT = YARD / 'scene'
 COMBO_OUT = YARD / 'combos'
 SCENE_SIZE = (1280, 880)   # 16:11, the yard's shape
 SCENE_QUALITY = 88
+ROOM_SIZE = (1080, 1920)   # 9:16 portrait, one room of the ryokan (the rooms game in index.html)
+ROOM_QUALITY = 88
+ROOM_PREFIX = 'room-'      # raw/scene/room-<id>.png -> scene/room-<id>.webp
 
 W, H = 480, 400
 BASELINE_PAD = 12     # px between the lowest cat/item pixel and the canvas bottom
@@ -70,9 +75,11 @@ FRONT_CURVES = {
 FRONT_WALLS = {
 }
 
-POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half)(?:-(?P<n>\d+))?$')
+POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak)(?:-(?P<n>\d+))?$')
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
+# Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
+ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration'}
 
 
 # ---------- background removal ----------
@@ -379,6 +386,9 @@ def main():
     for alias, source in ITEM_SOURCE.items():
         if source in items:
             items[alias] = items[source]
+    for alias, raw_name in ITEM_RAW_NAME.items():
+        if raw_name in items:
+            items[alias] = items.pop(raw_name)
 
     log = print
     sheet_rows = []
@@ -416,12 +426,24 @@ def main():
 
     for path in sorted((RAW / 'scene').glob('*.png')):
         # Scenes are full-bleed backgrounds: resize only, no background removal.
+        # Room pictures are 9:16 and get their own size below.
+        if path.stem.startswith(ROOM_PREFIX):
+            continue
         log(f'scene {path.name}')
         img = Image.open(path).convert('RGB').resize(SCENE_SIZE, Image.Resampling.LANCZOS)
         out = SCENE_OUT / f'{path.stem}.webp'
         out.parent.mkdir(parents=True, exist_ok=True)
         img.save(out, 'WEBP', quality=SCENE_QUALITY, method=6)
         log(f'  -> {out.relative_to(YARD)} {SCENE_SIZE[0]}x{SCENE_SIZE[1]}')
+
+    for path in sorted((RAW / 'scene').glob(f'{ROOM_PREFIX}*.png')):
+        # Each room is a 9:16 portrait picture. The generator gives 941 x 1672, so 1080 x 1920 is an upscale.
+        log(f'room {path.name}')
+        img = Image.open(path).convert('RGB').resize(ROOM_SIZE, Image.Resampling.LANCZOS)
+        out = SCENE_OUT / f'{path.stem}.webp'
+        out.parent.mkdir(parents=True, exist_ok=True)
+        img.save(out, 'WEBP', quality=ROOM_QUALITY, method=6)
+        log(f'  -> {out.relative_to(YARD)} {ROOM_SIZE[0]}x{ROOM_SIZE[1]}')
 
     if sheet_rows:
         contact_sheet(sheet_rows, Path(args.sheet))

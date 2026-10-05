@@ -7,7 +7,7 @@ The game is `index.html` (open `/index.html?test`). It currently uses low-resolu
 - Four rooms side by side. The player swipes left and right between them, like walking through the inn.
 - Each room is a **portrait picture, 9:16**. On a phone it fills the screen. On a desktop it is a centred strip with the next room peeking in at the side.
 - Items belong to one room. A cat only visits items in that room, so each room has its own shop and its own regulars.
-- **Four item spots per room**, in the same places in every room (see `guides/room-layout-guide.png`). The shop has four items per room.
+- **Four item spots per room**, in the same places in every room (see `guides/room-layout-guide.png`). The shop has up to 10 items per room. Each room has four spots, so a room shows at most four items on the floor at once.
 
 ## Rooms (all Japanese names)
 

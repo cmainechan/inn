@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐈</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --paper: #FFFEF6;
@@ -28,13 +28,13 @@
     font-family: "Fredoka", "Trebuchet MS", system-ui, sans-serif; font-size: 17px; line-height: 1.4;
     -webkit-tap-highlight-color: transparent;
   }
-  .he { font-family: "Frank Ruhl Libre", "Times New Roman", "David", serif; direction: rtl; unicode-bidi: isolate; font-weight: 700; }
+  /* Japanese text: room, item and cat names. */
+  .ja { font-family: "Zen Maru Gothic", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; font-weight: 700; }
 
   /* ---------- The world: four rooms side by side, swipe to move ---------- */
   #world {
     position: fixed; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
-    padding-inline: calc((100vw - var(--W)) / 2);
   }
   #world::-webkit-scrollbar { display: none; }
   .room {
@@ -90,7 +90,7 @@
   .fish { background: var(--pond); color: #fff; min-width: 76px; text-align: center; transition: transform .2s; }
   .fish.bump { transform: scale(1.15); }
   #roomName { text-align: center; line-height: 1.15; padding: 3px 16px; }
-  #roomName .he { display: block; font-size: 1.35rem; color: var(--leaf); }
+  #roomName .ja { display: block; font-size: 1.35rem; color: var(--leaf); }
   #roomName small { color: var(--muted); font-weight: 500; font-size: .78rem; }
   .btn {
     font: inherit; font-weight: 600; color: var(--ink); background: var(--sun);
@@ -106,14 +106,14 @@
     font: inherit; color: var(--ink); cursor: pointer; border: 2.5px solid var(--ink); border-radius: 999px;
     background: rgba(255, 254, 246, .75); padding: 2px 12px; font-size: .85rem; font-weight: 600; line-height: 1.5;
   }
-  .dot .he { font-size: 1rem; }
+  .dot .ja { font-size: 1rem; }
   .dot[aria-current="true"] { background: var(--sun); }
   .dock { display: flex; gap: 10px; }
   .nav {
     position: fixed; top: 50%; z-index: 10; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%;
     border: 2.5px solid var(--ink); background: rgba(255, 254, 246, .9); font-size: 1.4rem; cursor: pointer; display: none; color: var(--ink);
   }
-  .nav.l { left: calc((100vw - var(--W)) / 2 - 56px); } .nav.r { right: calc((100vw - var(--W)) / 2 - 56px); }
+  .nav.l { left: 10px; } .nav.r { right: 10px; }
   @media (hover: hover) and (min-width: 700px) { .nav { display: block; } }
   .nav:disabled { opacity: .3; cursor: default; }
 
@@ -127,13 +127,14 @@
   .sheet h2 { margin: 0 0 4px; font-weight: 600; font-size: 1.25rem; }
   .sheet .portrait { display: flex; gap: 14px; align-items: center; }
   .sheet .portrait > .portrait-cat, .sheet .portrait > .thumb { width: 120px; max-width: none; flex: none; }
-  .sheet .he.big { font-size: 2.1rem; display: block; line-height: 1.2; }
+  .sheet .ja.big { font-size: 2.1rem; display: block; line-height: 1.2; }
   .sheet .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
   .pick, .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
   .pick button { font: inherit; color: var(--ink); background: #F4F7EC; border: 2px solid var(--line); border-radius: 16px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
   .pick .thumb { max-width: 84px; }
   .card { background: #fff; border: 2px solid var(--line); border-radius: 18px; padding: 8px 8px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; }
-  .card .he { font-size: 1.45rem; line-height: 1.3; }
+  button.card { font: inherit; color: var(--ink); cursor: pointer; }
+  .card .ja { font-size: 1.45rem; line-height: 1.3; }
   .card .en { color: var(--muted); font-size: .88rem; margin-bottom: 8px; }
   .card .btn { margin-top: auto; padding: 4px 12px; font-size: .95rem; }
   .tag { margin-top: auto; font-weight: 600; color: var(--leaf); padding: 5px 0; }
@@ -141,12 +142,29 @@
 
   #toasts { position: fixed; left: 50%; transform: translateX(-50%); top: calc(max(10px, env(safe-area-inset-top)) + 64px); z-index: 40; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: min(92vw, 400px); }
   .toast { background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 16px; font-weight: 500; text-align: center; animation: toast 3.8s ease forwards; }
-  .toast .he { font-size: 1.1rem; }
+  .toast .ja { font-size: 1.1rem; }
   @keyframes toast { 0% { opacity: 0; transform: translateY(-8px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 
   #test { position: fixed; left: 8px; bottom: 80px; z-index: 12; display: flex; flex-direction: column; gap: 6px; }
   #test .btn { font-size: .78rem; padding: 3px 10px; }
-  .ph { position: absolute; left: 50%; bottom: 46%; transform: translateX(-50%); background: rgba(0,0,0,.45); color: #fff; font-size: .72rem; padding: 2px 10px; border-radius: 99px; pointer-events: none; white-space: nowrap; }
+
+  /* ---------- Study desk (a fixed piece of furniture, not one of the four spots) ---------- */
+  .desk {
+    position: absolute; width: 27%; aspect-ratio: 6 / 5; transform: translateX(-50%); padding: 0; border: 0;
+    background: none; cursor: pointer; border-radius: 14px; z-index: 40;
+  }
+  .desk svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .desk:focus-visible { outline: 3px solid var(--pond); outline-offset: 3px; }
+  .desk:hover .desk-top { fill: #C98D4E; }
+
+  /* ---------- Study overlay: a study app in a frame, above the game ---------- */
+  #study { position: fixed; inset: 0; z-index: 35; background: var(--paper); display: flex; flex-direction: column; }
+  .study-bar {
+    display: flex; align-items: center; gap: 12px; padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+    border-bottom: 2.5px solid var(--ink); background: var(--paper);
+  }
+  .study-title { font-weight: 600; color: var(--muted); font-size: .95rem; }
+  #studyFrame { flex: 1 1 auto; width: 100%; border: 0; background: var(--paper); }
 
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } #world { scroll-behavior: auto; } }
 </style>
@@ -165,9 +183,8 @@
 <div class="hud" id="hudBottom">
   <div class="dots" id="dots" role="tablist" aria-label="Rooms"></div>
   <div class="dock">
-    <button class="btn" id="shopBtn">Shop <span class="he" lang="he">חֲנוּת</span></button>
-    <button class="btn plain" id="catsBtn">Cats <span class="he" lang="he">חֲתוּלִים</span></button>
-    <button class="btn plain" id="studyBtn">Study</button>
+    <button class="btn" id="shopBtn">Shop <span class="ja" lang="ja">店</span></button>
+    <button class="btn plain" id="catsBtn">Cats <span class="ja" lang="ja">猫</span></button>
   </div>
 </div>
 
@@ -179,6 +196,13 @@
 
 <div id="toasts" aria-live="polite"></div>
 <div id="overlay" class="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="study" hidden>
+  <div class="study-bar">
+    <button class="btn plain" id="studyBack">‹ Back to the inn</button>
+    <span class="study-title" id="studyTitle"></span>
+  </div>
+  <iframe id="studyFrame" title="Study" src="about:blank"></iframe>
+</div>
 
 <script>
 (function () {
@@ -192,50 +216,66 @@
   /* ---------- Rooms ----------
      Each room is its own 9:16 picture with its own set of items. SPOTS are
      percentages of that picture: x = centre, y = bottom edge. */
+  // Left to right. The game starts in the tatami room, with the dining room on its left and the veranda on its right.
   const ROOMS = [
-    { id: 'zashiki', he: 'חֲדַר טָטָאמִי', tr: 'chadar tatami', en: 'tatami room', placeholder: true },
-    { id: 'shokudo', he: 'חֲדַר אוֹכֶל',   tr: 'chadar ochel',  en: 'dining room', placeholder: true },
-    { id: 'engawa',  he: 'מִרְפֶּסֶת',     tr: 'mirpeset',      en: 'veranda',     placeholder: true },
-    { id: 'onsen',   he: 'מַעְיָן חַם',     tr: 'maayan cham',   en: 'hot spring',  placeholder: true }
+    { id: 'shokudo', ja: '食事処', tr: 'shokujidokoro', en: 'dining room' },
+    { id: 'zashiki', ja: '座敷',   tr: 'zashiki',       en: 'tatami room' },
+    { id: 'engawa',  ja: '縁側',   tr: 'engawa',        en: 'veranda' },
+    { id: 'onsen',   ja: '温泉',   tr: 'onsen',         en: 'hot spring' }
   ];
+  const START_ROOM = 'zashiki';
   const SPOTS = [
     { x: 32, y: 56 }, { x: 68, y: 60 },
     { x: 30, y: 76 }, { x: 70, y: 80 }
   ];
+  // The study desk is furniture in the tatami room, not one of the four spots. Tapping it opens study.
+  const DESK = { room: 'zashiki', x: 50, y: 47 };
 
   /* ---------- Items ---------- */
   const CAT_WIDTH = 100;
   const ITEMS = {
-    cushion: { room: 'zashiki', he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 100, pose: 'sleep', cat: { x: 50, y: 87.5 } },
-    box:     { room: 'zashiki', he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 87.5 } },
-    basket:  { room: 'zashiki', he: 'סַל', tr: 'sal', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
-    tent:    { room: 'zashiki', he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } },
+    cushion:  { room: 'zashiki', ja: '座布団', tr: 'zabuton', en: 'cushion', price: 100, pose: 'sleep', cat: { x: 50, y: 87.5 } },
+    box:      { room: 'zashiki', ja: '箱', tr: 'hako', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 87.5 } },
+    basket:   { room: 'zashiki', ja: '籠', tr: 'kago', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
+    tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } },
 
-    onigiri: { room: 'shokudo', he: 'אוֹנִיגִירִי', tr: 'onigiri', en: 'onigiri', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
-    takoyaki: { room: 'shokudo', he: 'טָקוֹיָקִי', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
-    taiyaki: { room: 'shokudo', he: 'טַיָּקִי', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
-    mochi:   { room: 'shokudo', he: 'מוֹצִ׳י', tr: 'motsi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
-    'taiyaki-xl': { room: 'onsen', he: 'טַיָּקִי גָּדוֹל', tr: 'taiyaki gadol', en: 'big taiyaki', price: 280, pose: 'ride', cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
+    onigiri:  { room: 'shokudo', ja: 'おにぎり', tr: 'onigiri', en: 'rice ball', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
+    takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
+    taiyaki:  { room: 'shokudo', ja: 'たい焼き', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
+    mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
+    'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
+    'onsen-stone': { room: 'onsen', xl: true, ja: '岩風呂', tr: 'iwaburo', en: 'stone bath', price: 450, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
+    'onsen-clay': { room: 'onsen', xl: true, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
+    'onsen-hex': { room: 'onsen', xl: true, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
+    'onsen-hinoki': { room: 'onsen', xl: true, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
 
-    ball:    { room: 'engawa', he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
-    yarn:    { room: 'engawa', he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
-    redpanda: { room: 'engawa', he: 'פַּנְדָּה אֲדֻמָּה', tr: 'panda adumah', en: 'red panda suit', price: 240, pose: 'face', catScale: 0.682, cat: { x: 49, y: 68.25 } },
-
-    // Stand-in: a cat "sitting in" the matcha cup looks like a cat in a bath. Real onsen items are in ART-SPEC-ROOMS.md.
-    matcha:  { room: 'onsen', he: 'מָאצָ׳ה', tr: 'matcha', en: 'matcha (stand-in for a tub)', price: 220, pose: 'half', cat: { x: 50, y: 57.25 } }
+    ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
+    yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
+    redpanda: { room: 'engawa', ja: 'レッサーパンダ', tr: 'ressaa panda', en: 'red panda suit', price: 240, pose: 'face', catScale: 0.682, cat: { x: 49, y: 68.25 } },
+    bonsai:   { room: 'engawa', ja: '盆栽', tr: 'bonsai', en: 'pine bonsai', price: 260, pose: 'sit', cat: { x: 24, y: 87.5 } }
   };
   const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in' };
 
+  // ja: the name shown in Japanese. tr: romaji. en: the English meaning, shown on the cat's card.
   const CATS = {
-    tapuz:  { he: 'תַּפּוּז', tr: 'Tapuz', en: 'orange', rarity: 1, likes: { cushion: 3, ball: 2 }, gift: [1, 3] },
-    pilpel: { he: 'פִּלְפֵּל', tr: 'Pilpel', en: 'pepper', rarity: 1, likes: { box: 3, tent: 2 }, gift: [1, 3] },
-    sheleg: { he: 'שֶׁלֶג', tr: 'Sheleg', en: 'snow', rarity: .8, likes: { basket: 3, cushion: 2 }, gift: [1, 3] },
-    dvash:  { he: 'דְּבַשׁ', tr: 'Dvash', en: 'honey', rarity: .9, likes: { yarn: 3, ball: 2 }, gift: [1, 3] },
-    shoko:  { he: 'שׁוֹקוֹ', tr: 'Shoko', en: 'chocolate milk', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
-    rimon:  { he: 'רִמּוֹן', tr: 'Rimon', en: 'pomegranate', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
-    kokhav: { he: 'כּוֹכָב', tr: 'Kokhav', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] }
+    tapuz:  { ja: 'みかん', tr: 'Mikan', en: 'orange', rarity: 1, likes: { cushion: 3, ball: 2 }, gift: [1, 3] },
+    pilpel: { ja: 'こしょう', tr: 'Kosho', en: 'pepper', rarity: 1, likes: { box: 3, tent: 2 }, gift: [1, 3] },
+    sheleg: { ja: 'ゆき', tr: 'Yuki', en: 'snow', rarity: .8, likes: { basket: 3, cushion: 2 }, gift: [1, 3] },
+    dvash:  { ja: 'ハチ', tr: 'Hachi', en: 'honey', rarity: .9, likes: { yarn: 3, ball: 2 }, gift: [1, 3] },
+    shoko:  { ja: 'ココア', tr: 'Kokoa', en: 'chocolate milk', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
+    rimon:  { ja: 'ざくろ', tr: 'Zakuro', en: 'pomegranate', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
+    kokhav: { ja: 'ほし', tr: 'Hoshi', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] }
   };
   const CAT_ORDER = Object.keys(CATS);
+
+  // Study modules: one line each to add. Every module is a page on this site, so it can share the 'fish' wallet.
+  const STUDY = [
+    { id: 'hwg', name: 'Word builder', sub: 'Build words from their parts', href: '../hwg/' },
+    { id: 'hbt', name: 'Interlinear practice', sub: 'Read the text line by line', href: '../hbt/' }
+  ];
+  // Messages from a study page: { type: 'neko-ryokan:fish', amount, source }. Only these origins may award fish.
+  const STUDY_ORIGINS = [location.origin];
+  const STUDY_MAX_FISH = 50;
 
   /* ---------- Storage ---------- */
   const mem = {};
@@ -253,6 +293,15 @@
     const s = freshState();
     try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
     ROOMS.forEach((r) => { if (!s.spots[r.id]) s.spots[r.id] = SPOTS.map(() => null); });
+    // Tidy saves from before XL items and removed items: drop unknown ids, and give both spots of an XL row the item.
+    ROOMS.forEach((r) => {
+      const sp = s.spots[r.id];
+      sp.forEach((id, i) => { if (id && !ITEMS[id]) sp[i] = null; });
+      for (let a = 0; a < sp.length; a += 2) {
+        const id = sp[a] || sp[a + 1];
+        if (id && ITEMS[id].xl) { sp[a] = id; sp[a + 1] = id; }
+      }
+    });
     return s;
   }
   let state = load();
@@ -262,15 +311,30 @@
   const $ = (id) => document.getElementById(id);
   const rand = (a, b) => a + Math.random() * (b - a);
   const randInt = (a, b) => Math.floor(rand(a, b + 1));
-  const heSpan = (t) => `<span class="he" lang="he">${t}</span>`;
+  const jaSpan = (t) => `<span class="ja" lang="ja">${t}</span>`;
   const key = (room, i) => room + ':' + i;
   const isPlaced = (id) => ROOMS.some((r) => state.spots[r.id].includes(id));
+  // XL items take a whole row of two spots (0+1 or 2+3). The first spot holds the item and is where it is drawn;
+  // the second spot holds the same id, so it is blocked, but it is not drawn or visited on its own.
+  const isXL = (id) => !!(id && ITEMS[id].xl);
+  const rowStart = (i) => i - (i % 2);
+  const isSecondary = (roomId, i) => isXL(state.spots[roomId][i]) && i % 2 === 1;
+  const fits = (roomId, i, id) => !ITEMS[id].xl || (!state.spots[roomId][rowStart(i)] && !state.spots[roomId][rowStart(i) + 1]);
+  function placeItem(roomId, i, id) {
+    const s = state.spots[roomId];
+    if (ITEMS[id].xl) { s[rowStart(i)] = id; s[rowStart(i) + 1] = id; } else s[i] = id;
+  }
+  function clearItem(roomId, i) {
+    const s = state.spots[roomId];
+    if (isXL(s[i])) { s[rowStart(i)] = null; s[rowStart(i) + 1] = null; } else s[i] = null;
+  }
   const art = { cat: (c, p) => `cats/${c}/${p}.webp`, item: (id) => `objects/${id}.webp`, front: (id) => `objects/${id}-front.webp` };
 
-  function itemLayers(id) {
-    const it = ITEMS[id];
+  // inSpot: on the floor, an item can be drawn larger (it.scale) from its base. The shop thumbnail keeps the normal size.
+  function itemLayers(id, inSpot) {
+    const it = ITEMS[id], grow = inSpot && it.scale ? ` style="transform:scale(${it.scale});transform-origin:50% 90%"` : '';
     return {
-      back: `<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt="">`,
+      back: `<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt=""${grow}>`,
       front: it.hasFront ? `<img class="layer" src="${art.front(id)}" alt="">` : ''
     };
   }
@@ -306,7 +370,7 @@
     if (span > 0) {
       ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
         const k = key(r.id, i);
-        if (!itemId || state.visitors[k]) return;
+        if (!itemId || state.visitors[k] || isSecondary(r.id, i)) return;
         if (Math.random() >= 1 - Math.exp(-span / (ARRIVAL_MINUTES * 60e3))) return;
         const cat = pickCat(itemId, present);
         if (!cat) return;
@@ -327,40 +391,57 @@
     if (ev.changed) { save(); renderRooms(); renderWallet(); }
     if (!ev.arrived.length) return;
     if (summary && ev.span > 60e3) toast(`While you were away, ${ev.arrived.length} cat${ev.arrived.length > 1 ? 's' : ''} visited.`);
-    else ev.arrived.forEach((a) => toast(`${heSpan(CATS[a.cat].he)} ${CATS[a.cat].tr} came to the ${ROOMS.find((r) => r.id === a.room).en}!`));
+    else ev.arrived.forEach((a) => { const r = ROOMS.find((x) => x.id === a.room); toast(`${jaSpan(CATS[a.cat].ja)} ${CATS[a.cat].tr} came to the ${jaSpan(r.ja)} ${r.en}!`); });
   }
 
   /* ---------- Rendering ---------- */
   const world = $('world');
-  let cur = 0;
+  let cur = ROOMS.findIndex((r) => r.id === START_ROOM);
   function spotHtml(room, i) {
-    const p = SPOTS[i], itemId = state.spots[room.id][i], v = state.visitors[key(room.id, i)];
+    if (isSecondary(room.id, i)) return '';
+    const itemId = state.spots[room.id][i], v = state.visitors[key(room.id, i)];
+    // An XL item is drawn at the middle of its row.
+    const p = isXL(itemId) ? { x: 50, y: (SPOTS[i].y + SPOTS[i + 1].y) / 2 } : SPOTS[i];
     let inner, label;
     if (!itemId) {
       inner = `<svg class="layer" viewBox="0 0 120 100" aria-hidden="true"><g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(255,255,255,.28)" stroke="#fff" stroke-width="2" stroke-dasharray="5 5"/><path d="M60 84 V96 M54 90 H66" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></g></svg>`;
       label = 'Empty spot. Put out an item.';
     } else {
-      const it = ITEMS[itemId], L = itemLayers(itemId);
+      const it = ITEMS[itemId], L = itemLayers(itemId, true);
       inner = L.back + (v ? catLayer(v, it) : '') + L.front;
       label = v ? `${CATS[v.cat].tr} ${POSE_LABEL[it.pose]} on the ${it.en}` : `${it.tr} (${it.en})`;
       if (v) v.fresh = false;
     }
     return `<button class="spot" data-room="${room.id}" data-i="${i}" aria-label="${label}" style="left:${p.x}%;bottom:${100 - p.y}%;z-index:${p.y}">${inner}</button>`;
   }
+  // A low writing desk (fumizukue) with a brush and paper. Drawn in SVG until the art exists.
+  function deskHtml() {
+    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:${DESK.x}%;bottom:${100 - DESK.y}%;z-index:${DESK.y}">` +
+      `<svg viewBox="0 0 120 100" aria-hidden="true">` +
+      `<ellipse cx="60" cy="94" rx="46" ry="4" fill="rgba(60,40,20,.22)"/>` +
+      `<path d="M14 62 L106 62 L112 70 L8 70 Z" fill="#8A5A2B" stroke="#3F3530" stroke-width="2"/>` +
+      `<path class="desk-top" d="M10 40 L110 40 L114 48 L6 48 Z" fill="#B57A44" stroke="#3F3530" stroke-width="2"/>` +
+      `<path d="M22 70 V92 M98 70 V92" stroke="#3F3530" stroke-width="3.5" stroke-linecap="round"/>` +
+      `<rect x="38" y="26" width="30" height="14" fill="#FFFEF6" stroke="#3F3530" stroke-width="1.8" transform="rotate(-4 53 33)"/>` +
+      `<path d="M80 36 L92 16" stroke="#3F3530" stroke-width="3" stroke-linecap="round"/>` +
+      `<path d="M92 16 q4 -6 9 -2 q-2 6 -9 2 z" fill="#3F3530"/>` +
+      `<text x="60" y="58" text-anchor="middle" font-size="9" font-weight="700" fill="#FFFEF6" font-family="Zen Maru Gothic, sans-serif">勉強</text>` +
+      `</svg></button>`;
+  }
   function renderRooms() {
     const sx = world.scrollLeft;
     world.innerHTML = ROOMS.map((r) =>
       `<section class="room r-${r.id}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
       SPOTS.map((_, i) => spotHtml(r, i)).join('') +
-      (testMode ? `<div class="ph">placeholder art</div>` : '') + `</div></section>`).join('');
+      (r.id === DESK.room ? deskHtml() : '') + `</div></section>`).join('');
     applyTimeOfDay();
     world.scrollLeft = sx;
   }
   function renderChrome() {
     const r = ROOMS[cur];
-    $('roomName').innerHTML = `${heSpan(r.he)}<small>${r.en}</small>`;
+    $('roomName').innerHTML = `${jaSpan(r.ja)}<small>${r.en}</small>`;
     $('dots').innerHTML = ROOMS.map((x, i) =>
-      `<button class="dot" role="tab" data-go="${i}" aria-current="${i === cur}" aria-label="${x.en}">${i === cur ? heSpan(x.he) : (i + 1)}</button>`).join('');
+      `<button class="dot" role="tab" data-go="${i}" aria-current="${i === cur}" aria-label="${x.en}">${i === cur ? jaSpan(x.ja) : (i + 1)}</button>`).join('');
     $('prev').disabled = cur === 0; $('next').disabled = cur === ROOMS.length - 1;
   }
   function renderWallet(bump) {
@@ -397,50 +478,62 @@
     const itemId = state.spots[roomId][i], v = state.visitors[key(roomId, i)];
     if (v) {
       const c = CATS[v.cat], it = ITEMS[itemId], mins = Math.max(1, Math.round((v.leave - Date.now()) / 60e3));
-      openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><span class="he big" lang="he">${c.he}</span><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
-        <p>${POSE_LABEL[it.pose][0].toUpperCase() + POSE_LABEL[it.pose].slice(1)} on the ${heSpan(it.he)}. Staying about ${mins} more minute${mins > 1 ? 's' : ''}.</p></div></div>
+      openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><div class="ja">${c.ja}</div><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
+        <p>${POSE_LABEL[it.pose][0].toUpperCase() + POSE_LABEL[it.pose].slice(1)} on the ${jaSpan(it.ja)}. Staying about ${mins} more minute${mins > 1 ? 's' : ''}.</p></div></div>
         <div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     } else if (itemId) {
       const it = ITEMS[itemId];
-      openSheet(`<div class="portrait">${thumb(itemId)}<div><span class="he big" lang="he">${it.he}</span><h2>${it.tr}</h2><div class="muted">${it.en}</div><p>No one here yet.</p></div></div>
+      openSheet(`<div class="portrait">${thumb(itemId)}<div><span class="ja big" lang="ja">${it.ja}</span><h2>${it.tr}</h2><div class="muted">${it.en}</div><p>No one here yet.</p></div></div>
         <div class="row"><button class="btn plain" data-act="remove">Put it away</button><button class="btn" data-act="close">Close</button></div>`);
     } else {
       const room = ROOMS.find((r) => r.id === roomId);
-      const free = state.owned.filter((id) => ITEMS[id].room === roomId && !isPlaced(id));
+      const free = state.owned.filter((id) => ITEMS[id].room === roomId && !isPlaced(id) && fits(roomId, i, id));
       const body = free.length
-        ? `<div class="pick">${free.map((id) => `<button data-place="${id}">${thumb(id)}${heSpan(ITEMS[id].he)}<span>${ITEMS[id].tr}</span></button>`).join('')}</div>`
+        ? `<div class="pick">${free.map((id) => `<button data-place="${id}">${thumb(id)}${jaSpan(ITEMS[id].ja)}<span>${ITEMS[id].tr}</span></button>`).join('')}</div>`
         : `<p class="muted">You have nothing for the ${room.en} yet. Open the shop to buy something for this room.</p>`;
-      openSheet(`<h2>Put out an item · ${heSpan(room.he)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+      openSheet(`<h2>Put out an item · ${jaSpan(room.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     }
   }
   function openShop() {
     const room = ROOMS[cur], fish = getFish();
     const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id);
-    openSheet(`<h2>Shop · ${heSpan(room.he)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2><div class="grid">${ids.map((id) => {
+    openSheet(`<h2>Shop · ${jaSpan(room.ja)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2><div class="grid">${ids.map((id) => {
       const it = ITEMS[id], owned = state.owned.includes(id);
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
         : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
-      return `<div class="card">${thumb(id)}${heSpan(it.he)}<div class="en">${it.tr} · ${it.en}</div>${act}</div>`;
+      return `<div class="card">${thumb(id)}${jaSpan(it.ja)}<div class="en">${it.en}</div>${act}</div>`;
     }).join('')}</div><div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
   function openCats() {
-    openSheet(`<h2>Cats <span class="he" lang="he">חֲתוּלִים</span></h2><div class="grid">${CAT_ORDER.map((id) => {
+    openSheet(`<h2>Cats <span class="ja" lang="ja">猫</span></h2><div class="grid">${CAT_ORDER.map((id) => {
       const c = CATS[id], n = state.seen[id] || 0;
-      if (!n) return `<div class="card">${catPortrait(id, true)}<div class="he">?</div><div class="en">Not met yet</div></div>`;
+      if (!n) return `<div class="card">${catPortrait(id, true)}<div class="ja">?</div><div class="en">Not met yet</div></div>`;
       const fav = Object.keys(c.likes).sort((a, b) => c.likes[b] - c.likes[a])[0];
-      return `<div class="card">${catPortrait(id)}${heSpan(c.he)}<div class="en">${c.tr} · “${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${heSpan(ITEMS[fav].he)}</div></div>`;
+      return `<div class="card">${catPortrait(id)}<div class="ja">${c.ja}</div><div class="en">${c.tr} · “${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${jaSpan(ITEMS[fav].ja)}</div></div>`;
     }).join('')}</div><div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
 
-  // Study modules: where fish come from. Each one adds to the shared 'fish' wallet.
-  const STUDY = [
-    { name: 'Word builder', href: '../hwg/' },
-    { name: 'Interlinear practice', href: '../hbt/' }
-  ];
-  function openStudy() {
-    openSheet(`<h2>Study</h2><p class="muted">Earn fish by practicing. Come back to spend them at the inn.</p>` +
-      `<div class="pick">${STUDY.map((m) => `<a class="btn" style="text-align:center;text-decoration:none" href="${m.href}">${m.name}</a>`).join('')}</div>` +
+  // The study desk: pick a module, and it opens full screen in a frame. Fish earned there go to the shared wallet.
+  function openDesk() {
+    openSheet(`<h2>Study desk</h2><p class="muted">Practise here to earn fish. Spend them on the inn.</p>` +
+      `<div class="grid">${STUDY.map((m) => `<button class="card" data-study="${m.id}"><div class="ja">${m.name}</div><div class="en">${m.sub}</div><span class="btn" style="pointer-events:none">Open</span></button>`).join('')}</div>` +
       `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+  }
+  let studyId = null;
+  function openStudy(id) {
+    const m = STUDY.find((x) => x.id === id); if (!m) return;
+    studyId = id;
+    $('studyTitle').textContent = m.name;
+    $('studyFrame').src = m.href;
+    $('study').hidden = false;
+    $('studyBack').focus();
+  }
+  function closeStudy() {
+    if (studyId === null) return;
+    studyId = null;
+    $('study').hidden = true;
+    $('studyFrame').src = 'about:blank';
+    renderWallet(); tick(false);
   }
 
   function toast(html) {
@@ -450,36 +543,51 @@
   }
 
   /* ---------- Events ---------- */
-  world.addEventListener('click', (e) => { const b = e.target.closest('.spot'); if (b) openSpot(b.dataset.room, +b.dataset.i); });
+  world.addEventListener('click', (e) => {
+    const b = e.target.closest('.spot'); if (b) openSpot(b.dataset.room, +b.dataset.i);
+    if (e.target.closest('[data-desk]')) openDesk();
+  });
   $('sheet').addEventListener('click', (e) => {
-    const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]');
-    if (place && sheetCtx) { state.spots[sheetCtx.roomId][sheetCtx.i] = place.dataset.place; save(); closeSheet(); renderRooms(); }
-    else if (act && act.dataset.act === 'remove' && sheetCtx) { state.spots[sheetCtx.roomId][sheetCtx.i] = null; save(); closeSheet(); renderRooms(); }
+    const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]'), study = e.target.closest('[data-study]');
+    if (place && sheetCtx) { placeItem(sheetCtx.roomId, sheetCtx.i, place.dataset.place); save(); closeSheet(); renderRooms(); }
+    else if (act && act.dataset.act === 'remove' && sheetCtx) { clearItem(sheetCtx.roomId, sheetCtx.i); save(); closeSheet(); renderRooms(); }
     else if (buy) {
       const id = buy.dataset.buy, it = ITEMS[id], fish = getFish();
       if (state.owned.includes(id) || fish < it.price) return;
       state.owned.push(id); save(); setFish(fish - it.price);
-      toast(`Bought ${heSpan(it.he)} ${it.tr}! Tap an empty spot to put it out.`);
+      toast(`Bought ${jaSpan(it.ja)} ${it.tr}! Tap an empty spot to put it out.`);
       openShop();
-    } else if (act) closeSheet();
+    } else if (study) { closeSheet(); openStudy(study.dataset.study); }
+    else if (act) closeSheet();
   });
   $('overlay').addEventListener('click', (e) => { if (e.target.id === 'overlay') closeSheet(); });
+  $('studyBack').addEventListener('click', closeStudy);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('overlay').hidden) closeSheet();
-    if ($('overlay').hidden && e.key === 'ArrowLeft') goRoom(cur - 1);
-    if ($('overlay').hidden && e.key === 'ArrowRight') goRoom(cur + 1);
+    else if (e.key === 'Escape' && studyId !== null) closeStudy();
+    if ($('overlay').hidden && studyId === null && e.key === 'ArrowLeft') goRoom(cur - 1);
+    if ($('overlay').hidden && studyId === null && e.key === 'ArrowRight') goRoom(cur + 1);
   });
   $('dots').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) goRoom(+b.dataset.go); });
   $('prev').addEventListener('click', () => goRoom(cur - 1));
   $('next').addEventListener('click', () => goRoom(cur + 1));
   $('shopBtn').addEventListener('click', openShop);
   $('catsBtn').addEventListener('click', openCats);
-  $('studyBtn').addEventListener('click', openStudy);
   $('giftBtn').addEventListener('click', () => {
     const n = state.gifts; if (!n) return;
     state.gifts = 0; save(); setFish(getFish() + n); toast(`Collected ${n} 🐟 from your visitors.`);
   });
-  // If a study page adds fish in another tab, update the count here.
+  // Fish from a study page. Only a message from an allowed origin, sent by the open study frame, counts.
+  window.addEventListener('message', (e) => {
+    if (!STUDY_ORIGINS.includes(e.origin) || studyId === null || e.source !== $('studyFrame').contentWindow) return;
+    const d = e.data;
+    if (!d || d.type !== 'neko-ryokan:fish') return;
+    const amount = Math.floor(Number(d.amount));
+    if (!(amount > 0) || amount > STUDY_MAX_FISH) return;
+    setFish(getFish() + amount);
+    toast(`+${amount} 🐟 from your study.`);
+  });
+  // If a study page adds fish in another tab (or in the frame, through the shared storage), update the count here.
   window.addEventListener('storage', (e) => { if (e.key === FISH_KEY) renderWallet(true); });
   window.addEventListener('resize', () => goRoom(cur, false));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderWallet(); tick(true); } });
@@ -495,7 +603,7 @@
         const present = new Set(Object.values(state.visitors).map((v) => v.cat));
         ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
           const k = key(r.id, i);
-          if (!itemId || state.visitors[k]) return;
+          if (!itemId || state.visitors[k] || isSecondary(r.id, i)) return;
           const cat = pickCat(itemId, present); if (!cat) return;
           present.add(cat); state.seen[cat] = (state.seen[cat] || 0) + 1;
           state.visitors[k] = { cat, arrive: Date.now(), leave: Date.now() + 40 * 60e3, gift: randInt(...CATS[cat].gift), fresh: true };
@@ -518,7 +626,7 @@
       state.welcomed = true; save(); setFish(getFish() + WELCOME_FISH);
       toast(`Welcome to the Ryokan! Swipe sideways to visit the rooms.`);
     }
-    renderRooms(); renderChrome(); renderWallet(); tick(true);
+    renderRooms(); goRoom(cur, false); renderChrome(); renderWallet(); tick(true);
   }
   start();
   setInterval(() => { applyTimeOfDay(); tick(false); }, TICK_MS);
