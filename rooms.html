@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neko Ryokan (prototype)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FFFEF6;
+    --ink: #3F3530;
+    --muted: #7C6F63;
+    --line: #D3DCC0;
+    --sun: #F6B93B;
+    --pond: #4F86B5;
+    --leaf: #5E8F4A;
+    /* One room is a 9:16 portrait panel: full width on a phone, a centred strip on a desktop. */
+    --W: min(100vw, calc(100dvh * 0.5625));
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #2B221C; color: var(--ink);
+    font-family: "Fredoka", "Trebuchet MS", system-ui, sans-serif; font-size: 17px; line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .he { font-family: "Frank Ruhl Libre", "Times New Roman", "David", serif; direction: rtl; unicode-bidi: isolate; font-weight: 700; }
+
+  /* ---------- The world: four rooms side by side, swipe to move ---------- */
+  #world {
+    position: fixed; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+    padding-inline: calc((100vw - var(--W)) / 2);
+  }
+  #world::-webkit-scrollbar { display: none; }
+  .room {
+    position: relative; flex: none; width: var(--W); height: 100dvh; overflow: hidden;
+    scroll-snap-align: center; scroll-snap-stop: always;
+  }
+  /* The stage is the art. It covers the room (so a tall phone crops the sides a little)
+     and every spot is placed in percentages of it, so items stay glued to the picture. */
+  .stage {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    height: max(100dvh, calc(var(--W) * 1.7778)); aspect-ratio: 9 / 16;
+  }
+  .bg { position: absolute; inset: 0; background-color: #9DCC6E; background-repeat: no-repeat; background-size: auto 100%; }
+  /* Room art: scene/room-<id>.webp, 9:16. */
+  .r-zashiki .bg { background-image: url("scene/room-zashiki.webp"); background-size: cover; }
+  .r-shokudo .bg { background-image: url("scene/room-shokudo.webp"); background-size: cover; }
+  .r-engawa .bg { background-image: url("scene/room-engawa.webp"); background-size: cover; }
+  .r-onsen .bg { background-image: url("scene/room-onsen.webp"); background-size: cover; }
+  .tint { position: absolute; inset: 0; pointer-events: none; transition: background 1.5s ease; }
+  .seam { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+
+  .spot {
+    position: absolute; width: 42%; aspect-ratio: 120 / 100; transform: translateX(-50%);
+    padding: 0; border: 0; background: none; cursor: pointer; border-radius: 14px;
+  }
+  .spot .empty-mark { opacity: .75; transition: opacity .2s; }
+  .spot:hover .empty-mark { opacity: 1; }
+  .spot:focus-visible, .btn:focus-visible, .dot:focus-visible, .nav:focus-visible { outline: 3px solid var(--pond); outline-offset: 3px; }
+
+  /* Art: every object and cat image is a 480 x 400 canvas, the spot's shape. */
+  .layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+  .thumb { position: relative; width: 100%; max-width: 136px; aspect-ratio: 6 / 5; }
+  .cat-layer { position: absolute; pointer-events: none; }
+  .cat-layer img { display: block; width: 100%; height: auto; }
+  .portrait-cat { width: 100%; max-width: 136px; }
+  .portrait-cat img { display: block; width: 100%; height: auto; }
+  .sil img { filter: brightness(0); opacity: .18; }
+  .breathe { animation: breathe 5.5s ease-in-out infinite; transform-origin: 50% 97%; }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.012, 1.02); } }
+  .cat-in { animation: catin 1.2s ease-out both; }
+  @keyframes catin { from { opacity: 0; } }
+  .wobble { transform-origin: 50% 92%; animation: wob 5s ease-in-out infinite; }
+  @keyframes wob { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(1.5deg); } }
+
+  /* ---------- HUD, floating over the world ---------- */
+  .hud { position: fixed; left: 50%; transform: translateX(-50%); width: var(--W); z-index: 10; display: flex; align-items: center; gap: 8px; padding: 0 12px; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  #hudTop { top: max(10px, env(safe-area-inset-top)); justify-content: space-between; }
+  .pill {
+    background: rgba(255, 254, 246, .92); border: 2.5px solid var(--ink); border-radius: 999px;
+    padding: 4px 14px; font-weight: 600; backdrop-filter: blur(4px);
+  }
+  .fish { background: var(--pond); color: #fff; min-width: 76px; text-align: center; transition: transform .2s; }
+  .fish.bump { transform: scale(1.15); }
+  #roomName { text-align: center; line-height: 1.15; padding: 3px 16px; }
+  #roomName .he { display: block; font-size: 1.35rem; color: var(--leaf); }
+  #roomName small { color: var(--muted); font-weight: 500; font-size: .78rem; }
+  .btn {
+    font: inherit; font-weight: 600; color: var(--ink); background: var(--sun);
+    border: 2.5px solid var(--ink); border-radius: 999px; padding: 6px 16px; cursor: pointer; box-shadow: 0 3px 0 var(--ink);
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+  .btn:disabled { background: #E6E1D6; color: var(--muted); cursor: default; box-shadow: 0 3px 0 #B8AFA2; border-color: #B8AFA2; }
+  .btn.plain { background: var(--paper); }
+
+  #hudBottom { bottom: max(12px, env(safe-area-inset-bottom)); justify-content: center; flex-direction: column; gap: 8px; }
+  .dots { display: flex; gap: 6px; }
+  .dot {
+    font: inherit; color: var(--ink); cursor: pointer; border: 2.5px solid var(--ink); border-radius: 999px;
+    background: rgba(255, 254, 246, .75); padding: 2px 12px; font-size: .85rem; font-weight: 600; line-height: 1.5;
+  }
+  .dot .he { font-size: 1rem; }
+  .dot[aria-current="true"] { background: var(--sun); }
+  .dock { display: flex; gap: 10px; }
+  .nav {
+    position: fixed; top: 50%; z-index: 10; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%;
+    border: 2.5px solid var(--ink); background: rgba(255, 254, 246, .9); font-size: 1.4rem; cursor: pointer; display: none; color: var(--ink);
+  }
+  .nav.l { left: calc((100vw - var(--W)) / 2 - 56px); } .nav.r { right: calc((100vw - var(--W)) / 2 - 56px); }
+  @media (hover: hover) and (min-width: 700px) { .nav { display: block; } }
+  .nav:disabled { opacity: .3; cursor: default; }
+
+  /* ---------- Sheets ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(40, 33, 28, .45); display: flex; align-items: flex-end; justify-content: center; z-index: 30; }
+  .sheet {
+    background: var(--paper); width: 100%; max-width: 520px; max-height: 82dvh; overflow-y: auto; border: 3px solid var(--ink); border-bottom: 0;
+    border-radius: 26px 26px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); animation: up .25s ease-out;
+  }
+  @keyframes up { from { transform: translateY(40px); opacity: 0; } }
+  .sheet h2 { margin: 0 0 4px; font-weight: 600; font-size: 1.25rem; }
+  .sheet .portrait { display: flex; gap: 14px; align-items: center; }
+  .sheet .portrait > .portrait-cat, .sheet .portrait > .thumb { width: 120px; max-width: none; flex: none; }
+  .sheet .he.big { font-size: 2.1rem; display: block; line-height: 1.2; }
+  .sheet .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  .pick, .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
+  .pick button { font: inherit; color: var(--ink); background: #F4F7EC; border: 2px solid var(--line); border-radius: 16px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+  .pick .thumb { max-width: 84px; }
+  .card { background: #fff; border: 2px solid var(--line); border-radius: 18px; padding: 8px 8px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .card .he { font-size: 1.45rem; line-height: 1.3; }
+  .card .en { color: var(--muted); font-size: .88rem; margin-bottom: 8px; }
+  .card .btn { margin-top: auto; padding: 4px 12px; font-size: .95rem; }
+  .tag { margin-top: auto; font-weight: 600; color: var(--leaf); padding: 5px 0; }
+  .muted { color: var(--muted); }
+
+  #toasts { position: fixed; left: 50%; transform: translateX(-50%); top: calc(max(10px, env(safe-area-inset-top)) + 64px); z-index: 40; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: min(92vw, 400px); }
+  .toast { background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 16px; font-weight: 500; text-align: center; animation: toast 3.8s ease forwards; }
+  .toast .he { font-size: 1.1rem; }
+  @keyframes toast { 0% { opacity: 0; transform: translateY(-8px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+  #test { position: fixed; left: 8px; bottom: 80px; z-index: 12; display: flex; flex-direction: column; gap: 6px; }
+  #test .btn { font-size: .78rem; padding: 3px 10px; }
+  .ph { position: absolute; left: 50%; bottom: 46%; transform: translateX(-50%); background: rgba(0,0,0,.45); color: #fff; font-size: .72rem; padding: 2px 10px; border-radius: 99px; pointer-events: none; white-space: nowrap; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } #world { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<div id="world"></div>
+
+<div class="hud" id="hudTop">
+  <div id="fish" class="pill fish" aria-live="polite">🐟 0</div>
+  <div id="roomName" class="pill"></div>
+  <button id="giftBtn" class="btn" hidden></button>
+</div>
+<button class="nav l" id="prev" aria-label="Previous room">‹</button>
+<button class="nav r" id="next" aria-label="Next room">›</button>
+<div class="hud" id="hudBottom">
+  <div class="dots" id="dots" role="tablist" aria-label="Rooms"></div>
+  <div class="dock">
+    <button class="btn" id="shopBtn">Shop <span class="he" lang="he">חֲנוּת</span></button>
+    <button class="btn plain" id="catsBtn">Cats <span class="he" lang="he">חֲתוּלִים</span></button>
+  </div>
+</div>
+
+<div id="test" hidden>
+  <button class="btn plain" data-test="fish">+50 fish</button>
+  <button class="btn plain" data-test="summon">Summon cats</button>
+  <button class="btn plain" data-test="reset">Reset</button>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="overlay" class="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Settings ---------- */
+  const ARRIVAL_MINUTES = 10, STAY_MIN = 20, STAY_MAX = 60, MAX_AWAY_HOURS = 24, TICK_MS = 15000, WELCOME_FISH = 10;
+  // The prototype keeps its own wallet and save, so it never touches the real yard.
+  const FISH_KEY = 'ryokan-proto-fish', SAVE_KEY = 'ryokan-proto-v1';
+
+  /* ---------- Rooms ----------
+     Each room is its own 9:16 picture with its own set of items. SPOTS are
+     percentages of that picture: x = centre, y = bottom edge. */
+  const ROOMS = [
+    { id: 'zashiki', he: 'חֲדַר טָטָאמִי', tr: 'chadar tatami', en: 'tatami room', placeholder: true },
+    { id: 'shokudo', he: 'חֲדַר אוֹכֶל',   tr: 'chadar ochel',  en: 'dining room', placeholder: true },
+    { id: 'engawa',  he: 'מִרְפֶּסֶת',     tr: 'mirpeset',      en: 'veranda',     placeholder: true },
+    { id: 'onsen',   he: 'מַעְיָן חַם',     tr: 'maayan cham',   en: 'hot spring',  placeholder: true }
+  ];
+  const SPOTS = [
+    { x: 32, y: 56 }, { x: 68, y: 60 },
+    { x: 30, y: 76 }, { x: 70, y: 80 }
+  ];
+
+  /* ---------- Items ---------- */
+  const CAT_WIDTH = 100;
+  const ITEMS = {
+    cushion: { room: 'zashiki', he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 100, pose: 'sleep', cat: { x: 50, y: 87.5 } },
+    box:     { room: 'zashiki', he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 87.5 } },
+    basket:  { room: 'zashiki', he: 'סַל', tr: 'sal', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
+    tent:    { room: 'zashiki', he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } },
+
+    onigiri: { room: 'shokudo', he: 'אוֹנִיגִירִי', tr: 'onigiri', en: 'onigiri', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
+    takoyaki: { room: 'shokudo', he: 'טָקוֹיָקִי', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
+    taiyaki: { room: 'shokudo', he: 'טַיָּקִי', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
+    mochi:   { room: 'shokudo', he: 'מוֹצִ׳י', tr: 'motsi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
+    'taiyaki-xl': { room: 'onsen', he: 'טַיָּקִי גָּדוֹל', tr: 'taiyaki gadol', en: 'big taiyaki', price: 280, pose: 'ride', cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
+
+    ball:    { room: 'engawa', he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
+    yarn:    { room: 'engawa', he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
+    redpanda: { room: 'engawa', he: 'פַּנְדָּה אֲדֻמָּה', tr: 'panda adumah', en: 'red panda suit', price: 240, pose: 'face', catScale: 0.682, cat: { x: 49, y: 68.25 } },
+
+    // Stand-in: a cat "sitting in" the matcha cup looks like a cat in a bath. Real onsen items are in ART-SPEC-ROOMS.md.
+    matcha:  { room: 'onsen', he: 'מָאצָ׳ה', tr: 'matcha', en: 'matcha (stand-in for a tub)', price: 220, pose: 'half', cat: { x: 50, y: 57.25 } }
+  };
+  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in' };
+
+  const CATS = {
+    tapuz:  { he: 'תַּפּוּז', tr: 'Tapuz', en: 'orange', rarity: 1, likes: { cushion: 3, ball: 2 }, gift: [1, 3] },
+    pilpel: { he: 'פִּלְפֵּל', tr: 'Pilpel', en: 'pepper', rarity: 1, likes: { box: 3, tent: 2 }, gift: [1, 3] },
+    sheleg: { he: 'שֶׁלֶג', tr: 'Sheleg', en: 'snow', rarity: .8, likes: { basket: 3, cushion: 2 }, gift: [1, 3] },
+    dvash:  { he: 'דְּבַשׁ', tr: 'Dvash', en: 'honey', rarity: .9, likes: { yarn: 3, ball: 2 }, gift: [1, 3] },
+    shoko:  { he: 'שׁוֹקוֹ', tr: 'Shoko', en: 'chocolate milk', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
+    rimon:  { he: 'רִמּוֹן', tr: 'Rimon', en: 'pomegranate', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
+    kokhav: { he: 'כּוֹכָב', tr: 'Kokhav', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] }
+  };
+  const CAT_ORDER = Object.keys(CATS);
+
+  /* ---------- Storage ---------- */
+  const mem = {};
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return k in mem ? mem[k] : null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } },
+    remove(k) { try { localStorage.removeItem(k); } catch (e) { delete mem[k]; } }
+  };
+  const getFish = () => { const n = parseInt(store.get(FISH_KEY) || '0', 10); return Number.isFinite(n) && n > 0 ? n : 0; };
+  const setFish = (n) => { store.set(FISH_KEY, String(Math.max(0, Math.floor(n)))); renderWallet(true); };
+
+  const freshSpots = () => { const o = {}; ROOMS.forEach((r) => { o[r.id] = SPOTS.map(() => null); }); return o; };
+  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false });
+  function load() {
+    const s = freshState();
+    try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
+    ROOMS.forEach((r) => { if (!s.spots[r.id]) s.spots[r.id] = SPOTS.map(() => null); });
+    return s;
+  }
+  let state = load();
+  const save = () => store.set(SAVE_KEY, JSON.stringify(state));
+
+  /* ---------- Helpers ---------- */
+  const $ = (id) => document.getElementById(id);
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const randInt = (a, b) => Math.floor(rand(a, b + 1));
+  const heSpan = (t) => `<span class="he" lang="he">${t}</span>`;
+  const key = (room, i) => room + ':' + i;
+  const isPlaced = (id) => ROOMS.some((r) => state.spots[r.id].includes(id));
+  const art = { cat: (c, p) => `cats/${c}/${p}.webp`, item: (id) => `objects/${id}.webp`, front: (id) => `objects/${id}-front.webp` };
+
+  function itemLayers(id) {
+    const it = ITEMS[id];
+    return {
+      back: `<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt="">`,
+      front: it.hasFront ? `<img class="layer" src="${art.front(id)}" alt="">` : ''
+    };
+  }
+  const thumb = (id) => { const L = itemLayers(id); return `<div class="thumb">${L.back}${L.front}</div>`; };
+  const catPortrait = (id, sil) => `<div class="portrait-cat${sil ? ' sil' : ''}"><img src="${art.cat(id, 'sit')}" alt=""></div>`;
+  function catLayer(v, it) {
+    const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
+    const x = it.cat.x + o.x, y = it.cat.y + o.y, w = CAT_WIDTH * (it.catScale || 1) * (o.s || 1);
+    return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
+      `<img class="${it.pose === 'sleep' ? 'breathe' : ''}" src="${art.cat(v.cat, it.pose)}" alt=""></div>`;
+  }
+
+  /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */
+  function pickCat(itemId, present) {
+    const pool = CAT_ORDER.filter((id) => !present.has(id)).map((id) => ({ id, w: CATS[id].rarity * (CATS[id].likes[itemId] || 0.4) }));
+    const total = pool.reduce((a, b) => a + b.w, 0);
+    if (!total) return null;
+    let r = Math.random() * total;
+    for (const p of pool) { r -= p.w; if (r <= 0) return p.id; }
+    return pool[pool.length - 1].id;
+  }
+  function simulate(now) {
+    const ev = { arrived: [], changed: false, span: 0 };
+    if (state.lastCheck == null) { state.lastCheck = now; ev.changed = true; return ev; }
+    const span = Math.max(0, Math.min(now - state.lastCheck, MAX_AWAY_HOURS * 3600e3));
+    const start = now - span;
+    ev.span = span;
+    Object.keys(state.visitors).forEach((k) => {
+      const v = state.visitors[k], [room, i] = k.split(':');
+      if (now >= v.leave || !state.spots[room][+i]) { state.gifts += v.gift; delete state.visitors[k]; ev.changed = true; }
+    });
+    const present = new Set(Object.values(state.visitors).map((v) => v.cat));
+    if (span > 0) {
+      ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
+        const k = key(r.id, i);
+        if (!itemId || state.visitors[k]) return;
+        if (Math.random() >= 1 - Math.exp(-span / (ARRIVAL_MINUTES * 60e3))) return;
+        const cat = pickCat(itemId, present);
+        if (!cat) return;
+        present.add(cat);
+        const arrive = start + Math.random() * span, leave = arrive + rand(STAY_MIN, STAY_MAX) * 60e3;
+        const gift = randInt(CATS[cat].gift[0], CATS[cat].gift[1]);
+        state.seen[cat] = (state.seen[cat] || 0) + 1;
+        ev.arrived.push({ cat, room: r.id });
+        ev.changed = true;
+        if (leave <= now) state.gifts += gift; else state.visitors[k] = { cat, arrive, leave, gift, fresh: true };
+      }));
+    }
+    state.lastCheck = now;
+    return ev;
+  }
+  function tick(summary) {
+    const ev = simulate(Date.now());
+    if (ev.changed) { save(); renderRooms(); renderWallet(); }
+    if (!ev.arrived.length) return;
+    if (summary && ev.span > 60e3) toast(`While you were away, ${ev.arrived.length} cat${ev.arrived.length > 1 ? 's' : ''} visited.`);
+    else ev.arrived.forEach((a) => toast(`${heSpan(CATS[a.cat].he)} ${CATS[a.cat].tr} came to the ${ROOMS.find((r) => r.id === a.room).en}!`));
+  }
+
+  /* ---------- Rendering ---------- */
+  const world = $('world');
+  let cur = 0;
+  function spotHtml(room, i) {
+    const p = SPOTS[i], itemId = state.spots[room.id][i], v = state.visitors[key(room.id, i)];
+    let inner, label;
+    if (!itemId) {
+      inner = `<svg class="layer" viewBox="0 0 120 100" aria-hidden="true"><g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(255,255,255,.28)" stroke="#fff" stroke-width="2" stroke-dasharray="5 5"/><path d="M60 84 V96 M54 90 H66" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></g></svg>`;
+      label = 'Empty spot. Put out an item.';
+    } else {
+      const it = ITEMS[itemId], L = itemLayers(itemId);
+      inner = L.back + (v ? catLayer(v, it) : '') + L.front;
+      label = v ? `${CATS[v.cat].tr} ${POSE_LABEL[it.pose]} on the ${it.en}` : `${it.tr} (${it.en})`;
+      if (v) v.fresh = false;
+    }
+    return `<button class="spot" data-room="${room.id}" data-i="${i}" aria-label="${label}" style="left:${p.x}%;bottom:${100 - p.y}%;z-index:${p.y}">${inner}</button>`;
+  }
+  function renderRooms() {
+    const sx = world.scrollLeft;
+    world.innerHTML = ROOMS.map((r) =>
+      `<section class="room r-${r.id}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
+      SPOTS.map((_, i) => spotHtml(r, i)).join('') +
+      (testMode ? `<div class="ph">placeholder art</div>` : '') + `</div></section>`).join('');
+    applyTimeOfDay();
+    world.scrollLeft = sx;
+  }
+  function renderChrome() {
+    const r = ROOMS[cur];
+    $('roomName').innerHTML = `${heSpan(r.he)}<small>${r.en}</small>`;
+    $('dots').innerHTML = ROOMS.map((x, i) =>
+      `<button class="dot" role="tab" data-go="${i}" aria-current="${i === cur}" aria-label="${x.en}">${i === cur ? heSpan(x.he) : (i + 1)}</button>`).join('');
+    $('prev').disabled = cur === 0; $('next').disabled = cur === ROOMS.length - 1;
+  }
+  function renderWallet(bump) {
+    const el = $('fish');
+    el.textContent = '🐟 ' + getFish();
+    if (bump) { el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 220); }
+    $('giftBtn').hidden = !state.gifts;
+    $('giftBtn').textContent = `🎁 ${state.gifts}`;
+  }
+  function goRoom(i, smooth) {
+    i = Math.max(0, Math.min(ROOMS.length - 1, i));
+    const w = world.querySelector('.room').offsetWidth;
+    world.scrollTo({ left: i * w, behavior: smooth === false ? 'auto' : 'smooth' });
+  }
+  let scrollRaf = 0;
+  world.addEventListener('scroll', () => {
+    cancelAnimationFrame(scrollRaf);
+    scrollRaf = requestAnimationFrame(() => {
+      const w = world.querySelector('.room').offsetWidth, i = Math.round(world.scrollLeft / w);
+      if (i !== cur) { cur = i; renderChrome(); }
+    });
+  }, { passive: true });
+
+  /* ---------- Sheets ---------- */
+  let sheetCtx = null;
+  function openSheet(html) {
+    $('sheet').innerHTML = html; $('overlay').hidden = false;
+    const f = $('sheet').querySelector('button'); if (f) f.focus();
+  }
+  function closeSheet() { $('overlay').hidden = true; sheetCtx = null; }
+
+  function openSpot(roomId, i) {
+    sheetCtx = { roomId, i };
+    const itemId = state.spots[roomId][i], v = state.visitors[key(roomId, i)];
+    if (v) {
+      const c = CATS[v.cat], it = ITEMS[itemId], mins = Math.max(1, Math.round((v.leave - Date.now()) / 60e3));
+      openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><span class="he big" lang="he">${c.he}</span><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
+        <p>${POSE_LABEL[it.pose][0].toUpperCase() + POSE_LABEL[it.pose].slice(1)} on the ${heSpan(it.he)}. Staying about ${mins} more minute${mins > 1 ? 's' : ''}.</p></div></div>
+        <div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+    } else if (itemId) {
+      const it = ITEMS[itemId];
+      openSheet(`<div class="portrait">${thumb(itemId)}<div><span class="he big" lang="he">${it.he}</span><h2>${it.tr}</h2><div class="muted">${it.en}</div><p>No one here yet.</p></div></div>
+        <div class="row"><button class="btn plain" data-act="remove">Put it away</button><button class="btn" data-act="close">Close</button></div>`);
+    } else {
+      const room = ROOMS.find((r) => r.id === roomId);
+      const free = state.owned.filter((id) => ITEMS[id].room === roomId && !isPlaced(id));
+      const body = free.length
+        ? `<div class="pick">${free.map((id) => `<button data-place="${id}">${thumb(id)}${heSpan(ITEMS[id].he)}<span>${ITEMS[id].tr}</span></button>`).join('')}</div>`
+        : `<p class="muted">You have nothing for the ${room.en} yet. Open the shop to buy something for this room.</p>`;
+      openSheet(`<h2>Put out an item · ${heSpan(room.he)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+    }
+  }
+  function openShop() {
+    const room = ROOMS[cur], fish = getFish();
+    const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id);
+    openSheet(`<h2>Shop · ${heSpan(room.he)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2><div class="grid">${ids.map((id) => {
+      const it = ITEMS[id], owned = state.owned.includes(id);
+      const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
+        : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
+      return `<div class="card">${thumb(id)}${heSpan(it.he)}<div class="en">${it.tr} · ${it.en}</div>${act}</div>`;
+    }).join('')}</div><div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+  }
+  function openCats() {
+    openSheet(`<h2>Cats <span class="he" lang="he">חֲתוּלִים</span></h2><div class="grid">${CAT_ORDER.map((id) => {
+      const c = CATS[id], n = state.seen[id] || 0;
+      if (!n) return `<div class="card">${catPortrait(id, true)}<div class="he">?</div><div class="en">Not met yet</div></div>`;
+      const fav = Object.keys(c.likes).sort((a, b) => c.likes[b] - c.likes[a])[0];
+      return `<div class="card">${catPortrait(id)}${heSpan(c.he)}<div class="en">${c.tr} · “${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${heSpan(ITEMS[fav].he)}</div></div>`;
+    }).join('')}</div><div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+  }
+
+  function toast(html) {
+    const t = document.createElement('div');
+    t.className = 'toast'; t.innerHTML = html; $('toasts').appendChild(t);
+    setTimeout(() => t.remove(), 3900);
+  }
+
+  /* ---------- Events ---------- */
+  world.addEventListener('click', (e) => { const b = e.target.closest('.spot'); if (b) openSpot(b.dataset.room, +b.dataset.i); });
+  $('sheet').addEventListener('click', (e) => {
+    const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]');
+    if (place && sheetCtx) { state.spots[sheetCtx.roomId][sheetCtx.i] = place.dataset.place; save(); closeSheet(); renderRooms(); }
+    else if (act && act.dataset.act === 'remove' && sheetCtx) { state.spots[sheetCtx.roomId][sheetCtx.i] = null; save(); closeSheet(); renderRooms(); }
+    else if (buy) {
+      const id = buy.dataset.buy, it = ITEMS[id], fish = getFish();
+      if (state.owned.includes(id) || fish < it.price) return;
+      state.owned.push(id); save(); setFish(fish - it.price);
+      toast(`Bought ${heSpan(it.he)} ${it.tr}! Tap an empty spot to put it out.`);
+      openShop();
+    } else if (act) closeSheet();
+  });
+  $('overlay').addEventListener('click', (e) => { if (e.target.id === 'overlay') closeSheet(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('overlay').hidden) closeSheet();
+    if ($('overlay').hidden && e.key === 'ArrowLeft') goRoom(cur - 1);
+    if ($('overlay').hidden && e.key === 'ArrowRight') goRoom(cur + 1);
+  });
+  $('dots').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) goRoom(+b.dataset.go); });
+  $('prev').addEventListener('click', () => goRoom(cur - 1));
+  $('next').addEventListener('click', () => goRoom(cur + 1));
+  $('shopBtn').addEventListener('click', openShop);
+  $('catsBtn').addEventListener('click', openCats);
+  $('giftBtn').addEventListener('click', () => {
+    const n = state.gifts; if (!n) return;
+    state.gifts = 0; save(); setFish(getFish() + n); toast(`Collected ${n} 🐟 from your visitors.`);
+  });
+  window.addEventListener('resize', () => goRoom(cur, false));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderWallet(); tick(true); } });
+
+  /* ---------- Testing tools (?test) ---------- */
+  const testMode = /[?&]test\b/.test(location.search);
+  if (testMode) {
+    $('test').hidden = false;
+    $('test').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-test]'); if (!b) return;
+      if (b.dataset.test === 'fish') setFish(getFish() + 50);
+      if (b.dataset.test === 'summon') {
+        const present = new Set(Object.values(state.visitors).map((v) => v.cat));
+        ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
+          const k = key(r.id, i);
+          if (!itemId || state.visitors[k]) return;
+          const cat = pickCat(itemId, present); if (!cat) return;
+          present.add(cat); state.seen[cat] = (state.seen[cat] || 0) + 1;
+          state.visitors[k] = { cat, arrive: Date.now(), leave: Date.now() + 40 * 60e3, gift: randInt(...CATS[cat].gift), fresh: true };
+        }));
+        save(); renderRooms();
+      }
+      if (b.dataset.test === 'reset' && confirm('Erase the prototype save?')) { store.remove(SAVE_KEY); store.remove(FISH_KEY); state = freshState(); start(); }
+    });
+  }
+
+  /* ---------- Time of day: evening is a colour wash over the day art ---------- */
+  function applyTimeOfDay() {
+    const h = new Date().getHours();
+    const evening = (h >= 17 && h < 20) || (h >= 5 && h < 7);
+    document.querySelectorAll('.tint').forEach((t) => { t.style.background = evening ? 'linear-gradient(rgba(242,150,110,.28), rgba(242,150,110,.10))' : 'transparent'; });
+  }
+
+  function start() {
+    if (!state.welcomed) {
+      state.welcomed = true; save(); setFish(getFish() + WELCOME_FISH + 300);   // +300 so the prototype is easy to try
+      toast(`Welcome to the Ryokan! Swipe sideways to visit the rooms.`);
+    }
+    renderRooms(); renderChrome(); renderWallet(); tick(true);
+  }
+  start();
+  setInterval(() => { applyTimeOfDay(); tick(false); }, TICK_MS);
+})();
+</script>
+</body>
+</html>
