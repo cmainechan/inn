@@ -2,7 +2,7 @@
 """Turn the generator's raw PNGs into the yard's web art.
 
 Reads yard/raw/ and writes:
-  cats/<cat>/<pose>.webp         poses: sit, sleep, lie
+  cats/<cat>/<pose>.webp         poses: sit, sleep, lie, head (head: peeking over an edge)
   cats/<cat>/<pose>-<n>.webp     optional extra frames, e.g. sleep-2.png -> sleep-2.webp
   objects/<item>.webp
   objects/<item>-front.webp      items listed in FRONT_WALLS
@@ -43,8 +43,9 @@ SIT_HEIGHT = 250      # each cat's sitting pose is scaled to this content height
 CAT_SIZE = 0.85       # cats in the layers are drawn at this fraction of SIT_HEIGHT. Measured
                       # against the Tapuz combos (the reference): their cat is about 0.85 of
                       # the layer's sitting height, while the objects match the combos at 1.0
-OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8}  # extra size factor per object, on top of the shared item scale (cats are unchanged)
-OBJECT_SHIFT = {'ball': -60, 'yarn': -20}  # canvas px, sideways. Keeps the ball out of the paw's reach (the cat sits to its right)
+OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5}  # extra size factor per object, on top of the shared item scale (cats are unchanged)
+SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
+OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12}  # canvas px, sideways. Keeps the ball out of the paw's reach (the cat sits to its right)
 REF_CAT = 'tapuz'     # items use the same scale as this cat's sitting pose, so sizes carry over
 TRIM_ALPHA = 0.1      # alpha below this is ignored when finding the content box
 WEBP_QUALITY = 90
@@ -69,7 +70,9 @@ FRONT_CURVES = {
 FRONT_WALLS = {
 }
 
-POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie)(?:-(?P<n>\d+))?$')
+POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half)(?:-(?P<n>\d+))?$')
+# Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
+ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 
 
 # ---------- background removal ----------
@@ -138,6 +141,53 @@ def cut_out(rgb):
     return np.dstack([out, alpha]), bg, was_green
 
 
+def cut_head(rgb):
+    """Cut-out for head poses. The pale fur at the edge left a grey halo with cut_out's soft
+    alpha, because the faint edge pixels un-mix into noise. This uses a sharper alpha ramp and
+    un-mixes with a floor, so the edge keeps the cat's own colour. Same return as cut_out."""
+    bg = border_colour(rgb)
+    dist = np.linalg.norm(rgb - bg, axis=-1)
+    dsat = np.maximum(chroma(rgb) - chroma(bg), 0)
+    score = np.maximum(dist, 1.6 * dsat)
+    alpha = np.clip((score - 30) / 10, 0, 1)
+    loose = alpha < 0.5
+    outside = edge_connected(loose)
+    alpha = np.where(outside, 0.0, alpha)
+    alpha = np.where(loose & ~outside, 1.0, alpha)
+    edge = (alpha > 0) & (alpha < 0.95)
+    a = alpha[..., None]
+    unmixed = np.clip((rgb - bg * (1 - a)) / np.maximum(a, 0.5), 0, 255)
+    out = np.where(edge[..., None], unmixed, rgb)
+    return np.dstack([out, alpha]), bg, False
+
+
+def grow(mask, r):
+    """Grow a boolean mask by r pixels in every direction."""
+    m = mask.copy()
+    for _ in range(r):
+        g = m.copy()
+        g[1:] |= m[:-1]
+        g[:-1] |= m[1:]
+        g[:, 1:] |= m[:, :-1]
+        g[:, :-1] |= m[:, 1:]
+        m = g
+    return m
+
+
+def drop_shadow(rgba, reach=4, from_frac=0.0):
+    """Remove a grey ground shadow. It is low in colour and lies outside the object's coloured
+    silhouette, so pixels that are grey and more than `reach` px from any coloured pixel go.
+    from_frac limits the cut to rows below that fraction of the height, so pale parts higher
+    up (ears, cheeks) are left alone."""
+    a = rgba[..., 3]
+    sat = chroma(rgba[..., :3])
+    near = grow((a > 0.5) & (sat > 20), reach)
+    low = (np.arange(a.shape[0]) >= from_frac * a.shape[0])[:, None]
+    out = rgba.copy()
+    out[..., 3] = np.where(~near & (sat < 12) & low, 0.0, a)
+    return out
+
+
 def trim(rgba):
     ys, xs = np.where(rgba[..., 3] > TRIM_ALPHA)
     return rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
@@ -198,6 +248,19 @@ def over_grass(canvas):
 
 # ---------- the two kinds of art ----------
 
+HEAD_MATCH = {'half', 'head'}   # cat poses whose head is matched to the sitting head (see process_cat)
+
+
+def head_width(rgba):
+    """Width in pixels of the widest row in the top 45% of a trimmed cat: the head."""
+    a = rgba[..., 3] > TRIM_ALPHA
+    rows = np.where(a.any(axis=1))[0]
+    top, bottom = rows.min(), rows.max()
+    span = a[top:top + int(0.45 * (bottom - top))]
+    widths = [np.ptp(np.where(r)[0]) for r in span if r.any()]
+    return max(widths)
+
+
 def process_cat(cat, frames, log):
     """frames: {(pose, n): raw path}. Every frame of one cat shares one scale factor.
     Returns [(label, raw path, canvas)] for the contact sheet."""
@@ -206,17 +269,25 @@ def process_cat(cat, frames, log):
         return []
     cut = {}
     for key, path in sorted(frames.items()):
-        rgba, bg, green = cut_out(load(path))
+        cutter = cut_head if key[0] == 'head' else cut_out
+        rgba, bg, green = cutter(load(path))
         cut[key] = trim(rgba)
         log(f'  {path.name}: backdrop {bg.round().astype(int).tolist()}{" (green spill fix)" if green else ""}, '
             f'content {cut[key].shape[1]}x{cut[key].shape[0]}')
     s = SIT_HEIGHT * CAT_SIZE / cut[('sit', 1)].shape[0]
     log(f'  {cat}: scale {s:.4f} (sit height {cut[("sit", 1)].shape[0]} px -> {SIT_HEIGHT * CAT_SIZE:.0f} px)')
+    sit_head = head_width(cut[('sit', 1)])
     rows = []
     for key in sorted(frames):
         pose, n = key
         name = pose if n == 1 else f'{pose}-{n}'
-        canvas = compose(cut[key], s, f'{cat}/{name}')
+        scale = s
+        if pose in HEAD_MATCH:
+            # The art draws this pose's head bigger than the sitting head. Scale it so the head
+            # matches the sitting head, so every cat reads at the same size.
+            scale = s * sit_head / head_width(cut[key])
+            log(f'  {cat} {name}: head matched to sitting head, scale x{sit_head / head_width(cut[key]):.3f}')
+        canvas = compose(cut[key], scale, f'{cat}/{name}')
         save_webp(canvas, CATS_OUT / cat / f'{name}.webp')
         rows.append((f'{cat} {name}', frames[key], canvas))
     return rows
@@ -227,6 +298,8 @@ def process_item(name, path, scale, log):
     comes out at the reference cat's size in the yard."""
     scale = scale * OBJECT_SIZE.get(name, 1.0)
     rgba, bg, green = cut_out(load(path))
+    if name in SHADOW_CUT:
+        rgba = drop_shadow(rgba, from_frac=SHADOW_CUT[name])
     ys, xs = np.where(rgba[..., 3] > TRIM_ALPHA)
     x_raw, y_raw = xs.min(), ys.min()          # where the trimmed content starts in the raw image
     rgba = trim(rgba)
@@ -303,6 +376,9 @@ def main():
     # yarn2.png is the current yarn (ball with the string toward the cat); yarn.png is kept in raw/ but not used.
     if 'yarn2' in items:
         items['yarn'] = items.pop('yarn2')
+    for alias, source in ITEM_SOURCE.items():
+        if source in items:
+            items[alias] = items[source]
 
     log = print
     sheet_rows = []

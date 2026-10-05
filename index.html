@@ -68,16 +68,15 @@
   .yard {
     position: relative; width: 100%; aspect-ratio: 16 / 11;
     border-radius: 26px; overflow: hidden; border: 3px solid var(--ink);
-    background: #9DCC6E url("scene/garden.webp") center / cover no-repeat;
+    background: #9DCC6E url("scene/ryokan.webp") center / cover no-repeat;
   }
-  /* Evening and night are a colour wash over the daytime garden. */
+  /* Evening and night are a colour wash over the daytime scene. */
   .tint { position: absolute; inset: 0; pointer-events: none; transition: background 1.5s ease; }
   .spot {
     position: absolute; width: 27%; aspect-ratio: 120 / 100;
     transform: translateX(-50%); padding: 0; border: 0; background: none;
     cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 14px;
   }
-  .spot.back { width: 23.5%; }
   .spot .empty-mark { opacity: .75; transition: opacity .2s; }
   .spot:hover .empty-mark { opacity: 1; }
 
@@ -88,8 +87,11 @@
   .thumb .layer { position: absolute; }
   .cat-layer { position: absolute; pointer-events: none; }
   .frames { display: grid; }
-  .frames > img { grid-area: 1 / 1; display: block; width: 100%; height: auto; opacity: 0; transition: opacity .9s ease; }
+  .frames > img { grid-area: 1 / 1; display: block; width: 100%; height: auto; opacity: 0; transition: opacity .12s linear; }
   .frames > img.on { opacity: 1; }
+  /* The first frame stays fully opaque underneath, so a flick only fades the extra frame over it.
+     Fading both at once let the garden show through and made the whole cat blink. */
+  .frames > img:first-child { opacity: 1; }
   .portrait-cat { width: 100%; max-width: 136px; }
   .portrait-cat img { display: block; width: 100%; height: auto; }
   .sil img { filter: brightness(0); opacity: .18; }
@@ -226,7 +228,8 @@
   const MAX_AWAY_HOURS = 24;    // time away is counted up to this many hours
   const TICK_MS = 15000;        // how often the yard checks for visitors while open
   const WELCOME_FISH = 10;      // fish given on the very first visit
-  const FRAME_MS = 10000;       // how often a cat with extra frames (sleep-2.webp...) swaps to the next
+  const TWITCH_GAP = [6000, 14000];  // ms between twitches, random for each cat
+  const TWITCH_HOLD = 380;      // ms a twitch stays on the extra frame before it snaps back
 
   /* ---------- Shared storage keys ---------- */
   const FISH_KEY = 'fish';      // the shared wallet that hwg and hbt will add to
@@ -234,7 +237,7 @@
 
   /* ---------- Art ----------
      Cats:  cats/<cat>/{sit,sleep,lie}.webp, plus sleep-2.webp, sleep-3.webp...
-            for extra frames that swap in slowly.
+            for extra frames (twitches: a quick flick to one, then back).
      Items: objects/<item>.webp, plus objects/<item>-front.webp for items with hasFront.
      Make every file with tools/process_art.py from yard/raw/.
      Until a file exists: a cat shows Tapuz as a stand-in, and an item shows its
@@ -250,7 +253,7 @@
   };
 
   /* ---------- Items ----------
-     pose:     which cat pose sits on it (sit, sleep or lie).
+     pose:     which cat pose sits on it (sit, sleep, lie, or head: peeking over the edge).
      hasFront: the object has a front layer, drawn over the cat (box and basket).
      wobble:   the object gently rocks (toys).
      cat:      where the cat's feet go, as percentages of the object image
@@ -263,14 +266,21 @@
   const CAT_WIDTH = 100;        // a cat's image is the full spot width, at its natural size
   const ITEMS = {
     cushion: { he: 'כָּרִית', tr: 'karit', en: 'cushion', price: 100, pose: 'sleep', cat: { x: 50, y: 87.5 } },
+    onigiri: { he: 'אוֹנִיגִירִי', tr: 'onigiri', en: 'onigiri', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     ball:    { he: 'כַּדּוּר', tr: 'kadur', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
+    takoyaki: { he: 'טָקוֹיָקִי', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
     box:     { he: 'קֻפְסָה', tr: 'kufsa', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 87.5 } },
+    taiyaki: { he: 'טַיָּקִי', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 }, offset: { rimon: { x: 0, y: 0, s: 1 } } },
+    mochi:   { he: 'מוֹצִ׳י', tr: 'motsi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
+    matcha:  { he: 'מָאצָ׳ה', tr: 'matcha', en: 'matcha', price: 220, pose: 'half', cat: { x: 50, y: 57.25 } },
+    redpanda: { he: 'פַּנְדָּה אֲדֻמָּה', tr: 'panda adumah', en: 'red panda suit', price: 240, pose: 'face', catScale: 0.682, cat: { x: 49, y: 68.25 } },
+    'taiyaki-xl': { he: 'טַיָּקִי גָּדוֹל', tr: 'taiyaki gadol', en: 'big taiyaki', price: 280, pose: 'ride', cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     yarn:    { he: 'כַּדּוּר צֶמֶר', tr: 'kadur tsemer', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
     basket:  { he: 'סַל', tr: 'sal', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
     tent:    { he: 'אֹהֶל', tr: 'ohel', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } }
   };
-  const ITEM_ORDER = ['cushion', 'ball', 'box', 'yarn', 'basket', 'tent'];
-  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying' };
+  const ITEM_ORDER = ['cushion', 'onigiri', 'ball', 'takoyaki', 'box', 'taiyaki', 'mochi', 'yarn', 'matcha', 'redpanda', 'taiyaki-xl', 'basket', 'tent'];
+  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'sitting in' };
 
   /* ---------- Cats ---------- */
   const CATS = {
@@ -353,12 +363,13 @@
     return `<div class="portrait-cat${sil ? ' sil' : ''}"><img src="${catFrames(catId, 'sit')[0]}" alt=""></div>`;
   }
   function catLayer(v, it) {
-    const { x, y } = it.cat;
+    const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };   // per-cat nudge (percent) and size
+    const x = it.cat.x + o.x, y = it.cat.y + o.y, w = CAT_WIDTH * (it.catScale || 1) * (o.s || 1);
     const frames = catFrames(v.cat, it.pose);
     const imgs = frames.map((src, k) => `<img class="${k ? '' : 'on'}" src="${src}" alt="">`).join('');
     const motion = it.pose === 'sleep' ? ' breathe' : '';
     // The cat image's feet are at (50%, 97%) of its own box, so shift by that much.
-    return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - CAT_WIDTH * 0.5}%;top:${y - CAT_WIDTH * 0.97}%;width:${CAT_WIDTH}%">` +
+    return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
       `<div class="frames${motion}">${imgs}</div></div>`;
   }
 
@@ -383,6 +394,10 @@
       required.push(artPath.cat(c, p, 1));
       [2, 3].forEach((n) => optional.push(artPath.cat(c, p, n)));
     }));
+    Object.keys(CATS).forEach((c) => optional.push(artPath.cat(c, 'head', 1)));
+    Object.keys(CATS).forEach((c) => optional.push(artPath.cat(c, 'ride', 1)));
+    Object.keys(CATS).forEach((c) => optional.push(artPath.cat(c, 'face', 1)));
+    Object.keys(CATS).forEach((c) => optional.push(artPath.cat(c, 'half', 1)));
     Object.keys(ITEMS).forEach((id) => {
       required.push(artPath.item(id));
       if (ITEMS[id].hasFront) required.push(artPath.front(id));
@@ -392,17 +407,25 @@
     probe(optional, true);
   }
 
-  /* Extra frames: every few seconds, each multi-frame cat swaps to its next frame. */
+  /* Twitches: a cat with extra frames gives a quick flick now and then (an ear, a blink),
+     flashing to one extra frame and snapping back to its first. Each cat has its own
+     timing, so they don't move in step. Rendering rebuilds the cats, so the schedule
+     is kept on each element and looked up again every second. */
+  const nextTwitch = new WeakMap();
+  const showFrame = (f, k) => [...f.children].forEach((im, i) => im.classList.toggle('on', i === k));
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
     setInterval(() => {
+      const now = Date.now();
       document.querySelectorAll('.frames').forEach((f) => {
-        const imgs = f.children;
-        if (imgs.length < 2) return;
-        const cur = [...imgs].findIndex((i) => i.classList.contains('on'));
-        imgs[cur].classList.remove('on');
-        imgs[(cur + 1) % imgs.length].classList.add('on');
+        if (f.children.length < 2 || f.dataset.twitching) return;
+        if (!nextTwitch.has(f)) { nextTwitch.set(f, now + rand(...TWITCH_GAP)); return; }
+        if (now < nextTwitch.get(f)) return;
+        nextTwitch.set(f, now + rand(...TWITCH_GAP));
+        f.dataset.twitching = '1';
+        showFrame(f, randInt(1, f.children.length - 1));
+        setTimeout(() => { showFrame(f, 0); delete f.dataset.twitching; }, TWITCH_HOLD);
       });
-    }, FRAME_MS);
+    }, 1000);
   }
 
   /* ---------- Visiting logic ---------- */
@@ -711,17 +734,18 @@
   }
 
   /* ---------- Time of day ----------
-     The garden is one daytime image. Evening and night are colour washes over it. */
+     The scene is one daytime image. Evening and night are colour washes over it. */
   const TINTS = {
     day:     'transparent',
     evening: 'linear-gradient(rgba(242,150,110,.28), rgba(242,150,110,.10))',
-    night:   'linear-gradient(rgba(30,40,85,.55), rgba(30,40,85,.40))'
+    night:   'transparent'
   };
   function applyTimeOfDay() {
     const h = new Date().getHours();
     const key = (h >= 7 && h < 17) ? 'day' : ((h >= 17 && h < 20) || (h >= 5 && h < 7)) ? 'evening' : 'night';
     $('tint').style.background = TINTS[key];
   }
+
 
   /* ---------- Start ---------- */
   function start() {
