@@ -1,6 +1,6 @@
 # Neko Ryokan: room art specs
 
-Prototype: `rooms.html` (open `/rooms.html?test`). It currently uses four slices of `scene/ryokan.webp` as placeholder rooms. Ready-to-paste image prompts are in `ART-PROMPTS-ROOMS.md`.
+The game is `index.html` (open `/index.html?test`). It currently uses low-resolution room backgrounds in `scene/room-*.webp`. Ready-to-paste image prompts are in `ART-PROMPTS-ROOMS.md`.
 
 ## How the rooms work
 
@@ -59,4 +59,4 @@ The matcha cup is a temporary stand-in for a bath in the prototype and goes away
 
 ## Files the pipeline will need
 
-`tools/process_art.py` needs one new step: read `raw/scene/room-*.png`, resize to 1080 × 1920 (or keep 1440 × 2560), write `scene/room-<id>.webp`. Then `rooms.html` swaps its `.bg` placeholder crops for those files. Until then, nothing in the pipeline changes.
+`tools/process_art.py` needs one new step: read `raw/scene/room-*.png`, resize to 1080 × 1920 (or keep 1440 × 2560), write `scene/room-<id>.webp`. Then the `scene/room-*.webp` files are replaced by the full-size versions. Until then, nothing in the pipeline changes.
