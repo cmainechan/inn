@@ -129,9 +129,15 @@
   .sheet .portrait { display: flex; gap: 14px; align-items: center; }
   .sheet .portrait > .portrait-cat, .sheet .portrait > .thumb { width: 120px; max-width: none; flex: none; }
   .sheet .ja.big { font-size: 2.1rem; display: block; line-height: 1.2; }
-  .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .shop-head h2 { text-align: center; }
-  .shop-head .btn { padding: 2px 14px; font-size: 1.2rem; line-height: 1.2; }
+  .sheet { position: relative; }
+  .sheet-x { position: absolute; top: 12px; right: 12px; padding: 2px 12px; font-size: 1.1rem; line-height: 1.2; }
+  .shop-head h2 { text-align: center; padding-right: 44px; }
+  .shop-steps { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 6px 0 10px; }
+  .shop-steps .btn { padding: 2px 14px; font-size: 1.2rem; line-height: 1.2; }
+  .bag-room { margin: 14px 0 2px; font-size: 1rem; }
+  .bag-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .bag-item .thumb { width: 64px; flex: none; }
+  .bag-item > div:nth-child(2) { flex: 1; }
   .sheet .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
   .pick, .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
   .pick button { font: inherit; color: var(--ink); background: #F4F7EC; border: 2px solid var(--line); border-radius: 16px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
@@ -188,6 +194,7 @@
   <div class="dots" id="dots" role="tablist" aria-label="Rooms"></div>
   <div class="dock">
     <button class="btn" id="shopBtn">Shop <span class="ja" lang="ja">店</span></button>
+    <button class="btn plain" id="bagBtn">Bag <span class="ja" lang="ja">袋</span></button>
     <button class="btn plain" id="catsBtn">Cats <span class="ja" lang="ja">猫</span></button>
   </div>
 </div>
@@ -512,14 +519,33 @@
     if (idx !== undefined) shopIdx = ((idx % ROOMS.length) + ROOMS.length) % ROOMS.length;
     const room = ROOMS[shopIdx], fish = getFish();
     const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
-    openSheet(`<div class="shop-head"><button class="btn plain" data-shop-step="-1" aria-label="Previous room">‹</button>` +
-      `<h2>Shop · ${jaSpan(room.ja)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2>` +
+    openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
+      `<div class="shop-head"><h2>Shop · ${jaSpan(room.ja)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2></div>` +
+      `<div class="shop-steps"><button class="btn plain" data-shop-step="-1" aria-label="Previous room">‹</button>` +
+      `<span class="muted">${room.en}</span>` +
       `<button class="btn plain" data-shop-step="1" aria-label="Next room">›</button></div><div class="grid">${ids.map((id) => {
       const it = ITEMS[id], owned = state.owned.includes(id);
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
         : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
       return `<div class="card">${thumb(id)}${jaSpan(it.ja)}<div class="en">${it.en}</div>${act}</div>`;
-    }).join('')}</div><div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+    }).join('')}</div>`);
+  }
+  // The bag lists everything bought, by room. Items out in a room say where they are.
+  const spotOf = (id) => { for (const r of ROOMS) { const i = state.spots[r.id].indexOf(id); if (i !== -1) return { roomId: r.id, i }; } return null; };
+  // The first empty spot in a room the item fits, with no cat visiting it.
+  const freeSpotFor = (roomId, id) => SPOTS.findIndex((_, i) => !state.spots[roomId][i] && !state.visitors[key(roomId, i)] && fits(roomId, i, id));
+  function openBag() {
+    const rooms = ROOMS.map((r) => {
+      const ids = state.owned.filter((id) => ITEMS[id].room === r.id);
+      if (!ids.length) return '';
+      return `<h3 class="bag-room">${jaSpan(r.ja)} <span class="muted">${r.en}</span></h3>` + ids.map((id) => {
+        const it = ITEMS[id], at = spotOf(id);
+        const act = at ? `<button class="btn plain" data-bag-away="${id}">Put away</button>` : `<button class="btn" data-bag-out="${id}">Put out</button>`;
+        return `<div class="bag-item">${thumb(id)}<div>${jaSpan(it.ja)}<div class="en">${it.en}${at ? ' · out now' : ''}</div></div>${act}</div>`;
+      }).join('');
+    }).join('');
+    openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button><h2>Bag · <span class="ja" lang="ja">袋</span></h2>` +
+      (rooms || '<p class="muted">Nothing in your bag yet. Open the shop to buy something.</p>'));
   }
   function openCats() {
     openSheet(`<h2>Cats <span class="ja" lang="ja">猫</span></h2><div class="grid">${CAT_ORDER.map((id) => {
@@ -567,7 +593,13 @@
   $('sheet').addEventListener('click', (e) => {
     const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]'), study = e.target.closest('[data-study]');
     const shopStep = e.target.closest('[data-shop-step]');
+    const bagOut = e.target.closest('[data-bag-out]'), bagAway = e.target.closest('[data-bag-away]');
     if (shopStep) openShop(shopIdx + +shopStep.dataset.shopStep);
+    else if (bagOut) {
+      const id = bagOut.dataset.bagOut, room = ITEMS[id].room, i = freeSpotFor(room, id);
+      if (i === -1) { toast(`No empty spot in the ${ROOMS.find((r) => r.id === room).en} for ${jaSpan(ITEMS[id].ja)}. Put something away first.`); return; }
+      placeItem(room, i, id); save(); closeSheet(); renderRooms(); goRoom(ROOMS.findIndex((r) => r.id === room));
+    } else if (bagAway) { const at = spotOf(bagAway.dataset.bagAway); clearItem(at.roomId, at.i); save(); renderRooms(); openBag(); }
     else if (place && sheetCtx) { placeItem(sheetCtx.roomId, sheetCtx.i, place.dataset.place); save(); closeSheet(); renderRooms(); }
     else if (act && act.dataset.act === 'remove' && sheetCtx) { clearItem(sheetCtx.roomId, sheetCtx.i); save(); closeSheet(); renderRooms(); }
     else if (buy) {
@@ -600,6 +632,7 @@
   });
   $('shopBtn').addEventListener('click', () => openShop(cur));
   $('catsBtn').addEventListener('click', openCats);
+  $('bagBtn').addEventListener('click', openBag);
   $('giftBtn').addEventListener('click', () => {
     const n = state.gifts; if (!n) return;
     state.gifts = 0; save(); setFish(getFish() + n); toast(`Collected ${n} 🐟 from your visitors.`);
