@@ -1,6 +1,6 @@
 # Yard art specs
 
-Specs for every image to generate. Save raw files to `yard/raw/` and run `python3 tools/process_art.py` to produce the web files.
+Specs for every image to generate. Save raw files to `inn/raw/` and run `python3 tools/process_art.py` to produce the web files.
 
 ## Common to all cats and objects
 
@@ -51,7 +51,7 @@ These are now the preferred art. Each one replaces the separate cat and object l
 
 ## Garden background (one daytime image)
 
-- Path: `yard/raw/scene/garden.png`
+- Path: `inn/raw/scene/garden.png`
 - Size: 1600×1100 PNG (the yard's 16:11 shape).
 - Full scene only. No items, animals, people or text.
 - **Top 45%:** the garden. Distant trees, a low wall, a stone lantern, a maple or pine at the left and right edges, a bridge or pond at the far back. Keep the middle clear.

@@ -1,16 +1,16 @@
 # Neko Ryokan: handoff
 
-Paste the prompt below into a new Claude Code session started in `/Users/charmainechan/Documents/Hebrew/yard`.
+Paste the prompt below into a new Claude Code session started in `/Users/charmainechan/Documents/Hebrew/inn`.
 
 ```
-I'm continuing work on "Neko Ryokan", a Neko Atsume-style cat game, a static site on GitHub Pages (https://cmainechan.github.io/yard/), no build step, one HTML file where practical, plain HTML/CSS/JS, no frameworks. Repo: /Users/charmainechan/Documents/Hebrew/yard (origin cmainechan/yard). Start by running git status and git log, then read HANDOFF-RYOKAN.md, ART-SPEC-ROOMS.md, ART-PROMPTS-ROOMS.md and index.html.
+I'm continuing work on "Neko Ryokan", a Neko Atsume-style cat game, a static site on GitHub Pages (https://cmainechan.github.io/inn/), no build step, one HTML file where practical, plain HTML/CSS/JS, no frameworks. Repo: /Users/charmainechan/Documents/Hebrew/inn (origin cmainechan/inn). Start by running git status and git log, then read HANDOFF-RYOKAN.md, ART-SPEC-ROOMS.md, ART-PROMPTS-ROOMS.md and index.html.
 
 ## Rules (unchanged)
 - Do not commit or push without asking. Show the diff summary and the commit message, then wait for a go-ahead.
 - raw/ is gitignored (~120MB). Never commit, delete or rename anything in it without asking.
 - Test in a real browser before saying it's done, with screenshots at 1280x900 and 390x844.
 - Use python3 -u for the pipeline. On macOS use sed -i '' or Python for edits.
-- Serve the parent folder: cd /Users/charmainechan/Documents/Hebrew && python3 -m http.server 8765, then open http://localhost:8765/yard/index.html?test
+- Serve the parent folder: cd /Users/charmainechan/Documents/Hebrew && python3 -m http.server 8765, then open http://localhost:8765/inn/index.html?test
 
 ## What we decided (from a long design session)
 1. Concept: "Neko Ryokan". Cats come to stay at a Japanese inn. Immersive, full-screen, like Neko Atsume. The old 16:11 yard was too small on a phone. It has been removed; it is still in git history at ec9a694.

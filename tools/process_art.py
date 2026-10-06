@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn the generator's raw PNGs into the yard's web art.
 
-Reads yard/raw/ and writes:
+Reads inn/raw/ and writes:
   cats/<cat>/<pose>.webp         poses: sit, sleep, lie, head (head: peeking over an edge)
   cats/<cat>/<pose>-<n>.webp     optional extra frames, e.g. sleep-2.png -> sleep-2.webp
   objects/<item>.webp
@@ -16,7 +16,7 @@ Raw names:
   raw/scene/room-<id>.png        e.g. room-zashiki.png (see ROOM_IDS in index.html)
 
 Usage (from anywhere):
-  python3 yard/tools/process_art.py [--sheet PATH]
+  python3 inn/tools/process_art.py [--sheet PATH]
 
 Needs Pillow and numpy. Every output is W x H (480 x 400), the same aspect
 as the 120:100 spot box in index.html, so one set of percentage anchors works
