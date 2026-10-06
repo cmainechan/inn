@@ -32,15 +32,14 @@
   .ja { font-family: "Zen Maru Gothic", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; font-weight: 700; }
 
   /* ---------- The world: four rooms side by side, swipe to move ---------- */
-  #world {
-    position: fixed; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden;
-    scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
-  }
-  #world::-webkit-scrollbar { display: none; }
+  /* The rooms are placed around the centre of the screen. The current room is in the middle, its neighbours
+     are either side, and the rooms wrap round, so the kitchen's left neighbour is the hot spring. */
+  #world { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; }
   .room {
-    position: relative; flex: none; width: var(--W); height: 100dvh; overflow: hidden;
-    scroll-snap-align: center; scroll-snap-stop: always;
+    position: absolute; top: 0; left: 50%; width: var(--W); height: 100dvh; overflow: hidden;
+    transition: transform .55s cubic-bezier(.3, .7, .3, 1);
   }
+  .room:not(.current) { pointer-events: none; }
   /* The stage is the art. It covers the room (so a tall phone crops the sides a little)
      and every spot is placed in percentages of it, so items stay glued to the picture. */
   .stage {
@@ -434,20 +433,18 @@
       `</svg></button>`;
   }
   function renderRooms() {
-    const sx = world.scrollLeft;
     world.innerHTML = ROOMS.map((r) =>
       `<section class="room r-${r.id}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
       SPOTS.map((_, i) => spotHtml(r, i)).join('') +
       (r.id === DESK.room ? deskHtml() : '') + `</div></section>`).join('');
     applyTimeOfDay();
-    world.scrollLeft = sx;
+    placeRooms();
   }
   function renderChrome() {
     const r = ROOMS[cur];
     $('roomName').innerHTML = `${jaSpan(r.ja)}<small>${r.en}</small>`;
     $('dots').innerHTML = ROOMS.map((x, i) =>
       `<button class="dot" role="tab" data-go="${i}" aria-current="${i === cur}" aria-label="${x.en}">${i === cur ? jaSpan(x.ja) : (i + 1)}</button>`).join('');
-    $('prev').disabled = cur === 0; $('next').disabled = cur === ROOMS.length - 1;
   }
   function renderWallet(bump) {
     const el = $('fish');
@@ -456,31 +453,22 @@
     $('giftBtn').hidden = !state.gifts;
     $('giftBtn').textContent = `🎁 ${state.gifts}`;
   }
-  // Where the strip stops for each room: its centre in the middle of the screen, but never past either end.
-  // The first and last rooms stop at the edge of the strip, so they are still reachable.
-  function stopFor(i) {
-    const room = world.children[i], maxLeft = world.scrollWidth - world.clientWidth;
-    const left = room.offsetLeft + room.offsetWidth / 2 - world.clientWidth / 2;
-    return Math.max(0, Math.min(maxLeft, left));
-  }
-  function goRoom(i, smooth) {
-    i = Math.max(0, Math.min(ROOMS.length - 1, i));
-    world.scrollTo({ left: stopFor(i), behavior: smooth === false ? 'auto' : 'smooth' });
-  }
-  // The current room is the one whose stop is nearest to where the strip is now.
-  function roomAtCentre() {
-    let best = 0;
-    ROOMS.forEach((_, i) => { if (Math.abs(stopFor(i) - world.scrollLeft) < Math.abs(stopFor(best) - world.scrollLeft)) best = i; });
-    return best;
-  }
-  let scrollRaf = 0;
-  world.addEventListener('scroll', () => {
-    cancelAnimationFrame(scrollRaf);
-    scrollRaf = requestAnimationFrame(() => {
-      const i = roomAtCentre();
-      if (i !== cur) { cur = i; renderChrome(); }
+  // Each room sits at its offset from the current room: 0 in the middle, -1 to the left, +1 to the right.
+  // The rooms wrap, so the room after the last one is the first. With four rooms, the room two away is off screen.
+  function placeRooms() {
+    const n = ROOMS.length;
+    [...world.children].forEach((el, k) => {
+      let d = (((k - cur) % n) + n) % n;
+      if (d > n / 2) d -= n;
+      el.style.transform = `translateX(calc(-50% + ${d} * var(--W)))`;
+      el.classList.toggle('current', d === 0);
     });
-  }, { passive: true });
+  }
+  function goRoom(i) {
+    cur = ((i % ROOMS.length) + ROOMS.length) % ROOMS.length;
+    placeRooms(); renderChrome();
+  }
+  function stepRoom(dir) { goRoom(cur + dir); }
 
   /* ---------- Sheets ---------- */
   let sheetCtx = null;
@@ -582,12 +570,20 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('overlay').hidden) closeSheet();
     else if (e.key === 'Escape' && studyId !== null) closeStudy();
-    if ($('overlay').hidden && studyId === null && e.key === 'ArrowLeft') goRoom(cur - 1);
-    if ($('overlay').hidden && studyId === null && e.key === 'ArrowRight') goRoom(cur + 1);
+    if ($('overlay').hidden && studyId === null && e.key === 'ArrowLeft') stepRoom(-1);
+    if ($('overlay').hidden && studyId === null && e.key === 'ArrowRight') stepRoom(1);
   });
   $('dots').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) goRoom(+b.dataset.go); });
-  $('prev').addEventListener('click', () => goRoom(cur - 1));
-  $('next').addEventListener('click', () => goRoom(cur + 1));
+  $('prev').addEventListener('click', () => stepRoom(-1));
+  $('next').addEventListener('click', () => stepRoom(1));
+  // Swipe left or right to move. A tap, or a drag that starts on a spot, still works as before.
+  let swipeX = null;
+  world.addEventListener('pointerdown', (e) => { swipeX = e.clientX; });
+  world.addEventListener('pointerup', (e) => {
+    if (swipeX === null) return;
+    const dx = e.clientX - swipeX; swipeX = null;
+    if (Math.abs(dx) > 40 && studyId === null && $('overlay').hidden) stepRoom(dx < 0 ? 1 : -1);
+  });
   $('shopBtn').addEventListener('click', openShop);
   $('catsBtn').addEventListener('click', openCats);
   $('giftBtn').addEventListener('click', () => {
@@ -606,7 +602,6 @@
   });
   // If a study page adds fish in another tab (or in the frame, through the shared storage), update the count here.
   window.addEventListener('storage', (e) => { if (e.key === FISH_KEY) renderWallet(true); });
-  window.addEventListener('resize', () => goRoom(cur, false));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderWallet(); tick(true); } });
 
   /* ---------- Testing tools (?test) ---------- */
@@ -643,7 +638,7 @@
       state.welcomed = true; save(); setFish(getFish() + WELCOME_FISH);
       toast(`Welcome to the Ryokan! Swipe sideways to visit the rooms.`);
     }
-    renderRooms(); goRoom(cur, false); renderChrome(); renderWallet(); tick(true);
+    renderRooms(); renderChrome(); renderWallet(); tick(true);
   }
   start();
   setInterval(() => { applyTimeOfDay(); tick(false); }, TICK_MS);
