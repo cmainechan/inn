@@ -244,6 +244,8 @@
   const START_ROOM = 'zashiki';
   // Horizontal centre of the XL row: top row, bottom row.
   const XL_X = [32, 70];
+  // How far XL items sit below the middle of their row, in % of the room.
+  const XL_DROP = 6;
   const SPOTS = [
     { x: 32, y: 56 }, { x: 68, y: 60 },
     { x: 30, y: 76 }, { x: 70, y: 80 }
@@ -432,7 +434,7 @@
     if (isSecondary(room.id, i)) return '';
     const itemId = state.spots[room.id][i], v = state.visitors[key(room.id, i)];
     // An XL item is drawn at the middle of its row. Rows can sit left or right, so the baths form a diagonal.
-    const p = isXL(itemId) ? { x: XL_X[i >= 2 ? 1 : 0], y: (SPOTS[i].y + SPOTS[i + 1].y) / 2 } : SPOTS[i];
+    const p = isXL(itemId) ? { x: XL_X[i >= 2 ? 1 : 0], y: (SPOTS[i].y + SPOTS[i + 1].y) / 2 + XL_DROP } : SPOTS[i];
     let inner, label;
     if (!itemId) {
       inner = `<svg class="layer" viewBox="0 0 120 100" aria-hidden="true"><g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(255,255,255,.28)" stroke="#fff" stroke-width="2" stroke-dasharray="5 5"/><path d="M60 84 V96 M54 90 H66" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></g></svg>`;
