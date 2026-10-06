@@ -133,7 +133,9 @@
   .sheet-x { position: absolute; top: 12px; right: 12px; padding: 2px 12px; font-size: 1.1rem; line-height: 1.2; }
   .shop-head h2 { text-align: center; padding-right: 44px; }
   .shop-body { display: flex; align-items: center; gap: 8px; }
-  .shop-body .grid { flex: 1; min-width: 0; }
+  .shop-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .shop-main .grid { grid-template-columns: repeat(2, 1fr); margin-top: 4px; }
+  .shop-page { align-self: center; padding: 0 16px; line-height: 1.2; }
   .shop-body .btn { padding: 2px 12px; font-size: 1.3rem; line-height: 1.2; flex: none; }
   .bag-room { margin: 14px 0 2px; font-size: 1rem; }
   .bag-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
@@ -518,19 +520,28 @@
     }
   }
   // The shop browses the rooms with the ‹ › buttons. It starts on the room you are in.
-  let shopIdx = 0;
+  let shopIdx = 0, shopPage = 0;
+  const SHOP_PAGE = 4;   // items per screen, as a 2 x 2 grid
   function openShop(idx) {
-    if (idx !== undefined) shopIdx = ((idx % ROOMS.length) + ROOMS.length) % ROOMS.length;
+    if (idx !== undefined) {
+      const n = ((idx % ROOMS.length) + ROOMS.length) % ROOMS.length;
+      if (n !== shopIdx) shopPage = 0;
+      shopIdx = n;
+    }
     const room = ROOMS[shopIdx], fish = getFish();
-    const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
+    const all = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
+    const pages = Math.max(1, Math.ceil(all.length / SHOP_PAGE));
+    shopPage = Math.min(shopPage, pages - 1);
+    const ids = all.slice(shopPage * SHOP_PAGE, (shopPage + 1) * SHOP_PAGE);
+    const pager = (dir, label) => pages > 1 ? `<button class="btn plain shop-page" data-shop-page="${dir}" aria-label="${label}" ${shopPage + dir < 0 || shopPage + dir >= pages ? 'disabled' : ''}>${dir < 0 ? '▲' : '▼'}</button>` : '';
     openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
       `<div class="shop-head"><h2>Shop · ${jaSpan(room.ja)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2></div>` +
-      `<div class="shop-body"><button class="btn plain" data-shop-step="-1" aria-label="Previous room">‹</button><div class="grid">${ids.map((id) => {
+      `<div class="shop-body"><button class="btn plain" data-shop-step="-1" aria-label="Previous room">‹</button><div class="shop-main">${pager(-1, 'Earlier items')}<div class="grid">${ids.map((id) => {
       const it = ITEMS[id], owned = state.owned.includes(id);
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
         : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
       return `<div class="card">${thumb(id)}${jaSpan(it.ja)}<div class="en">${it.en}</div>${act}</div>`;
-    }).join('')}</div><button class="btn plain" data-shop-step="1" aria-label="Next room">›</button></div>`);
+    }).join('')}</div>${pager(1, 'Later items')}</div><button class="btn plain" data-shop-step="1" aria-label="Next room">›</button></div>`);
   }
   // The bag lists everything bought, by room. Items out in a room say where they are.
   const spotOf = (id) => { for (const r of ROOMS) { const i = state.spots[r.id].indexOf(id); if (i !== -1) return { roomId: r.id, i }; } return null; };
@@ -610,7 +621,9 @@
     const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]'), study = e.target.closest('[data-study]');
     const shopStep = e.target.closest('[data-shop-step]');
     const bagOut = e.target.closest('[data-bag-out]'), bagAway = e.target.closest('[data-bag-away]');
+    const shopPageBtn = e.target.closest('[data-shop-page]');
     if (shopStep) openShop(shopIdx + +shopStep.dataset.shopStep);
+    else if (shopPageBtn) { shopPage += +shopPageBtn.dataset.shopPage; openShop(shopIdx); }
     else if (bagOut) {
       const id = bagOut.dataset.bagOut, room = ITEMS[id].room;
       if (freeSpotFor(room, id) === -1) { toast(`No empty spot in the ${ROOMS.find((r) => r.id === room).en} for ${jaSpan(ITEMS[id].ja)}. Put something away first.`); return; }
