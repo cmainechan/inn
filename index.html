@@ -262,7 +262,7 @@
     taiyaki:  { room: 'shokudo', ja: 'たい焼き', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
     mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
-    stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 64.5 } },
+    stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 64.5 }, poseOffset: { sleep: { x: 0, y: 0.55 } } },
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
     'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
     'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
@@ -364,8 +364,8 @@
   const catPortrait = (id, sil) => `<div class="portrait-cat${sil ? ' sil' : ''}"><img src="${art.cat(id, 'sit')}" alt=""></div>`;
   function catLayer(v, it) {
     const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
-    const x = it.cat.x + o.x, y = it.cat.y + o.y, w = CAT_WIDTH * (it.catScale || 1) * (o.s || 1);
-    const pose = v.pose || it.pose;
+    const pose = v.pose || it.pose, po = (it.poseOffset && it.poseOffset[pose]) || { x: 0, y: 0 };
+    const x = it.cat.x + o.x + po.x, y = it.cat.y + o.y + po.y, w = CAT_WIDTH * (it.catScale || 1) * (o.s || 1);
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
       `<img class="${pose === 'sleep' ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
   }
