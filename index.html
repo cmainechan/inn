@@ -136,6 +136,8 @@
   .shop-room .btn, .shop-body .btn { padding: 2px 12px; font-size: 1.3rem; line-height: 1.2; flex: none; }
   .shop-body { display: flex; align-items: center; gap: 8px; }
   .shop-body .grid { flex: 1; min-width: 0; grid-template-columns: repeat(2, 1fr); margin-top: 4px; }
+  /* Empty slots keep a short last page the same height as a full one. */
+  .card.ghost { visibility: hidden; }
   .bag-room { margin: 14px 0 2px; font-size: 1rem; }
   .bag-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .bag-item .thumb { width: 64px; flex: none; }
@@ -544,7 +546,7 @@
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
         : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
       return `<div class="card">${thumb(id)}${jaSpan(it.ja)}<div class="en">${it.en}</div>${act}</div>`;
-    }).join('')}</div>${pager(1, 'Later items')}</div>`);
+    }).join('')}${'<div class="card ghost" aria-hidden="true"><div class="thumb"></div><span class="ja">&nbsp;</span><div class="en">&nbsp;</div><span class="btn">&nbsp;</span></div>'.repeat(SHOP_PAGE - ids.length)}</div>${pager(1, 'Later items')}</div>`);
   }
   // The bag lists everything bought, by room. Items out in a room say where they are.
   const spotOf = (id) => { for (const r of ROOMS) { const i = state.spots[r.id].indexOf(id); if (i !== -1) return { roomId: r.id, i }; } return null; };
