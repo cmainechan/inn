@@ -151,6 +151,8 @@
   .tag { margin-top: auto; font-weight: 600; color: var(--leaf); padding: 5px 0; }
   .muted { color: var(--muted); }
 
+  .placing { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 74px); z-index: 20; display: flex; align-items: center; gap: 10px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 6px 8px 6px 16px; white-space: nowrap; }
+  .placing .btn { padding: 2px 12px; }
   #toasts { position: fixed; left: 50%; transform: translateX(-50%); top: calc(max(10px, env(safe-area-inset-top)) + 64px); z-index: 40; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: min(92vw, 400px); }
   .toast { background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 16px; font-weight: 500; text-align: center; animation: toast 3.8s ease forwards; }
   .toast .ja { font-size: 1.1rem; }
@@ -207,6 +209,7 @@
 </div>
 
 <div id="toasts" aria-live="polite"></div>
+<div id="placing" class="placing" hidden><span id="placingText"></span> <button class="btn plain" id="placeCancel">Cancel</button></div>
 <div id="overlay" class="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 <div id="study" hidden>
   <div class="study-bar">
@@ -533,6 +536,18 @@
   const spotOf = (id) => { for (const r of ROOMS) { const i = state.spots[r.id].indexOf(id); if (i !== -1) return { roomId: r.id, i }; } return null; };
   // The first empty spot in a room the item fits, with no cat visiting it.
   const freeSpotFor = (roomId, id) => SPOTS.findIndex((_, i) => !state.spots[roomId][i] && !state.visitors[key(roomId, i)] && fits(roomId, i, id));
+  // Put out: the player picks the spot. The item waits in 'placing' until a spot is tapped or Cancel.
+  let placing = null;
+  function startPlacing(id) {
+    placing = id; $('placingText').innerHTML = `Tap a spot for ${jaSpan(ITEMS[id].ja)} ${ITEMS[id].tr}`; $('placing').hidden = false;
+  }
+  function endPlacing() { placing = null; $('placing').hidden = true; }
+  function placeAt(roomId, i) {
+    const id = placing;
+    if (state.spots[roomId][i] || state.visitors[key(roomId, i)]) { toast('That spot is taken. Tap an empty one.'); return; }
+    if (!fits(roomId, i, id)) { toast(`${jaSpan(ITEMS[id].ja)} needs two empty spots side by side.`); return; }
+    placeItem(roomId, i, id); save(); endPlacing(); renderRooms();
+  }
   function openBag() {
     const rooms = ROOMS.map((r) => {
       const ids = state.owned.filter((id) => ITEMS[id].room === r.id);
@@ -586,7 +601,9 @@
 
   /* ---------- Events ---------- */
   world.addEventListener('click', (e) => {
-    const b = e.target.closest('.spot'); if (b) openSpot(b.dataset.room, +b.dataset.i);
+    const b = e.target.closest('.spot');
+    if (b && placing) placeAt(b.dataset.room, +b.dataset.i);
+    else if (b) openSpot(b.dataset.room, +b.dataset.i);
     if (e.target.closest('[data-desk]')) openDesk();
   });
   $('sheet').addEventListener('click', (e) => {
@@ -595,9 +612,9 @@
     const bagOut = e.target.closest('[data-bag-out]'), bagAway = e.target.closest('[data-bag-away]');
     if (shopStep) openShop(shopIdx + +shopStep.dataset.shopStep);
     else if (bagOut) {
-      const id = bagOut.dataset.bagOut, room = ITEMS[id].room, i = freeSpotFor(room, id);
-      if (i === -1) { toast(`No empty spot in the ${ROOMS.find((r) => r.id === room).en} for ${jaSpan(ITEMS[id].ja)}. Put something away first.`); return; }
-      placeItem(room, i, id); save(); closeSheet(); renderRooms(); goRoom(ROOMS.findIndex((r) => r.id === room));
+      const id = bagOut.dataset.bagOut, room = ITEMS[id].room;
+      if (freeSpotFor(room, id) === -1) { toast(`No empty spot in the ${ROOMS.find((r) => r.id === room).en} for ${jaSpan(ITEMS[id].ja)}. Put something away first.`); return; }
+      closeSheet(); startPlacing(id); goRoom(ROOMS.findIndex((r) => r.id === room));
     } else if (bagAway) { const at = spotOf(bagAway.dataset.bagAway); clearItem(at.roomId, at.i); save(); renderRooms(); openBag(); }
     else if (place && sheetCtx) { placeItem(sheetCtx.roomId, sheetCtx.i, place.dataset.place); save(); closeSheet(); renderRooms(); }
     else if (act && act.dataset.act === 'remove' && sheetCtx) { clearItem(sheetCtx.roomId, sheetCtx.i); save(); closeSheet(); renderRooms(); }
@@ -632,6 +649,7 @@
   $('shopBtn').addEventListener('click', () => openShop(cur));
   $('catsBtn').addEventListener('click', openCats);
   $('bagBtn').addEventListener('click', openBag);
+  $('placeCancel').addEventListener('click', endPlacing);
   $('giftBtn').addEventListener('click', () => {
     const n = state.gifts; if (!n) return;
     state.gifts = 0; save(); setFish(getFish() + n); toast(`Collected ${n} 🐟 from your visitors.`);
