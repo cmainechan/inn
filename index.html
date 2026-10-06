@@ -34,10 +34,10 @@
   /* ---------- The world: four rooms side by side, swipe to move ---------- */
   /* The rooms are placed around the centre of the screen. The current room is in the middle, its neighbours
      are either side, and the rooms wrap round, so the kitchen's left neighbour is the hot spring. */
-  #world { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; }
+  #world { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; transition: opacity .3s ease; }
   .room {
     position: absolute; top: 0; left: 50%; width: var(--W); height: 100dvh; overflow: hidden;
-    transition: transform .55s cubic-bezier(.3, .7, .3, 1);
+    transition: transform .35s cubic-bezier(.2, .8, .2, 1);
   }
   .room:not(.current) { pointer-events: none; }
   /* The stage is the art. It covers the room (so a tall phone crops the sides a little)
@@ -474,8 +474,22 @@
       el.classList.toggle('current', d === 0);
     });
   }
+  // Moving between neighbours slides. Going across the wrap (last room to first, or back) cross-fades instead,
+  // because those two rooms are not next to each other in the picture.
+  let fading = false;
   function goRoom(i) {
-    cur = ((i % ROOMS.length) + ROOMS.length) % ROOMS.length;
+    const n = ROOMS.length, next = ((i % n) + n) % n;
+    if (next === cur || fading) return;
+    if (Math.abs(next - cur) === n - 1) {
+      fading = true;
+      world.style.opacity = 0;
+      setTimeout(() => {
+        cur = next; placeRooms(); renderChrome();
+        world.style.opacity = 1; fading = false;
+      }, 300);
+      return;
+    }
+    cur = next;
     placeRooms(); renderChrome();
   }
   function stepRoom(dir) { goRoom(cur + dir); }
