@@ -297,6 +297,8 @@
     const s = freshState();
     try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
     ROOMS.forEach((r) => { if (!s.spots[r.id]) s.spots[r.id] = SPOTS.map(() => null); });
+    // Owned items that were removed from the shop would break the spot picker, so drop them.
+    s.owned = s.owned.filter((id) => ITEMS[id]);
     // Tidy saves from before XL items and removed items: drop unknown ids, and give both spots of an XL row the item.
     ROOMS.forEach((r) => {
       const sp = s.spots[r.id];
