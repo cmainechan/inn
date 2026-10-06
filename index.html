@@ -132,6 +132,9 @@
   .sheet .portrait { display: flex; gap: 14px; align-items: center; }
   .sheet .portrait > .portrait-cat, .sheet .portrait > .thumb { width: 120px; max-width: none; flex: none; }
   .sheet .ja.big { font-size: 2.1rem; display: block; line-height: 1.2; }
+  .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .shop-head h2 { text-align: center; }
+  .shop-head .btn { padding: 2px 14px; font-size: 1.2rem; line-height: 1.2; }
   .sheet .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
   .pick, .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
   .pick button { font: inherit; color: var(--ink); background: #F4F7EC; border: 2px solid var(--line); border-radius: 16px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
@@ -460,7 +463,14 @@
     [...world.children].forEach((el, k) => {
       let d = (((k - cur) % n) + n) % n;
       if (d > n / 2) d -= n;
+      // A room that wraps from one side of the loop to the other would fly across the screen, so it jumps instead.
+      // Only rooms that move one place slide.
+      const prev = el.dataset.d === undefined ? null : +el.dataset.d;
+      el.dataset.d = d;
+      const jump = prev === null || Math.abs(d - prev) > 1;
+      if (jump) el.style.transition = 'none';
       el.style.transform = `translateX(calc(-50% + ${d} * var(--W)))`;
+      if (jump) { void el.offsetWidth; el.style.transition = ''; }
       el.classList.toggle('current', d === 0);
     });
   }
@@ -499,10 +509,15 @@
       openSheet(`<h2>Put out an item · ${jaSpan(room.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     }
   }
-  function openShop() {
-    const room = ROOMS[cur], fish = getFish();
-    const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id);
-    openSheet(`<h2>Shop · ${jaSpan(room.ja)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2><div class="grid">${ids.map((id) => {
+  // The shop browses the rooms with the ‹ › buttons. It starts on the room you are in.
+  let shopIdx = 0;
+  function openShop(idx) {
+    if (idx !== undefined) shopIdx = ((idx % ROOMS.length) + ROOMS.length) % ROOMS.length;
+    const room = ROOMS[shopIdx], fish = getFish();
+    const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
+    openSheet(`<div class="shop-head"><button class="btn plain" data-shop-step="-1" aria-label="Previous room">‹</button>` +
+      `<h2>Shop · ${jaSpan(room.ja)} <span class="muted" style="font-size:.9rem">${room.en}</span></h2>` +
+      `<button class="btn plain" data-shop-step="1" aria-label="Next room">›</button></div><div class="grid">${ids.map((id) => {
       const it = ITEMS[id], owned = state.owned.includes(id);
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
         : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
@@ -554,14 +569,16 @@
   });
   $('sheet').addEventListener('click', (e) => {
     const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]'), study = e.target.closest('[data-study]');
-    if (place && sheetCtx) { placeItem(sheetCtx.roomId, sheetCtx.i, place.dataset.place); save(); closeSheet(); renderRooms(); }
+    const shopStep = e.target.closest('[data-shop-step]');
+    if (shopStep) openShop(shopIdx + +shopStep.dataset.shopStep);
+    else if (place && sheetCtx) { placeItem(sheetCtx.roomId, sheetCtx.i, place.dataset.place); save(); closeSheet(); renderRooms(); }
     else if (act && act.dataset.act === 'remove' && sheetCtx) { clearItem(sheetCtx.roomId, sheetCtx.i); save(); closeSheet(); renderRooms(); }
     else if (buy) {
       const id = buy.dataset.buy, it = ITEMS[id], fish = getFish();
       if (state.owned.includes(id) || fish < it.price) return;
       state.owned.push(id); save(); setFish(fish - it.price);
       toast(`Bought ${jaSpan(it.ja)} ${it.tr}! Tap an empty spot to put it out.`);
-      openShop();
+      openShop(shopIdx);
     } else if (study) { closeSheet(); openStudy(study.dataset.study); }
     else if (act) closeSheet();
   });
@@ -584,7 +601,7 @@
     const dx = e.clientX - swipeX; swipeX = null;
     if (Math.abs(dx) > 40 && studyId === null && $('overlay').hidden) stepRoom(dx < 0 ? 1 : -1);
   });
-  $('shopBtn').addEventListener('click', openShop);
+  $('shopBtn').addEventListener('click', () => openShop(cur));
   $('catsBtn').addEventListener('click', openCats);
   $('giftBtn').addEventListener('click', () => {
     const n = state.gifts; if (!n) return;
