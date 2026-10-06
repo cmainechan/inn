@@ -453,16 +453,23 @@
     $('giftBtn').hidden = !state.gifts;
     $('giftBtn').textContent = `🎁 ${state.gifts}`;
   }
+  // Rooms snap to their centres, so a room is "current" when its centre is in the middle of the screen.
   function goRoom(i, smooth) {
     i = Math.max(0, Math.min(ROOMS.length - 1, i));
+    const room = world.children[i], maxLeft = world.scrollWidth - world.clientWidth;
+    const left = room.offsetLeft + room.offsetWidth / 2 - world.clientWidth / 2;
+    world.scrollTo({ left: Math.max(0, Math.min(maxLeft, left)), behavior: smooth === false ? 'auto' : 'smooth' });
+  }
+  function roomAtCentre() {
     const w = world.querySelector('.room').offsetWidth;
-    world.scrollTo({ left: i * w, behavior: smooth === false ? 'auto' : 'smooth' });
+    const i = Math.round((world.scrollLeft + world.clientWidth / 2 - w / 2) / w);
+    return Math.max(0, Math.min(ROOMS.length - 1, i));
   }
   let scrollRaf = 0;
   world.addEventListener('scroll', () => {
     cancelAnimationFrame(scrollRaf);
     scrollRaf = requestAnimationFrame(() => {
-      const w = world.querySelector('.room').offsetWidth, i = Math.round(world.scrollLeft / w);
+      const i = roomAtCentre();
       if (i !== cur) { cur = i; renderChrome(); }
     });
   }, { passive: true });
