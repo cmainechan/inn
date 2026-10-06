@@ -40,6 +40,8 @@ SCENE_QUALITY = 88
 ROOM_SIZE = (1080, 1920)   # 9:16 portrait, one room of the ryokan (the rooms game in index.html)
 ROOM_QUALITY = 88
 ROOM_PREFIX = 'room-'      # raw/scene/room-<id>.png -> scene/room-<id>.webp
+PANO_NAME = 'ryokan-pano'  # raw/scene/ryokan-pano.png: all four rooms in one picture, 9:4, kept at its own size
+PANO_QUALITY = 88
 
 W, H = 480, 400
 BASELINE_PAD = 12     # px between the lowest cat/item pixel and the canvas bottom
@@ -426,8 +428,15 @@ def main():
 
     for path in sorted((RAW / 'scene').glob('*.png')):
         # Scenes are full-bleed backgrounds: resize only, no background removal.
-        # Room pictures are 9:16 and get their own size below.
+        # Room pictures are 9:16 and get their own size below. The four-room panorama keeps its own size.
         if path.stem.startswith(ROOM_PREFIX):
+            continue
+        if path.stem == PANO_NAME:
+            log(f'panorama {path.name}')
+            img = Image.open(path).convert('RGB')
+            out = SCENE_OUT / f'{PANO_NAME}.webp'
+            img.save(out, 'WEBP', quality=PANO_QUALITY, method=6)
+            log(f'  -> {out.relative_to(YARD)} {img.size[0]}x{img.size[1]}')
             continue
         log(f'scene {path.name}')
         img = Image.open(path).convert('RGB').resize(SCENE_SIZE, Image.Resampling.LANCZOS)
