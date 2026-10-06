@@ -18,7 +18,7 @@
     --pond: #4F86B5;
     --leaf: #5E8F4A;
     /* One room is a 9:16 portrait panel: full width on a phone, a centred strip on a desktop. */
-    --W: min(100vw, calc(100dvh * 0.5625));
+    --W: calc(100dvh * 0.5625);
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -32,9 +32,9 @@
   .ja { font-family: "Zen Maru Gothic", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; font-weight: 700; }
 
   /* ---------- The world: four rooms side by side, swipe to move ---------- */
-  /* The rooms are placed around the centre of the screen. The current room is in the middle, its neighbours
-     are either side, and the rooms wrap round, so the kitchen's left neighbour is the hot spring. */
-  #world { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; transition: opacity .3s ease; }
+  /* The rooms are placed around the centre of the screen. The current room is in the middle, and its neighbours
+     are either side. The rooms run in a line, so the first and last rooms have no neighbour beyond them. */
+  #world { position: fixed; inset: 0; overflow: hidden; touch-action: pan-y; }
   .room {
     position: absolute; top: 0; left: 50%; width: var(--W); height: 100dvh; overflow: hidden;
     transition: transform .35s cubic-bezier(.2, .8, .2, 1);
@@ -47,13 +47,10 @@
     height: max(100dvh, calc(var(--W) * 1.7778)); aspect-ratio: 9 / 16;
   }
   .bg { position: absolute; inset: 0; background-color: #9DCC6E; background-repeat: no-repeat; background-size: auto 100%; }
-  /* All four rooms are one picture, 9:4 (four 9:16 rooms side by side). Each room's stage is one room wide,
-     so each room shows its own quarter and the seams line up. Stage height = 16/9 of its width, so the picture is 4 stages wide. */
-  .bg { background-image: url("scene/ryokan-pano.webp"); background-size: auto 100%; }
-  .r-shokudo .bg { background-position: 0% 50%; }
-  .r-zashiki .bg { background-position: 33.333% 50%; }
-  .r-engawa .bg { background-position: 66.667% 50%; }
-  .r-onsen .bg { background-position: 100% 50%; }
+  /* The picture is six rooms wide: a margin, the four rooms, and a margin (scene/ryokan-pano.webp).
+     Each section shows one slice of it, --slice from 0 to 5. The stage is one room wide and the picture is six
+     stages wide, so the slice's left edge is at --slice stages and background-position is --slice / 5. */
+  .bg { background-image: url("scene/ryokan-pano.webp"); background-size: auto 100%; background-position: calc(var(--slice) * 20%) 50%; }
   .tint { position: absolute; inset: 0; pointer-events: none; transition: background 1.5s ease; }
   .seam { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
 
@@ -156,13 +153,13 @@
   #test .btn { font-size: .78rem; padding: 3px 10px; }
 
   /* ---------- Study desk (a fixed piece of furniture, not one of the four spots) ---------- */
+  /* Same box as a spot, so the art (objects/desk.webp) is drawn at the same scale as an item. */
   .desk {
-    position: absolute; width: 27%; aspect-ratio: 6 / 5; transform: translateX(-50%); padding: 0; border: 0;
-    background: none; cursor: pointer; border-radius: 14px; z-index: 40;
+    position: absolute; width: 42%; aspect-ratio: 120 / 100; transform: translateX(-50%); padding: 0; border: 0;
+    background: none; cursor: pointer; border-radius: 14px;
   }
-  .desk svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .desk img { display: block; width: 100%; height: 100%; }
   .desk:focus-visible { outline: 3px solid var(--pond); outline-offset: 3px; }
-  .desk:hover .desk-top { fill: #C98D4E; }
 
   /* ---------- Study overlay: a study app in a frame, above the game ---------- */
   #study { position: fixed; inset: 0; z-index: 35; background: var(--paper); display: flex; flex-direction: column; }
@@ -421,31 +418,28 @@
     }
     return `<button class="spot" data-room="${room.id}" data-i="${i}" aria-label="${label}" style="left:${p.x}%;bottom:${100 - p.y}%;z-index:${p.y}">${inner}</button>`;
   }
-  // A low writing desk (fumizukue) with a brush and paper. Drawn in SVG until the art exists.
+  // The study desk: fixed furniture in the tatami room (objects/desk.webp). Tapping it opens the study menu.
   function deskHtml() {
-    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:${DESK.x}%;bottom:${100 - DESK.y}%;z-index:${DESK.y}">` +
-      `<svg viewBox="0 0 120 100" aria-hidden="true">` +
-      `<ellipse cx="60" cy="94" rx="46" ry="4" fill="rgba(60,40,20,.22)"/>` +
-      `<path d="M14 62 L106 62 L112 70 L8 70 Z" fill="#8A5A2B" stroke="#3F3530" stroke-width="2"/>` +
-      `<path class="desk-top" d="M10 40 L110 40 L114 48 L6 48 Z" fill="#B57A44" stroke="#3F3530" stroke-width="2"/>` +
-      `<path d="M22 70 V92 M98 70 V92" stroke="#3F3530" stroke-width="3.5" stroke-linecap="round"/>` +
-      `<rect x="38" y="26" width="30" height="14" fill="#FFFEF6" stroke="#3F3530" stroke-width="1.8" transform="rotate(-4 53 33)"/>` +
-      `<path d="M80 36 L92 16" stroke="#3F3530" stroke-width="3" stroke-linecap="round"/>` +
-      `<path d="M92 16 q4 -6 9 -2 q-2 6 -9 2 z" fill="#3F3530"/>` +
-      `<text x="60" y="58" text-anchor="middle" font-size="9" font-weight="700" fill="#FFFEF6" font-family="Zen Maru Gothic, sans-serif">勉強</text>` +
-      `</svg></button>`;
+    // The desk sits 60px lower and 35px right of its percentage position.
+    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 35px);bottom:calc(${100 - DESK.y}% - 60px);z-index:${DESK.y}">` +
+      `<img src="objects/desk.webp" alt=""></button>`;
   }
+  // The picture is six rooms wide: a margin, the four rooms, and a margin. The margins have no spots or desk.
+  // They are only ever seen beside the first and last rooms.
+  const MARGINS = { left: { id: 'margin-left', en: 'dining room wall', slice: 0 }, right: { id: 'margin-right', en: 'garden', slice: 5 } };
   function renderRooms() {
-    world.innerHTML = ROOMS.map((r) =>
-      `<section class="room r-${r.id}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
-      SPOTS.map((_, i) => spotHtml(r, i)).join('') +
-      (r.id === DESK.room ? deskHtml() : '') + `</div></section>`).join('');
+    const sections = [{ ...MARGINS.left, margin: true }, ...ROOMS.map((r, i) => ({ ...r, slice: i + 1 })), { ...MARGINS.right, margin: true }];
+    world.innerHTML = sections.map((r) =>
+      `<section class="room r-${r.id}" style="--slice:${r.slice}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
+      (r.margin ? '' : SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === DESK.room ? deskHtml() : '')) +
+      `</div></section>`).join('');
     applyTimeOfDay();
     placeRooms();
   }
   function renderChrome() {
     const r = ROOMS[cur];
     $('roomName').innerHTML = `${jaSpan(r.ja)}<small>${r.en}</small>`;
+    $('prev').disabled = cur === 0; $('next').disabled = cur === ROOMS.length - 1;
     $('dots').innerHTML = ROOMS.map((x, i) =>
       `<button class="dot" role="tab" data-go="${i}" aria-current="${i === cur}" aria-label="${x.en}">${i === cur ? jaSpan(x.ja) : (i + 1)}</button>`).join('');
   }
@@ -456,15 +450,13 @@
     $('giftBtn').hidden = !state.gifts;
     $('giftBtn').textContent = `🎁 ${state.gifts}`;
   }
-  // Each room sits at its offset from the current room: 0 in the middle, -1 to the left, +1 to the right.
-  // The rooms wrap, so the room after the last one is the first. With four rooms, the room two away is off screen.
+  // Each section sits at its offset from the current room: 0 in the middle, -1 to the left, +1 to the right.
+  // The current room is at position cur + 1, because the left margin is section 0. Nothing wraps.
   function placeRooms() {
-    const n = ROOMS.length;
     [...world.children].forEach((el, k) => {
-      let d = (((k - cur) % n) + n) % n;
-      if (d > n / 2) d -= n;
-      // A room that wraps from one side of the loop to the other would fly across the screen, so it jumps instead.
-      // Only rooms that move one place slide.
+      const d = k - (cur + 1);
+      // A section that moves more than one place (a jump with the dots) appears in place rather than flying across.
+      // Only sections that move one place slide.
       const prev = el.dataset.d === undefined ? null : +el.dataset.d;
       el.dataset.d = d;
       const jump = prev === null || Math.abs(d - prev) > 1;
@@ -474,21 +466,10 @@
       el.classList.toggle('current', d === 0);
     });
   }
-  // Moving between neighbours slides. Going across the wrap (last room to first, or back) cross-fades instead,
-  // because those two rooms are not next to each other in the picture.
-  let fading = false;
+  // The rooms run in a line and stop at the ends. The margins beside the first and last rooms show the picture beyond them.
   function goRoom(i) {
-    const n = ROOMS.length, next = ((i % n) + n) % n;
-    if (next === cur || fading) return;
-    if (Math.abs(next - cur) === n - 1) {
-      fading = true;
-      world.style.opacity = 0;
-      setTimeout(() => {
-        cur = next; placeRooms(); renderChrome();
-        world.style.opacity = 1; fading = false;
-      }, 300);
-      return;
-    }
+    const next = Math.max(0, Math.min(ROOMS.length - 1, i));
+    if (next === cur) return;
     cur = next;
     placeRooms(); renderChrome();
   }
