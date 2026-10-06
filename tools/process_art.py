@@ -78,6 +78,8 @@ FRONT_WALLS = {
 }
 
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak)(?:-(?P<n>\d+))?$')
+# Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
+CLEAR_HOLES = {'stool'}
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
@@ -118,8 +120,9 @@ def edge_connected(mask):
         reach = grow
 
 
-def cut_out(rgb):
-    """Return (rgba float 0..255 / 0..1, background colour, was_green)."""
+def cut_out(rgb, clear_holes=False):
+    """Return (rgba float 0..255 / 0..1, background colour, was_green).
+    clear_holes: make backdrop seen through gaps in the subject transparent too (for items like a stool)."""
     bg = border_colour(rgb)
     dist = np.linalg.norm(rgb - bg, axis=-1)
     # Only pixels MORE saturated than the backdrop count as colourful subject.
@@ -132,7 +135,7 @@ def cut_out(rgb):
     loose = alpha < 0.5
     outside = edge_connected(loose)                       # backdrop touching the edge
     alpha = np.where(outside, 0.0, alpha)
-    alpha = np.where(loose & ~outside, 1.0, alpha)        # holes inside the subject stay opaque
+    alpha = np.where(loose & ~outside, 0.0 if clear_holes else 1.0, alpha)  # holes inside the subject stay opaque unless cleared
     alpha = np.where(alpha < 0.05, 0.0, alpha)
 
     # De-fringe: un-mix the backdrop from partly transparent edge pixels.
@@ -306,7 +309,7 @@ def process_item(name, path, scale, log):
     """scale is shared by every item, so an object drawn at the reference cat's size
     comes out at the reference cat's size in the yard."""
     scale = scale * OBJECT_SIZE.get(name, 1.0)
-    rgba, bg, green = cut_out(load(path))
+    rgba, bg, green = cut_out(load(path), clear_holes=name in CLEAR_HOLES)
     if name in SHADOW_CUT:
         rgba = drop_shadow(rgba, from_frac=SHADOW_CUT[name])
     ys, xs = np.where(rgba[..., 3] > TRIM_ALPHA)
