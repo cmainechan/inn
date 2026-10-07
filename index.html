@@ -55,7 +55,6 @@
   .tint { position: absolute; inset: 0; pointer-events: none; transition: background 1.5s ease; }
   .seam { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
 
-  .spot .art { position: absolute; inset: 0; transform: scale(1.15); transform-origin: 50% 100%; }
   .spot {
     position: absolute; width: 42%; aspect-ratio: 120 / 100; transform: translateX(-50%);
     padding: 0; border: 0; background: none; cursor: pointer; border-radius: 14px;
@@ -271,9 +270,9 @@
     mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
-    'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 29.1, w: 70 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } } },
-    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 32.6, w: 70 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
-    'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 29.1, w: 70 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
+    'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 27.5, w: 80.5 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } } },
+    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 30.7, w: 80.5 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
+    'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.0, w: 80.5 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
 
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
@@ -450,8 +449,7 @@
       label = v ? `${CATS[v.cat].tr} ${POSE_LABEL[v.pose || it.pose]} on the ${it.en}` : `${it.tr} (${it.en})`;
       if (v) v.fresh = false;
     }
-    // The art is scaled 15% from the bottom centre, so it grows up from where it stands.
-    return `<button class="spot" data-room="${room.id}" data-i="${i}" aria-label="${label}" style="left:${p.x}%;bottom:${100 - p.y}%;z-index:${p.y}"><span class="art">${inner}</span></button>`;
+    return `<button class="spot" data-room="${room.id}" data-i="${i}" aria-label="${label}" style="left:${p.x}%;bottom:${100 - p.y}%;z-index:${p.y}">${inner}</button>`;
   }
   // The study desk: fixed furniture in the tatami room (objects/desk.webp). Tapping it opens the study menu.
   function deskHtml() {
