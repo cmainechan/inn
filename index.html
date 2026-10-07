@@ -270,6 +270,14 @@
   ];
   // The study desk is furniture in the tatami room, not one of the four spots. Tapping it opens study.
   const DESK = { room: 'zashiki', x: 50, y: 47 };
+  // The food spot: one fixed place in the dining room, not one of its four item spots. Only
+  // one food item can be out at a time, and no cat poses on it or visits it directly. On the open
+  // floor near the counter (above both diagonal pairs of regular spots, just below the back wall
+  // at y 38), marked by its own placemat (objects/food-mat.webp) so it doesn't blend into the
+  // shelf clutter behind it.
+  // y nudged down ~30px from 48, then x nudged right ~30px from 50 (same % <-> px ratios as the
+  // desk's cqh/cqw nudge: ~9px per 1% of stage height, ~10px per 1% of stage width).
+  const FOOD_SPOT = { room: 'shokudo', x: 53, y: 51.3 };
 
   /* ---------- Items ---------- */
   const CAT_WIDTH = 100;
@@ -283,6 +291,16 @@
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
     taiyaki:  { room: 'shokudo', ja: 'たい焼き', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
     mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
+    // Food: set out at FOOD_SPOT, not one of the four spots above. No cat pose or visitor — see openFood().
+    // duration is minutes until it is eaten up and removed from the bag. Ordered cheapest to most
+    // expensive, kaiseki is the flagship. tamagoyaki joins here once its art arrives.
+    ochazuke: { room: 'shokudo', food: true, duration: 15, ja: 'お茶漬け', tr: 'ochazuke', en: 'rice in tea broth', price: 90 },
+    tamagoyaki: { room: 'shokudo', food: true, duration: 20, ja: '卵焼き', tr: 'tamagoyaki', en: 'rolled omelette', price: 115 },
+    yakitori: { room: 'shokudo', food: true, duration: 30, ja: '焼き鳥', tr: 'yakitori', en: 'grilled skewers', price: 140 },
+    tempura:  { room: 'shokudo', food: true, duration: 40, ja: '天ぷら盛り合わせ', tr: 'tempura moriawase', en: 'assorted tempura', price: 220 },
+    chirashi: { room: 'shokudo', food: true, duration: 50, ja: 'ちらし寿司', tr: 'chirashizushi', en: 'scattered sushi bowl', price: 320 },
+    unadon:   { room: 'shokudo', food: true, duration: 65, ja: 'うな丼', tr: 'unadon', en: 'grilled eel rice bowl', price: 420 },
+    kaiseki:  { room: 'shokudo', food: true, duration: 90, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600 },
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } } },
@@ -330,13 +348,14 @@
   const setFish = (n) => { store.set(FISH_KEY, String(Math.max(0, Math.floor(n)))); renderWallet(true); };
 
   const freshSpots = () => { const o = {}; ROOMS.forEach((r) => { o[r.id] = SPOTS.map(() => null); }); return o; };
-  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false });
+  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null });
   function load() {
     const s = freshState();
     try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
     ROOMS.forEach((r) => { if (!s.spots[r.id]) s.spots[r.id] = SPOTS.map(() => null); });
     // Owned items that were removed from the shop would break the spot picker, so drop them.
     s.owned = s.owned.filter((id) => ITEMS[id]);
+    if (s.food && !(ITEMS[s.food.id] && ITEMS[s.food.id].food)) s.food = null;
     // Tidy saves from before XL items and removed items: drop unknown ids, and give both spots of an XL row the item.
     ROOMS.forEach((r) => {
       const sp = s.spots[r.id];
@@ -357,7 +376,12 @@
   const randInt = (a, b) => Math.floor(rand(a, b + 1));
   const jaSpan = (t) => `<span class="ja" lang="ja">${t}</span>`;
   const key = (room, i) => room + ':' + i;
-  const isPlaced = (id) => ROOMS.some((r) => state.spots[r.id].includes(id));
+  const isFoodPlaced = (id) => !!(state.food && state.food.id === id);
+  const isPlaced = (id) => isFoodPlaced(id) || ROOMS.some((r) => state.spots[r.id].includes(id));
+  // Whether putting this item out right now would find somewhere to go (a free regular spot, or
+  // the food spot if it is food and empty), used to decide whether buying/put-out jumps straight
+  // into placing mode or just leaves the item waiting in the Bag.
+  const canPlaceNow = (id) => ITEMS[id].food ? !state.food : freeSpotFor(ITEMS[id].room, id) !== -1;
   // XL items take a whole row of two spots (0+1 or 2+3). The first spot holds the item and is where it is drawn;
   // the second spot holds the same id, so it is blocked, but it is not drawn or visited on its own.
   const isXL = (id) => !!(id && ITEMS[id].xl);
@@ -422,6 +446,12 @@
       const v = state.visitors[k], [room, i] = k.split(':');
       if (now >= v.leave || !state.spots[room][+i]) { state.gifts += v.gift; delete state.visitors[k]; ev.changed = true; }
     });
+    // Food is eaten up after its duration: the spot goes empty and the item is gone from the Bag too.
+    if (state.food && now >= state.food.expiresAt) {
+      state.owned = state.owned.filter((id) => id !== state.food.id);
+      state.food = null;
+      ev.changed = true;
+    }
     const present = new Set(Object.values(state.visitors).map((v) => v.cat));
     if (span > 0) {
       ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
@@ -479,6 +509,25 @@
     return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 3.5cqw);bottom:calc(${100 - DESK.y}% - 6.7cqh);z-index:90">` +
       `<img src="objects/desk.webp" alt=""></button>`;
   }
+  // The food spot: one fixed place in the dining room, separate from its four item spots. The
+  // placemat (objects/food-mat.webp) is always drawn, placed or not, so it alone marks this as the
+  // only spot where food can go — no dashed empty-mark needed, unlike a regular spot.
+  function foodHtml() {
+    const f = state.food;
+    const mat = `<img class="layer" src="objects/food-mat.webp" alt="">`;
+    let inner, label;
+    if (!f) {
+      inner = mat;
+      label = 'Food spot, empty. Set out food for the cats here.';
+    } else {
+      const it = ITEMS[f.id], L = itemLayers(f.id, true);
+      inner = mat + L.back + L.front;
+      label = `${it.tr} (${it.en}), set out at the food spot`;
+    }
+    // z-index 95: above every regular spot (max 80), the same fix as the study desk — a regular
+    // spot's invisible button box is much bigger than its art and was swallowing the food spot's taps.
+    return `<button class="spot food-spot" data-food aria-label="${label}" style="left:${FOOD_SPOT.x}%;bottom:${100 - FOOD_SPOT.y}%;z-index:95">${inner}</button>`;
+  }
   // The picture is six rooms wide: a margin, the four rooms, and a margin. The margins have no spots or desk.
   // They are only ever seen beside the first and last rooms.
   const MARGINS = { left: { id: 'margin-left', en: 'dining room wall', slice: 0 }, right: { id: 'margin-right', en: 'garden', slice: 5 } };
@@ -486,7 +535,7 @@
     const sections = [{ ...MARGINS.left, margin: true }, ...ROOMS.map((r, i) => ({ ...r, slice: i + 1 })), { ...MARGINS.right, margin: true }];
     world.innerHTML = sections.map((r) =>
       `<section class="room r-${r.id}" style="--slice:${r.slice}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
-      (r.margin ? '' : SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === DESK.room ? deskHtml() : '')) +
+      (r.margin ? '' : SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === DESK.room ? deskHtml() : '') + (r.id === FOOD_SPOT.room ? foodHtml() : '')) +
       `</div></section>`).join('');
     applyTimeOfDay();
     placeRooms();
@@ -552,34 +601,61 @@
         <div class="row"><button class="btn plain" data-act="remove">Put it away</button><button class="btn" data-act="close">Close</button></div>`);
     } else {
       const room = ROOMS.find((r) => r.id === roomId);
-      const free = state.owned.filter((id) => ITEMS[id].room === roomId && !isPlaced(id) && fits(roomId, i, id));
+      const free = state.owned.filter((id) => ITEMS[id].room === roomId && !ITEMS[id].food && !isPlaced(id) && fits(roomId, i, id));
       const body = free.length
         ? `<div class="pick">${free.map((id) => `<button data-place="${id}">${thumb(id)}${jaSpan(ITEMS[id].ja)}<span>${ITEMS[id].tr}</span></button>`).join('')}</div>`
         : `<p class="muted">You have nothing for the ${room.en} yet. Open the shop to buy something for this room.</p>`;
       openSheet(`<h2>Put out an item · ${jaSpan(room.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     }
   }
-  // The shop browses the rooms with the ‹ › buttons. It starts on the room you are in.
+  // The food spot: no visitor, just the food itself and when it will be eaten up.
+  function openFood() {
+    const f = state.food;
+    if (f) {
+      const it = ITEMS[f.id], mins = Math.max(1, Math.round((f.expiresAt - Date.now()) / 60e3));
+      openSheet(`<div class="portrait">${thumb(f.id)}<div><span class="ja big" lang="ja">${it.ja}</span><h2>${it.tr}</h2><div class="muted">${it.en}</div><p>Set out for the cats. Gone in about ${mins} minute${mins > 1 ? 's' : ''}.</p></div></div>
+        <div class="row"><button class="btn plain" data-act="food-remove">Put it away</button><button class="btn" data-act="close">Close</button></div>`);
+    } else {
+      const room = ROOMS.find((r) => r.id === FOOD_SPOT.room);
+      const free = state.owned.filter((id) => ITEMS[id].food);
+      const body = free.length
+        ? `<div class="pick">${free.map((id) => `<button data-place-food="${id}">${thumb(id)}${jaSpan(ITEMS[id].ja)}<span>${ITEMS[id].tr}</span></button>`).join('')}</div>`
+        : `<p class="muted">You have no food yet. Open the shop to buy some for the ${room.en}.</p>`;
+      openSheet(`<h2>Set out food · ${jaSpan(room.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+    }
+  }
+  // The shop browses the rooms with the ‹ › buttons, one page per room, in ROOMS order. Food gets
+  // its own page too, right after the dining room's regular items — it's a separate kind of item
+  // (consumable, set out at FOOD_SPOT, not one of the four regular spots), so it reads oddly mixed
+  // into the dining room's furniture page. sectionFor() maps a game room to its shop page, skipping
+  // over the food page in between.
+  const SHOP_SECTIONS = [];
+  ROOMS.forEach((r) => { SHOP_SECTIONS.push({ kind: 'room', room: r }); if (r.id === FOOD_SPOT.room) SHOP_SECTIONS.push({ kind: 'food' }); });
+  const sectionFor = (roomId) => SHOP_SECTIONS.findIndex((s) => s.kind === 'room' && s.room.id === roomId);
   let shopIdx = 0, shopPage = 0;
   const SHOP_PAGE = 4;   // items per screen, as a 2 x 2 grid
   function openShop(idx) {
     if (idx !== undefined) {
-      const n = ((idx % ROOMS.length) + ROOMS.length) % ROOMS.length;
+      const n = ((idx % SHOP_SECTIONS.length) + SHOP_SECTIONS.length) % SHOP_SECTIONS.length;
       if (n !== shopIdx) shopPage = 0;
       shopIdx = n;
     }
-    const room = ROOMS[shopIdx], fish = getFish();
-    const all = Object.keys(ITEMS).filter((id) => ITEMS[id].room === room.id).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
+    const section = SHOP_SECTIONS[shopIdx], fish = getFish();
+    const label = section.kind === 'food' ? { ja: '食', en: 'food' } : { ja: section.room.ja, en: section.room.en };
+    const all = (section.kind === 'food'
+      ? Object.keys(ITEMS).filter((id) => ITEMS[id].food)
+      : Object.keys(ITEMS).filter((id) => ITEMS[id].room === section.room.id && !ITEMS[id].food)
+    ).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
     const pages = Math.max(1, Math.ceil(all.length / SHOP_PAGE));
     shopPage = Math.min(shopPage, pages - 1);
     const ids = all.slice(shopPage * SHOP_PAGE, (shopPage + 1) * SHOP_PAGE);
     // Item pages: the middle arrows only show when the room has more than one page of four.
-    const pager = (dir, label) => pages > 1 ? `<button class="btn plain" data-shop-page="${dir}" aria-label="${label}" ${shopPage + dir < 0 || shopPage + dir >= pages ? 'disabled' : ''}>${dir < 0 ? '‹' : '›'}</button>` : '<span></span>';
+    const pager = (dir, pageLabel) => pages > 1 ? `<button class="btn plain" data-shop-page="${dir}" aria-label="${pageLabel}" ${shopPage + dir < 0 || shopPage + dir >= pages ? 'disabled' : ''}>${dir < 0 ? '‹' : '›'}</button>` : '<span></span>';
     openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
       `<div class="shop-head"><h2>Shop</h2></div>` +
-      `<div class="shop-room"><button class="btn plain" data-shop-step="-1" aria-label="Previous room">‹</button>` +
-      `<span>${jaSpan(room.ja)} <span class="muted">${room.en}</span></span>` +
-      `<button class="btn plain" data-shop-step="1" aria-label="Next room">›</button></div>` +
+      `<div class="shop-room"><button class="btn plain" data-shop-step="-1" aria-label="Previous">‹</button>` +
+      `<span>${jaSpan(label.ja)} <span class="muted">${label.en}</span></span>` +
+      `<button class="btn plain" data-shop-step="1" aria-label="Next">›</button></div>` +
       `<div class="shop-body">${pager(-1, 'Earlier items')}<div class="grid">${ids.map((id) => {
       const it = ITEMS[id], owned = state.owned.includes(id);
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
@@ -594,21 +670,32 @@
   // Put out: the player picks the spot. The item waits in 'placing' until a spot is tapped or Cancel.
   let placing = null;
   function startPlacing(id) {
-    placing = id; $('placingText').innerHTML = `Tap a spot for ${jaSpan(ITEMS[id].ja)} ${ITEMS[id].tr}`; $('placing').hidden = false;
+    const it = ITEMS[id];
+    placing = id;
+    $('placingText').innerHTML = `Tap ${it.food ? 'the food spot' : 'a spot'} for ${jaSpan(it.ja)} ${it.tr}`;
+    $('placing').hidden = false;
   }
   function endPlacing() { placing = null; $('placing').hidden = true; }
   function placeAt(roomId, i) {
     const id = placing;
+    if (ITEMS[id].food) { toast(`${jaSpan(ITEMS[id].ja)} can only be set out at the food spot in the dining room.`); return; }
     if (state.spots[roomId][i] || state.visitors[key(roomId, i)]) { toast('That spot is taken. Tap an empty one.'); return; }
     if (!fits(roomId, i, id)) { toast(`${jaSpan(ITEMS[id].ja)} needs two empty spots side by side.`); return; }
     placeItem(roomId, i, id); save(); endPlacing(); renderRooms();
+  }
+  function placeFoodAt() {
+    const id = placing;
+    if (!ITEMS[id].food) { toast(`${jaSpan(ITEMS[id].ja)} can't go at the food spot. Tap a regular spot instead.`); return; }
+    if (state.food) { toast('The food spot is already in use.'); return; }
+    state.food = { id, expiresAt: Date.now() + ITEMS[id].duration * 60e3 };
+    save(); endPlacing(); renderRooms();
   }
   function openBag() {
     const rooms = ROOMS.map((r) => {
       const ids = state.owned.filter((id) => ITEMS[id].room === r.id);
       if (!ids.length) return '';
       return `<h3 class="bag-room">${jaSpan(r.ja)} <span class="muted">${r.en}</span></h3>` + ids.map((id) => {
-        const it = ITEMS[id], at = spotOf(id);
+        const it = ITEMS[id], at = it.food ? isFoodPlaced(id) : spotOf(id);
         const act = at ? `<button class="btn plain" data-bag-away="${id}">Put away</button>` : `<button class="btn" data-bag-out="${id}">Put out</button>`;
         return `<div class="bag-item">${thumb(id)}<div>${jaSpan(it.ja)}<div class="en">${it.en}${at ? ' · out now' : ''}</div></div>${act}</div>`;
       }).join('');
@@ -656,31 +743,39 @@
 
   /* ---------- Events ---------- */
   world.addEventListener('click', (e) => {
-    const b = e.target.closest('.spot');
+    const b = e.target.closest('[data-room]'), foodBtn = e.target.closest('[data-food]');
     if (b && placing) placeAt(b.dataset.room, +b.dataset.i);
     else if (b) openSpot(b.dataset.room, +b.dataset.i);
+    else if (foodBtn && placing) placeFoodAt();
+    else if (foodBtn) openFood();
     if (e.target.closest('[data-desk]')) openDesk();
   });
   $('sheet').addEventListener('click', (e) => {
     const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]'), study = e.target.closest('[data-study]');
+    const placeFood = e.target.closest('[data-place-food]');
     const shopStep = e.target.closest('[data-shop-step]');
     const bagOut = e.target.closest('[data-bag-out]'), bagAway = e.target.closest('[data-bag-away]');
     const shopPageBtn = e.target.closest('[data-shop-page]');
     if (shopStep) openShop(shopIdx + +shopStep.dataset.shopStep);
     else if (shopPageBtn) { shopPage += +shopPageBtn.dataset.shopPage; openShop(shopIdx); }
     else if (bagOut) {
-      const id = bagOut.dataset.bagOut, room = ITEMS[id].room;
-      if (freeSpotFor(room, id) === -1) { toast(`No empty spot in the ${ROOMS.find((r) => r.id === room).en} for ${jaSpan(ITEMS[id].ja)}. Put something away first.`); return; }
-      closeSheet(); startPlacing(id); goRoom(ROOMS.findIndex((r) => r.id === room));
-    } else if (bagAway) { const at = spotOf(bagAway.dataset.bagAway); clearItem(at.roomId, at.i); save(); renderRooms(); openBag(); }
-    else if (place && sheetCtx) { placeItem(sheetCtx.roomId, sheetCtx.i, place.dataset.place); save(); closeSheet(); renderRooms(); }
+      const id = bagOut.dataset.bagOut, it = ITEMS[id];
+      if (!canPlaceNow(id)) { toast(it.food ? 'The food spot is already in use. Put it away first.' : `No empty spot in the ${ROOMS.find((r) => r.id === it.room).en} for ${jaSpan(it.ja)}. Put something away first.`); return; }
+      closeSheet(); startPlacing(id); goRoom(ROOMS.findIndex((r) => r.id === it.room));
+    } else if (bagAway) {
+      const id = bagAway.dataset.bagAway;
+      if (ITEMS[id].food) { state.food = null; } else { const at = spotOf(id); clearItem(at.roomId, at.i); }
+      save(); renderRooms(); openBag();
+    } else if (place && sheetCtx) { placeItem(sheetCtx.roomId, sheetCtx.i, place.dataset.place); save(); closeSheet(); renderRooms(); }
+    else if (placeFood) { state.food = { id: placeFood.dataset.placeFood, expiresAt: Date.now() + ITEMS[placeFood.dataset.placeFood].duration * 60e3 }; save(); closeSheet(); renderRooms(); }
     else if (act && act.dataset.act === 'remove' && sheetCtx) { clearItem(sheetCtx.roomId, sheetCtx.i); save(); closeSheet(); renderRooms(); }
+    else if (act && act.dataset.act === 'food-remove') { state.food = null; save(); closeSheet(); renderRooms(); }
     else if (buy) {
       const id = buy.dataset.buy, it = ITEMS[id], fish = getFish();
       if (state.owned.includes(id) || fish < it.price) return;
       state.owned.push(id); save(); setFish(fish - it.price);
-      // Go straight to choosing a spot, as Put out in the Bag does. If the room has no free spot, the item waits in the Bag.
-      if (freeSpotFor(it.room, id) === -1) { toast(`Bought ${jaSpan(it.ja)} ${it.tr}. No empty spot in that room yet. It is in your Bag.`); openShop(shopIdx); return; }
+      // Go straight to choosing a spot, as Put out in the Bag does. If there's nowhere for it yet, it waits in the Bag.
+      if (!canPlaceNow(id)) { toast(`Bought ${jaSpan(it.ja)} ${it.tr}. ${it.food ? 'The food spot is already in use.' : 'No empty spot in that room yet.'} It is in your Bag.`); openShop(shopIdx); return; }
       closeSheet(); startPlacing(id); goRoom(ROOMS.findIndex((r) => r.id === it.room));
     } else if (study) { closeSheet(); openStudy(study.dataset.study); }
     else if (act) closeSheet();
@@ -704,7 +799,7 @@
     const dx = e.clientX - swipeX; swipeX = null;
     if (Math.abs(dx) > 40 && studyId === null && $('overlay').hidden) stepRoom(dx < 0 ? 1 : -1);
   });
-  $('shopBtn').addEventListener('click', () => openShop(cur));
+  $('shopBtn').addEventListener('click', () => openShop(sectionFor(ROOMS[cur].id)));
   $('catsBtn').addEventListener('click', openCats);
   $('bagBtn').addEventListener('click', openBag);
   $('placeCancel').addEventListener('click', endPlacing);

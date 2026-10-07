@@ -114,6 +114,9 @@ attached reference. Flat plain light grey background (#D0D0D0). Square
 1254 x 1254. The object is centred with about 10% margin, seen from the
 side at eye level with a slight view from above. No ground shadow, no
 cast shadow on the background, no text, no cat, no people, no frame.
+No steam, no smoke, no haze rising off the object: it never cuts out
+cleanly against the grey background (same reason the onsen prompts
+below say "no steam") and leaves a grey smudge in the finished item.
 Scale: draw it at the size shown in the notes, where "a sitting cat" is
 the attached reference cat.
 ```
@@ -130,6 +133,58 @@ the attached reference cat.
 | Optional | 手桶 scoop with handle | `onsen-scoop.png`, one image, lies on its side with the handle pointing left and the right 40% empty, cat lies to its right (lie pose, like the ball). Prompt on the prompts page. |
 
 The three existing items listed for each room don't need new art.
+
+## Food (dining room shop tier, consumable)
+
+These are a separate layer from the dining room's sittable props above
+(onigiri, takoyaki, taiyaki, mochi): no cat ever poses on or visits
+food, it just gets set out and is eaten up after its duration. Save
+raw files to `raw/food/<item>.png`, not plain `raw/<item>.png` — the
+pipeline reads both, but keeping food in its own folder keeps the shop
+tiers easy to find. Ordered cheapest to most expensive; kaiseki is the
+flagship, priciest item.
+
+| Order | Item | Prompt |
+|---|---|---|
+| 1 (cheapest) | お茶漬け ochazuke | Done — `objects/ochazuke.webp`, from `raw/food/ochazuke.png`. |
+| 2 | 卵焼き tamagoyaki | Done — `objects/tamagoyaki.webp`, from `raw/food/tamagoyaki.png`. |
+| 3 | 焼き鳥 yakitori | Done — `objects/yakitori.webp`, from `raw/food/yakitori.png`. |
+| 4 | 天ぷら盛り合わせ tempura moriawase | Done — `objects/tempura.webp`, from `raw/food/tempura.png`. |
+| 5 | ちらし寿司 chirashizushi | Done — `objects/chirashi.webp`, from `raw/food/chirashi.png`. |
+| 6 | うな丼 unadon | Done — `objects/unadon.webp`, from `raw/food/unadon.png`. |
+| 7 (most expensive) | 懐石 kaiseki | Done — `objects/kaiseki.webp`, from `raw/food/kaiseki.png`. |
+
+Each new food item needs an `ITEMS` entry in index.html with
+`food: true`, a `duration` in minutes, and no `pose`/`cat` fields
+(those only matter for items a cat visits). All seven are done now.
+
+### Food spot placemat
+
+Food is set out on the open dining-room floor, not the counter (the
+counter blended too much with the background shelf clutter). The spot
+is marked by a placemat, always drawn whether or not food is out —
+done, `objects/food-mat.webp` from `raw/food/food-mat.png`. The first
+version was drawn from almost directly overhead, which read as
+standing upright once composited into the room rather than lying flat;
+the prompt below (used for the current version) asks for the same
+shallow, nearly edge-on angle as every other item instead.
+
+```
+[Shared item block] A rectangular woven rush-grass placemat
+(ランチョンマット), lying flat on a floor. Drawn at the same shallow,
+nearly edge-on angle as the room scenes and every other floor-level
+item — NOT a top-down or almost-overhead view. Looking across the
+floor at a low angle, so the mat is strongly foreshortened: its near
+edge is low in the frame and appears wide, its far edge is higher in
+the frame and appears noticeably narrower, the way a rug recedes when
+seen nearly edge-on rather than from above. Natural tan woven texture
+with a simple thin dark-brown fabric border trim, a small embroidered
+or dyed accent near the near corner (e.g. a single pale green maple
+leaf or pine sprig) echoing the inn's palette. Plain, uncluttered,
+nothing on top of it. Width about 1.6x a sitting cat's width — wide
+enough that a small food plate sits clearly inside its border once
+placed on top.
+```
 
 ## Checklist for each finished room
 

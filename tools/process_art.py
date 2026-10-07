@@ -12,6 +12,7 @@ Reads inn/raw/ and writes:
 Raw names:
   raw/<cat>-<pose>[-<n>].png     e.g. tapuz-sit.png, tapuz-sleep-2.png
   raw/<item>.png                 e.g. box.png
+  raw/food/<item>.png            consumable food items, e.g. yakitori.png
   raw/scene/room-<id>.png        e.g. room-zashiki.png (see ROOM_IDS in index.html)
 
 Usage (from anywhere):
@@ -83,6 +84,10 @@ CLEAR_HOLES = {'stool'}
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
 ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration'}
+# Items centred on their full bounding box, not the bottom band (see body_centre_x): a box drawn at
+# an angle, like the kaiseki's two offset tiers, has its near-bottom corner off to one side, which
+# throws off body-band centring in a way that never happens for a cat or a simple sitting object.
+CENTER_BBOX = {'kaiseki'}
 
 
 # ---------- background removal ----------
@@ -227,11 +232,18 @@ def body_centre_x(rgba):
     return xs[band].mean()
 
 
-def compose(rgba, s, name):
-    """Scale, then stand the content on the shared baseline, its body centred horizontally."""
+def bbox_centre_x(rgba):
+    """x of the middle of the full content box, ignoring height. See CENTER_BBOX."""
+    xs = np.where(rgba[..., 3] > TRIM_ALPHA)[1]
+    return (xs.min() + xs.max()) / 2
+
+
+def compose(rgba, s, name, center='body'):
+    """Scale, then stand the content on the shared baseline, horizontally centred (see `center`)."""
     im = scale_img(rgba, s)
     h, w = im.shape[:2]
-    x0, y0 = round(W / 2 - body_centre_x(im)), H - BASELINE_PAD - h
+    cx = bbox_centre_x(im) if center == 'bbox' else body_centre_x(im)
+    x0, y0 = round(W / 2 - cx), H - BASELINE_PAD - h
     if x0 < 0 or y0 < 0 or x0 + w > W:
         print(f'  WARNING {name}: content {w}x{h} at x={x0}, y={y0} does not fit the {W}x{H} canvas; it will be cropped')
     canvas = np.zeros((H, W, 4), np.float32)
@@ -325,7 +337,7 @@ def process_item(name, path, scale, log):
     h, w = rgba.shape[:2]
     log(f'  {path.name}: backdrop {bg.round().astype(int).tolist()}, content {w}x{h}, '
         f'scale {scale:.4f} -> {round(h * scale)}x{round(w * scale)} px')
-    canvas = compose(rgba, scale, name)
+    canvas = compose(rgba, scale, name, center='bbox' if name in CENTER_BBOX else 'body')
     dx = OBJECT_SHIFT.get(name, 0)
     if dx:
         moved = np.zeros_like(canvas)
@@ -392,6 +404,9 @@ def main():
             cat_frames[m['cat']][(m['pose'], int(m['n'] or 1))] = p
         else:
             items[p.stem] = p
+    # Food items live in their own subfolder, but process and output the same way as any other item.
+    for p in sorted((RAW / 'food').glob('*.png')):
+        items[p.stem] = p
     # yarn2.png is the current yarn (ball with the string toward the cat); yarn.png is kept in raw/ but not used.
     if 'yarn2' in items:
         items['yarn'] = items.pop('yarn2')
