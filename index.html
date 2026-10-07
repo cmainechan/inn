@@ -449,8 +449,8 @@
   }
   // The study desk: fixed furniture in the tatami room (objects/desk.webp). Tapping it opens the study menu.
   function deskHtml() {
-    // The desk sits 60px lower and 35px right of its percentage position.
-    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 35px);bottom:calc(${100 - DESK.y}% - 60px);z-index:${DESK.y}">` +
+    // The desk sits 60px lower and 35px right of its percentage position. It is above the spots, whose transparent boxes would otherwise catch its taps.
+    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 35px);bottom:calc(${100 - DESK.y}% - 60px);z-index:90">` +
       `<img src="objects/desk.webp" alt=""></button>`;
   }
   // The picture is six rooms wide: a margin, the four rooms, and a margin. The margins have no spots or desk.
