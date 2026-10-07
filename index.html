@@ -45,6 +45,7 @@
   .stage {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     height: max(100dvh, calc(var(--W) * 1.7778)); aspect-ratio: 9 / 16;
+    container-type: size;   /* lets children offset by a share of the picture (cqw, cqh) */
   }
   .bg { position: absolute; inset: 0; background-color: #9DCC6E; background-repeat: no-repeat; background-size: auto 100%; }
   /* The picture is six rooms wide: a margin, the four rooms, and a margin (scene/ryokan-pano.webp).
@@ -449,8 +450,9 @@
   }
   // The study desk: fixed furniture in the tatami room (objects/desk.webp). Tapping it opens the study menu.
   function deskHtml() {
-    // The desk sits 60px lower and 35px right of its percentage position. It is above the spots, whose transparent boxes would otherwise catch its taps.
-    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 35px);bottom:calc(${100 - DESK.y}% - 60px);z-index:90">` +
+    // Nudges are in container units (share of the picture), so the desk stays in the same place on every screen.
+    // 3.5 cqw and 6.7 cqh equal 35px and 60px on a 900px-tall screen. It is above the spots, whose transparent boxes would otherwise catch its taps.
+    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 3.5cqw);bottom:calc(${100 - DESK.y}% - 6.7cqh);z-index:90">` +
       `<img src="objects/desk.webp" alt=""></button>`;
   }
   // The picture is six rooms wide: a margin, the four rooms, and a margin. The margins have no spots or desk.
