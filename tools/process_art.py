@@ -54,6 +54,7 @@ OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiya
 SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
 OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12}  # canvas px, sideways. Keeps the ball out of the paw's reach (the cat sits to its right)
 REF_CAT = 'tapuz'     # items use the same scale as this cat's sitting pose, so sizes carry over
+BODY_BAND = 0.08      # the bottom 8% of a cat's content is where its body rests (see body_centre_x)
 TRIM_ALPHA = 0.1      # alpha below this is ignored when finding the content box
 WEBP_QUALITY = 90
 GRASS = np.array([0x9D, 0xCC, 0x6E], np.float32)
@@ -220,11 +221,19 @@ def scale_img(rgba, s):
     return np.dstack([np.clip(rgb, 0, 255), alpha])
 
 
+def body_centre_x(rgba):
+    """x of the middle of the bottom band of the content: where the body rests on the baseline.
+    Using this, not the middle of the whole box, keeps cats with wider paws or tails in the same place."""
+    ys, xs = np.where(rgba[..., 3] > TRIM_ALPHA)
+    band = ys >= ys.max() - BODY_BAND * rgba.shape[0]
+    return xs[band].mean()
+
+
 def compose(rgba, s, name):
-    """Scale, then stand the content on the shared baseline, centred horizontally."""
+    """Scale, then stand the content on the shared baseline, its body centred horizontally."""
     im = scale_img(rgba, s)
     h, w = im.shape[:2]
-    x0, y0 = round(W / 2 - w / 2), H - BASELINE_PAD - h
+    x0, y0 = round(W / 2 - body_centre_x(im)), H - BASELINE_PAD - h
     if x0 < 0 or y0 < 0 or x0 + w > W:
         print(f'  WARNING {name}: content {w}x{h} at x={x0}, y={y0} does not fit the {W}x{H} canvas; it will be cropped')
     canvas = np.zeros((H, W, 4), np.float32)
