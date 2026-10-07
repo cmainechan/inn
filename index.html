@@ -76,14 +76,16 @@
   .cat-in { animation: catin 1.2s ease-out both; }
   @keyframes catin { from { opacity: 0; } }
   .wobble { transform-origin: 50% 92%; animation: wob 5s ease-in-out infinite; }
-  .water { position: absolute; transform: translateX(-50%); pointer-events: none; animation: shimmer 4s ease-in-out infinite; }
+  .water { position: absolute; transform: translateX(-50%); pointer-events: none; animation: shimmer 4s ease-in-out infinite; will-change: transform, opacity; }
   @keyframes shimmer { 0%, 100% { opacity: .8; transform: translateX(-50%); } 50% { opacity: 1; transform: translateX(calc(-50% + 1.5%)); } }
   /* The box's bottom sits on the water line (its own top offset, read as a bottom offset) and it rises above the rim. */
-  .steam { position: absolute; width: var(--sw); left: var(--sx); bottom: calc(100% - var(--sy)); height: 34%; transform: translateX(-50%); pointer-events: none; }
+  /* isolation scopes the screen blend to just this box, so Safari doesn't mis-composite the rest of the bath around it. */
+  .steam { position: absolute; width: var(--sw); left: var(--sx); bottom: calc(100% - var(--sy)); height: 34%; transform: translateX(-50%); pointer-events: none; isolation: isolate; }
   .steam .puff {
     position: absolute; bottom: 0; width: 50%; aspect-ratio: 1; border-radius: 50%;
     background: radial-gradient(closest-side, rgba(255, 255, 255, .7), rgba(255, 255, 255, 0) 70%);
     filter: blur(2px); opacity: 0; mix-blend-mode: screen; animation: steam-rise linear infinite;
+    will-change: transform, opacity;
   }
   @keyframes steam-rise {
     0% { transform: translateY(0) scale(.7); opacity: 0; }
