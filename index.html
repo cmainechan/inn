@@ -76,6 +76,8 @@
   .cat-in { animation: catin 1.2s ease-out both; }
   @keyframes catin { from { opacity: 0; } }
   .wobble { transform-origin: 50% 92%; animation: wob 5s ease-in-out infinite; }
+  .water { position: absolute; transform: translateX(-50%); pointer-events: none; animation: shimmer 4s ease-in-out infinite; }
+  @keyframes shimmer { 0%, 100% { opacity: .8; transform: translateX(-50%); } 50% { opacity: 1; transform: translateX(calc(-50% + 1.5%)); } }
   @keyframes wob { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(1.5deg); } }
 
   /* ---------- HUD, floating over the world ---------- */
@@ -269,7 +271,7 @@
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } } },
-    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
+    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 52, w: 70 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
     'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
 
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
@@ -442,7 +444,8 @@
       label = 'Empty spot. Put out an item.';
     } else {
       const it = ITEMS[itemId], L = itemLayers(itemId, true);
-      inner = L.back + (v ? catLayer(v, it) : '') + L.front;
+      const water = it.water ? `<img class="water" src="objects/${itemId}-water.webp" alt="" style="left:${it.water.x}%;top:${it.water.y}%;width:${it.water.w}%">` : '';
+      inner = L.back + water + (v ? catLayer(v, it) : '') + L.front;
       label = v ? `${CATS[v.cat].tr} ${POSE_LABEL[v.pose || it.pose]} on the ${it.en}` : `${it.tr} (${it.en})`;
       if (v) v.fresh = false;
     }
