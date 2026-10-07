@@ -3,44 +3,39 @@
 Paste the prompt below into a new Claude Code session started in `/Users/charmainechan/Documents/Hebrew/inn`.
 
 ```
-I'm continuing work on "Neko Ryokan", a Neko Atsume-style cat game, a static site on GitHub Pages (https://cmainechan.github.io/inn/), no build step, one HTML file where practical, plain HTML/CSS/JS, no frameworks. Repo: /Users/charmainechan/Documents/Hebrew/inn (origin cmainechan/inn). Start by running git status and git log, then read HANDOFF-RYOKAN.md, ART-SPEC-ROOMS.md, ART-PROMPTS-ROOMS.md and index.html.
+I'm continuing work on "Neko Ryokan", a Neko Atsume-style cat game, a static site on GitHub Pages (https://cmainechan.github.io/inn/), no build step, one HTML file where practical, plain HTML/CSS/JS, no frameworks. Repo: /Users/charmainechan/Documents/Hebrew/inn (origin cmainechan/inn). Start by running git status and git log, then read this file and index.html.
 
-## Rules (unchanged)
-- Do not commit or push without asking. Show the diff summary and the commit message, then wait for a go-ahead.
+## Rules
+- Show the diff summary and commit message, then ask before committing; ask again before pushing. In practice I usually say "commit and push" right away once I've checked something, so don't be shy about asking.
 - raw/ is gitignored (~120MB). Never commit, delete or rename anything in it without asking.
-- Test in a real browser before saying it's done, with screenshots at 1280x900 and 390x844.
+- Test in a real browser (Claude in Chrome) before saying it's done. Screenshot or inspect the actual result; don't just reason about CSS.
 - Use python3 -u for the pipeline. On macOS use sed -i '' or Python for edits.
-- Serve the parent folder: cd /Users/charmainechan/Documents/Hebrew && python3 -m http.server 8765, then open http://localhost:8765/inn/index.html?test
+- Serve the parent folder: cd /Users/charmainechan/Documents/Hebrew && python3 -m http.server 8765 (background it), then open http://localhost:8765/inn/index.html?test. If it seems to have stopped, just restart it the same way.
 
-## What we decided (from a long design session)
-1. Concept: "Neko Ryokan". Cats come to stay at a Japanese inn. Immersive, full-screen, like Neko Atsume. The old 16:11 yard was too small on a phone. It has been removed; it is still in git history at ec9a694.
-2. Full screen, four rooms side by side, swipe to move (CSS scroll-snap). Each room is a 9:16 portrait picture. On a phone it fills the screen, on desktop it is a centred strip with neighbours peeking in. HUD floats over it: fish counter, room name, room buttons, Shop and Cats buttons.
-3. Rooms, left to right: 座敷 zashiki (tatami room), 食事処 shokujidokoro (dining room), 縁側 engawa (veranda), 温泉 onsen (hot spring). The room edges are designed to line up (shared floor line at 41% from the top, posts about 7% in from each edge).
-4. Four item spots per room, in the same places in every room (percent of the stage: x/y bottom edge = 32/56, 68/60, 30/76, 70/80). Four items per room, and each item only belongs to one room, so each room has its own shop and its own regulars.
-5. The game is purely Japanese in theme. Remove Hebrew from the game UI: room names, item names and cat names become Japanese (kana or kanji with romaji) with English text for the UI. Hebrew learning leaves the game and becomes a separate "study" experience.
-6. Study desk: a low writing desk (文機, fumizukue) in the tatami room. Tapping it opens a full-screen iframe overlay with a study app (the existing Word builder at ../hwg/ and Interlinear practice at ../hbt/, and later any other language or subject). A "Back to the inn" button closes it. Fish are the reward. The study page sends window.parent.postMessage({type:'neko-ryokan:fish', amount, source}); the game checks the sender origin against an allowlist and adds the fish. hwg and hbt are on the same origin so they can also keep writing the shared localStorage wallet. Keep a small config list of study modules so adding one is a one-line change. Hebrew text inside the study pages keeps its nikkud.
-7. The rooms game IS now index.html, the live main page. The old yard is gone. It uses the shared 'fish' wallet (so hwg and hbt still earn fish) and a new save key ryokan-save-v1. A temporary Study button lists links to ../hwg/ and ../hbt/ until the Study desk replaces it.
+## Current shape of the game
+- One scrolling panorama, scene/ryokan-pano.webp, six rooms wide (margin, four rooms, margin), not four separate pictures. The old per-room 9:16 scene files (room-zashiki.webp etc.) are gone from git, but tools/process_art.py still regenerates them into scene/ on every run since it has no "skip these" step — just delete them again after running the pipeline, or remove that step from the script if it gets annoying.
+- Rooms, left to right: 座敷 zashiki (tatami), 食事処 shokujidokoro (dining), 縁側 engawa (veranda), 温泉 onsen (hot spring). Four item spots per room (SPOTS, percent of the room: 32/56, 68/60, 30/76, 70/80).
+- Shop: title "Shop", then the room name with ‹ › beside it (changes room), then the item grid with ‹ › at the middle-left/right edges (pages through the room's items, 4 at a time as a 2x2 grid; those arrows only show when a room has more than 4). A short page is padded with invisible placeholder cards so the sheet doesn't change height.
+- Bag: lists owned items by room. "Put out" puts the item in "placing" mode — a bar at the bottom says "Tap a spot for X", and the next spot tap places it (or says why it can't: taken, or an XL item needs two empty spots). "Put away" returns a placed item to the bag. Buying an item in the shop now goes straight into the same placing mode, instead of the old "tap an empty spot" toast that didn't actually wait for anything.
+- Study desk: in the tatami room, opens hwg/Word builder and hbt/Interlinear practice in an iframe, fish come back via postMessage. The desk sits above the spots in z-index — the spots are large transparent buttons and were eating the desk's taps before that fix.
+- XL baths (clay, hex, hinoki): each takes a row of two spots and draws at their shared midpoint, scaled 2x from transform-origin 50% 90%. They sit on a diagonal, not stacked — top row at x 32%, bottom row at x 70% (XL_X), both 6% lower than the row's natural midpoint (XL_DROP) to clear the painted pool in the background art. The stone bath (onsen-stone) was removed from the shop entirely; its art is still in objects/ but unused.
 
-## Current state
-- index.html: the game. Four rooms, per-room items, shop filtered by room, cats, visiting logic, gifts, ?test tools (+50 fish, summon cats, reset), evening tint. The UI text and item/cat names are still the old Hebrew names, and the matcha cup is a stand-in for a bath.
-- scene/room-zashiki.webp, room-shokudo.webp, room-engawa.webp, room-onsen.webp: low-resolution (941x1672) versions of the real backgrounds, converted from images pasted in chat. The full-size originals are in my raw/ folder or Downloads.
-- ART-SPEC-ROOMS.md and ART-PROMPTS-ROOMS.md: specs and prompts for the room backgrounds and new items. guides/room-layout-guide.png: layout zones (top 12% under HUD, back wall 12-38%, floor 38-88%, outer 9% cropped on phones).
-- The old yard code was deleted from index.html. The old art that only it used (scene/ryokan.webp, combos/) is still in the repo and can be cleaned up.
+## Cat art pipeline (tools/process_art.py)
+- Every cat pose is placed on a shared bottom baseline, then centred on the bottom 8% of its own content (BODY_BAND / body_centre_x), not on the middle of its bounding box. This was a real fix, not cosmetic: box-centring let a cat with a wider tail or paw spread (e.g. Pilpel) land visibly off from another cat (e.g. Tapuz) in the exact same spot, even though the offset in index.html was identical for both. If a new cat looks consistently offset from the others in the same pose, check this before reaching for a per-cat offset.
+- READY_POSES in index.html gates which poses can be randomly picked for a visit: currently sit, sleep, lie, half, soak. soak only just became ready (every cat but needs the full set of pose art first — check before adding a new pose here).
+- Poses per item: ITEMS[id].poses is the list a visit can randomly draw from (ITEMS[id].pose is still the fallback/default for old saves and for items with only one pose). Stool: sit, sleep. The three baths: half, soak (plus taiyaki-xl also keeps ride).
+- Offsets (ITEMS[id].offset, ITEMS[id].poseOffset): we went back and forth on this and landed on object-and-pose, not cat-and-pose. A cat offset keyed just by cat name (e.g. taiyaki-xl's Rimon/Pilpel nudges) still works and is for genuine per-cat size differences; don't add new per-cat offsets for a bath position unless there's a real reason — put the position on the bath's poseOffset so it applies to every cat.
+- objects/*-water.webp (one per XL bath) and steam are configured on the item as water: { x, y, w, steamDy }, all percent of the spot. Steam uses the same x/y/w as the water plus an optional downward nudge (steamDy) so it can start nearer the surface without moving the water itself. Steam is pure CSS (radial-gradient blurred circles, mix-blend-mode: screen, no art needed) — screen blend mode was the fix for it being invisible against a light background; plain opacity just washed out.
+- Converting a "move it N px" request to a percent offset: these percentages are relative to the spot box, not the room. The spot is about 340x284 in a typical desktop test window, so roughly px / 2.84 = percent of spot height, px / 3.4 = percent of spot width. This is an approximation tied to whatever window you're testing in — it's not exact on every device, so after a few nudges it's worth confirming on the user's actual screen rather than trusting the running total.
 
-## My art, now generated (in raw/ on this machine)
-- Room backgrounds: raw/scene/room-zashiki.png, room-shokudo.png, room-engawa.png, room-onsen.png. The tool tools/process_art.py has no step for these yet.
-- New items (one image each): bonsai, onsen-stone (large stone bath), foot-bath, towels, yuoke (wash bucket), yukata, bath-stool, onsen-scoop. Plus new cat poses. List raw/ to see exactly what exists, and tell me what is missing.
-- Front layers: onsen-stone, foot-bath and yuoke need a front wall or rim, cut from the same image along a curve with FRONT_CURVES in process_art.py (as for box and basket). The stone onsen and foot bath should leave the cat visible above the rim.
-- Items are drawn on a flat #D0D0D0 background that the pipeline removes, so check results for stones or wood that look grey and got eaten.
+## Known non-issues
+- Safari + DevTools: resizing the viewport by opening/closing the inspector in Safari can leave the page briefly in a stale layout (e.g. water looking detached from a bath) until a repaint catches up — this is Safari being slow to recompute dvh units and repaint transformed elements on a DevTools-driven resize, not a bug in the game. Doesn't affect real players, who aren't resizing their viewport while playing. A real window resize (not a DevTools toggle) behaves normally.
+- When testing through Claude in Chrome, the driven tab is usually backgrounded from the tool's side, so document.hidden is true and the whole CSS animation timeline is frozen — currentTime stays at 0 no matter how long you wait. To actually see an animation, either check it structurally (class, keyframe names, element.getAnimations()) and ask the user to eyeball the real motion, or force a mid-cycle frame with anim.currentTime = ... on each element.
+- mcp__claude-in-chrome__resize_window did not actually change the real viewport in this environment (innerWidth/innerHeight stayed put even after a "successful" resize). To test two screen sizes, load the page in two same-origin iframes of different pixel sizes instead and measure inside each.
 
-## To do, in this order
-1. Add a room-background step to tools/process_art.py: raw/scene/room-<id>.png to scene/room-<id>.webp (keep the 9:16 shape, 1080x1920 or similar). Run python3 -u tools/process_art.py (takes a few minutes), then check git status.
-2. Add the new items to ITEMS in index.html (room, pose, cat anchor, hasFront, wobble for toys) and tune the anchors by overlay. Per-cat nudges go in the item's offset table. Remove the matcha stand-in.
-3. Replace Hebrew in the UI with Japanese names plus English. Ask me before inventing Japanese names for the seven cats (Tapuz, Pilpel, Sheleg, Dvash, Shoko, Rimon, Kokhav).
-4. Build the Study desk and iframe overlay with the postMessage fish contract, with hwg and hbt as the first two modules.
-5. Test at 1280x900 and 390x844 and send screenshots, including the seams between rooms 2/3 and 3/4. Ask before committing.
-
-## Open questions for me
-- Japanese names for the cats.
-- Where the study desk sits in the tatami room (it takes one of the four spots, or sits as fixed decoration).
+## Open items
+- Hinoki bath's water/steam technically animate the same as hex and clay, but are much harder to see because its water art has no bright highlight to catch the shimmer/steam against — hex and clay both have a glint. Options discussed: a stronger animation just for hinoki, or a highlight added to its art. Neither done yet.
+- Desk position (left/bottom + cqw/cqh nudge) was fixed to be screen-size-independent, but only checked at two iframe sizes, not the user's real phone.
+- Cat ids/filenames are still Hebrew (tapuz, pilpel, sheleg, dvash, shoko, rimon, kokhav) while all player-facing text is Japanese/English. Deliberately left alone: renaming would break existing saves (ids are stored in localStorage) and touch a lot of file paths for a purely cosmetic win. Only worth doing with explicit sign-off and a plan for save migration.
+- combos/ (the old separate cat+object combo images) were deleted from git and from raw/; the pipeline step that made them is still in process_art.py but is now a no-op without raw/combos/.
 ```
