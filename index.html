@@ -653,8 +653,9 @@
       const id = buy.dataset.buy, it = ITEMS[id], fish = getFish();
       if (state.owned.includes(id) || fish < it.price) return;
       state.owned.push(id); save(); setFish(fish - it.price);
-      toast(`Bought ${jaSpan(it.ja)} ${it.tr}! Tap an empty spot to put it out.`);
-      openShop(shopIdx);
+      // Go straight to choosing a spot, as Put out in the Bag does. If the room has no free spot, the item waits in the Bag.
+      if (freeSpotFor(it.room, id) === -1) { toast(`Bought ${jaSpan(it.ja)} ${it.tr}. No empty spot in that room yet. It is in your Bag.`); openShop(shopIdx); return; }
+      closeSheet(); startPlacing(id); goRoom(ROOMS.findIndex((r) => r.id === it.room));
     } else if (study) { closeSheet(); openStudy(study.dataset.study); }
     else if (act) closeSheet();
   });
