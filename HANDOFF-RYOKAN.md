@@ -38,5 +38,4 @@ I'm continuing work on "Neko Ryokan", a Neko Atsume-style cat game, a static sit
 - Hinoki bath's water/steam technically animate the same as hex and clay, but are much harder to see because its water art has no bright highlight to catch the shimmer/steam against — hex and clay both have a glint. Options discussed: a stronger animation just for hinoki, or a highlight added to its art. Neither done yet.
 - Desk position (left/bottom + cqw/cqh nudge) was fixed to be screen-size-independent, but only checked at two iframe sizes, not the user's real phone.
 - Cat ids/filenames are still Hebrew (tapuz, pilpel, sheleg, dvash, shoko, rimon, kokhav) while all player-facing text is Japanese/English. Deliberately left alone: renaming would break existing saves (ids are stored in localStorage) and touch a lot of file paths for a purely cosmetic win. Only worth doing with explicit sign-off and a plan for save migration.
-- combos/ (the old separate cat+object combo images) were deleted from git and from raw/; the pipeline step that made them is still in process_art.py but is now a no-op without raw/combos/.
 ```

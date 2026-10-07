@@ -6,7 +6,6 @@ Reads inn/raw/ and writes:
   cats/<cat>/<pose>-<n>.webp     optional extra frames, e.g. sleep-2.png -> sleep-2.webp
   objects/<item>.webp
   objects/<item>-front.webp      items listed in FRONT_WALLS
-  combos/<cat>/<item>.webp       one image per cat on one object (from raw/combos/)
   scene/<name>.webp              backgrounds (from raw/scene/), 16:11
   scene/room-<id>.webp           room pictures (from raw/scene/room-<id>.png), 9:16
 
@@ -34,7 +33,6 @@ TOOLS = Path(__file__).resolve().parent
 YARD = TOOLS.parent
 RAW, CATS_OUT, OBJ_OUT = YARD / 'raw', YARD / 'cats', YARD / 'objects'
 SCENE_OUT = YARD / 'scene'
-COMBO_OUT = YARD / 'combos'
 SCENE_SIZE = (1280, 880)   # 16:11, the yard's shape
 SCENE_QUALITY = 88
 ROOM_SIZE = (1080, 1920)   # 9:16 portrait, one room of the ryokan (the rooms game in index.html)
@@ -410,9 +408,7 @@ def main():
         log(f'cat {cat}')
         sheet_rows.extend(process_cat(cat, cat_frames[cat], log))
 
-    # Only the reference cat's combos are kept; the layered art covers every other cat.
-    combos = sorted(p for p in (RAW / 'combos').glob('*.png') if p.stem.split('-', 1)[0] == REF_CAT)
-    if items or combos:
+    if items:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
         if ref is None:
             raise SystemExit(f'items need {REF_CAT} sit in raw/ to set the shared scale')
@@ -423,20 +419,6 @@ def main():
             log(f'item {name}')
             _, canvas = process_item(name, items[name], item_scale, log)
             sheet_rows.append((name, items[name], canvas))
-
-    for path in combos:
-        # Combos are one image per cat and object, already with the cat in place.
-        # Same shared scale, so the cat's size matches the rest of the set.
-        cat, item = path.stem.split('-', 1)
-        log(f'combo {cat} + {item}')
-        rgba, bg, green = cut_out(load(path))
-        rgba = trim(rgba)
-        h, w = rgba.shape[:2]
-        log(f'  {path.name}: backdrop {bg.round().astype(int).tolist()}, content {w}x{h}, '
-            f'scale {item_scale:.4f} -> {round(h * item_scale)}x{round(w * item_scale)} px')
-        canvas = compose(rgba, item_scale, f'{cat}+{item}')
-        save_webp(canvas, COMBO_OUT / cat / f'{item}.webp')
-        sheet_rows.append((f'{cat} + {item}', path, canvas))
 
     for path in sorted((RAW / 'scene').glob('*.png')):
         # Scenes are full-bleed backgrounds: resize only, no background removal.
