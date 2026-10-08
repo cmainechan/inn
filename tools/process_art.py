@@ -81,7 +81,7 @@ FRONT_WALLS = {
 
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak)(?:-(?P<n>\d+))?$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
-CLEAR_HOLES = {'stool'}
+CLEAR_HOLES = {'stool', 'mtchirashi'}  # mtchirashi: the gap between the prawn's feelers
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
