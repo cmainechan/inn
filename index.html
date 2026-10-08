@@ -48,10 +48,11 @@
     container-type: size;   /* lets children offset by a share of the picture (cqw, cqh) */
   }
   .bg { position: absolute; inset: 0; background-color: #9DCC6E; background-repeat: no-repeat; background-size: auto 100%; }
-  /* The picture is six rooms wide: a margin, the four rooms, and a margin (scene/ryokan-pano.webp).
+  /* The picture is six rooms wide: a margin, the four rooms, and a margin (scene/ryokan-pano*.webp).
      Each section shows one slice of it, --slice from 0 to 5. The stage is one room wide and the picture is six
-     stages wide, so the slice's left edge is at --slice stages and background-position is --slice / 5. */
-  .bg { background-image: url("scene/ryokan-pano.webp"); background-size: auto 100%; background-position: calc(var(--slice) * 20%) 50%; }
+     stages wide, so the slice's left edge is at --slice stages and background-position is --slice / 5.
+     --pano (the file for the current season) is set once on :root by applyPano(), see PANO_SEASONS. */
+  .bg { background-image: var(--pano, url("scene/ryokan-pano.webp")); background-size: auto 100%; background-position: calc(var(--slice) * 20%) 50%; }
   .tint { position: absolute; inset: 0; pointer-events: none; transition: background 1.5s ease; }
   .seam { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
 
@@ -260,6 +261,15 @@
     { id: 'onsen',   ja: '温泉',   tr: 'onsen',         en: 'hot spring' }
   ];
   const START_ROOM = 'zashiki';
+  // The panorama varies with the real-world month, 4 months per scene (see HANDOFF-RYOKAN.md for
+  // why these groupings). months are 0-indexed (Date#getMonth()). 'default' is the maple/autumn
+  // art already used everywhere else (scene/ryokan-pano.webp) and also the only scene shipped so
+  // far without its own -<variant> file, so it needs no suffix.
+  const PANO_SEASONS = [
+    { months: [2, 3, 4, 5], file: 'scene/ryokan-pano-spring.webp' },   // Mar - Jun
+    { months: [6, 7, 8, 9], file: 'scene/ryokan-pano.webp' },          // Jul - Oct (default art)
+    { months: [10, 11, 0, 1], file: 'scene/ryokan-pano-winter.webp' }, // Nov - Feb
+  ];
   // Horizontal centre of the XL row: top row, bottom row.
   const XL_X = [32, 70];
   // How far XL items sit below the middle of their row, in % of the room.
@@ -847,12 +857,24 @@
     document.querySelectorAll('.tint').forEach((t) => { t.style.background = evening ? 'linear-gradient(rgba(242,150,110,.28), rgba(242,150,110,.10))' : 'transparent'; });
   }
 
+  // The panorama picks a seasonal file once per load (seasons don't change mid-session, unlike the
+  // day/night tint, so no need to recheck on a timer). ?season=spring|winter|autumn forces one for
+  // testing, bypassing the calendar; any other value (or a typo) falls through to the real month.
+  function applyPano() {
+    const forced = (location.search.match(/[?&]season=([a-z]+)/) || [])[1];
+    const entry = forced === 'autumn' ? PANO_SEASONS.find((s) => s.file === 'scene/ryokan-pano.webp')
+      : forced ? PANO_SEASONS.find((s) => s.file.includes('-' + forced))
+      : PANO_SEASONS.find((s) => s.months.includes(new Date().getMonth()));
+    const file = (entry || PANO_SEASONS[1]).file;
+    document.documentElement.style.setProperty('--pano', `url("${file}")`);
+  }
+
   function start() {
     if (!state.welcomed) {
       state.welcomed = true; save(); setFish(getFish() + WELCOME_FISH);
       toast(`Welcome to the Ryokan! Swipe sideways to visit the rooms.`);
     }
-    renderRooms(); renderChrome(); renderWallet(); tick(true);
+    applyPano(); renderRooms(); renderChrome(); renderWallet(); tick(true);
   }
   start();
   setInterval(() => { applyTimeOfDay(); tick(false); }, TICK_MS);

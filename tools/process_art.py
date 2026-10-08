@@ -39,7 +39,9 @@ SCENE_QUALITY = 88
 ROOM_SIZE = (1080, 1920)   # 9:16 portrait, one room of the ryokan (the rooms game in index.html)
 ROOM_QUALITY = 88
 ROOM_PREFIX = 'room-'      # raw/scene/room-<id>.png -> scene/room-<id>.webp
-PANO_NAME = 'ryokan-pano'  # raw/scene/ryokan-pano.png: all four rooms in one picture, 9:4, kept at its own size
+PANO_PREFIX = 'ryokan-pano'  # raw/scene/ryokan-pano[-<variant>].png -> scene/ryokan-pano[-<variant>].webp.
+                              # All four rooms in one picture, 9:4, kept at its own size. -<variant> is a
+                              # seasonal variant, e.g. ryokan-pano-spring.png (see PANO_SEASONS in index.html).
 PANO_QUALITY = 88
 
 W, H = 480, 400
@@ -440,10 +442,10 @@ def main():
         # Room pictures are 9:16 and get their own size below. The four-room panorama keeps its own size.
         if path.stem.startswith(ROOM_PREFIX):
             continue
-        if path.stem == PANO_NAME:
+        if path.stem == PANO_PREFIX or path.stem.startswith(PANO_PREFIX + '-'):
             log(f'panorama {path.name}')
             img = Image.open(path).convert('RGB')
-            out = SCENE_OUT / f'{PANO_NAME}.webp'
+            out = SCENE_OUT / f'{path.stem}.webp'
             img.save(out, 'WEBP', quality=PANO_QUALITY, method=6)
             log(f'  -> {out.relative_to(YARD)} {img.size[0]}x{img.size[1]}')
             continue
