@@ -98,6 +98,23 @@ def load(path):
     return np.asarray(Image.open(path).convert('RGB'), dtype=np.float32)
 
 
+def pre_cut_rgba(path):
+    """If the raw file already has real alpha transparency (an artist-cut PNG, not just an unused
+    opaque alpha channel), return it as rgba (RGB 0..255, alpha 0..1) ready for trim/compose,
+    skipping background removal entirely. Otherwise return None, meaning cut_out() should run as
+    usual. Detected automatically per file, so no per-item list to maintain."""
+    im = Image.open(path)
+    if 'A' not in im.getbands():
+        return None
+    im = im.convert('RGBA')
+    arr = np.asarray(im, dtype=np.float32)
+    if arr[..., 3].min() > 250:   # fully opaque alpha channel: not actually cut out
+        return None
+    out = arr.copy()
+    out[..., 3] /= 255.0
+    return out
+
+
 def border_colour(rgb, n=8):
     ring = np.concatenate([rgb[:n].reshape(-1, 3), rgb[-n:].reshape(-1, 3),
                            rgb[:, :n].reshape(-1, 3), rgb[:, -n:].reshape(-1, 3)])
@@ -330,14 +347,19 @@ def process_item(name, path, scale, log):
     """scale is shared by every item, so an object drawn at the reference cat's size
     comes out at the reference cat's size in the yard."""
     scale = scale * OBJECT_SIZE.get(name, 1.0)
-    rgba, bg, green = cut_out(load(path), clear_holes=name in CLEAR_HOLES)
+    pre = pre_cut_rgba(path)
+    if pre is not None:
+        rgba, bg_note = pre, 'already transparent, no cutout needed'
+    else:
+        rgba, bg, _ = cut_out(load(path), clear_holes=name in CLEAR_HOLES)
+        bg_note = f'backdrop {bg.round().astype(int).tolist()}'
     if name in SHADOW_CUT:
         rgba = drop_shadow(rgba, from_frac=SHADOW_CUT[name])
     ys, xs = np.where(rgba[..., 3] > TRIM_ALPHA)
     x_raw, y_raw = xs.min(), ys.min()          # where the trimmed content starts in the raw image
     rgba = trim(rgba)
     h, w = rgba.shape[:2]
-    log(f'  {path.name}: backdrop {bg.round().astype(int).tolist()}, content {w}x{h}, '
+    log(f'  {path.name}: {bg_note}, content {w}x{h}, '
         f'scale {scale:.4f} -> {round(h * scale)}x{round(w * scale)} px')
     canvas = compose(rgba, scale, name, center='bbox' if name in CENTER_BBOX else 'body')
     dx = OBJECT_SHIFT.get(name, 0)
