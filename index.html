@@ -309,7 +309,6 @@
 
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
-    redpanda: { room: 'engawa', ja: 'レッサーパンダ', tr: 'ressaa panda', en: 'red panda suit', price: 240, pose: 'face', catScale: 0.682, cat: { x: 49, y: 68.25 } },
     bonsai:   { room: 'engawa', ja: '盆栽', tr: 'bonsai', en: 'pine bonsai', price: 260, pose: 'sit', cat: { x: 24, y: 87.5 } }
   };
   const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking' };
@@ -624,13 +623,11 @@
       openSheet(`<h2>Set out food · ${jaSpan(room.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     }
   }
-  // The shop browses the rooms with the ‹ › buttons, one page per room, in ROOMS order. Food gets
-  // its own page too, right after the dining room's regular items — it's a separate kind of item
-  // (consumable, set out at FOOD_SPOT, not one of the four regular spots), so it reads oddly mixed
-  // into the dining room's furniture page. sectionFor() maps a game room to its shop page, skipping
-  // over the food page in between.
-  const SHOP_SECTIONS = [];
-  ROOMS.forEach((r) => { SHOP_SECTIONS.push({ kind: 'room', room: r }); if (r.id === FOOD_SPOT.room) SHOP_SECTIONS.push({ kind: 'food' }); });
+  // The shop browses the rooms with the ‹ › buttons, one page per room, in ROOMS order, except
+  // Food leads as its own page before every room — it's a separate kind of item (consumable, set
+  // out at FOOD_SPOT, not one of the four regular spots), so it reads oddly mixed into the dining
+  // room's furniture page. sectionFor() maps a game room to its shop page, skipping over Food.
+  const SHOP_SECTIONS = [{ kind: 'food' }, ...ROOMS.map((r) => ({ kind: 'room', room: r }))];
   const sectionFor = (roomId) => SHOP_SECTIONS.findIndex((s) => s.kind === 'room' && s.room.id === roomId);
   let shopIdx = 0, shopPage = 0;
   const SHOP_PAGE = 4;   // items per screen, as a 2 x 2 grid
