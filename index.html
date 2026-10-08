@@ -285,10 +285,11 @@
   // marking the spot is now painted directly into the room art (scene/ryokan-pano*-mat.webp), not
   // drawn separately in code, so x/y here is measured pixel-for-pixel from the painted mat itself
   // (its centre x, its bottom edge y, within one room-width slice of the panorama) rather than
-  // tuned by eye — see HANDOFF-RYOKAN.md for the measurement method. Nudged +1% x / -1.1% y from
-  // that raw measurement (~10px right, ~10px up at the usual 10px/9px-per-1% ratio) to centre food
-  // items on the mat rather than sit exactly on its measured bottom edge.
-  const FOOD_SPOT = { room: 'shokudo', x: 38.2, y: 47.6 };
+  // tuned by eye — see HANDOFF-RYOKAN.md for the measurement method. Nudged +1% x from that raw
+  // measurement (~10px right, at the usual 10px-per-1%-width ratio) to centre food items
+  // horizontally on the mat; y nudged up then back down by ~1% net, landing close to the original
+  // measured bottom edge, so items sit on the mat rather than float above it.
+  const FOOD_SPOT = { room: 'shokudo', x: 38.2, y: 48.6 };
 
   /* ---------- Items ---------- */
   const CAT_WIDTH = 100;
