@@ -281,13 +281,13 @@
   // The study desk is furniture in the tatami room, not one of the four spots. Tapping it opens study.
   const DESK = { room: 'zashiki', x: 50, y: 47 };
   // The food spot: one fixed place in the dining room, not one of its four item spots. Only
-  // one food item can be out at a time, and no cat poses on it or visits it directly. On the open
-  // floor near the counter (above both diagonal pairs of regular spots, just below the back wall
-  // at y 38), marked by its own placemat (objects/food-mat.webp) so it doesn't blend into the
-  // shelf clutter behind it.
-  // y nudged down ~30px from 48, then x nudged right ~30px from 50 (same % <-> px ratios as the
-  // desk's cqh/cqw nudge: ~9px per 1% of stage height, ~10px per 1% of stage width).
-  const FOOD_SPOT = { room: 'shokudo', x: 53, y: 51.3 };
+  // one food item can be out at a time, and no cat poses on it or visits it directly. The placemat
+  // marking the spot is now painted directly into the room art (scene/ryokan-pano*-mat.webp), not
+  // drawn separately in code, so x/y here is measured pixel-for-pixel from the painted mat itself
+  // (its centre x, its bottom edge y, within one room-width slice of the panorama) rather than
+  // tuned by eye — see HANDOFF-RYOKAN.md for the measurement method and why a cqw/cqh nudge isn't
+  // needed any more.
+  const FOOD_SPOT = { room: 'shokudo', x: 37.2, y: 48.7 };
 
   /* ---------- Items ---------- */
   const CAT_WIDTH = 100;
@@ -309,6 +309,7 @@
     yakitori: { room: 'shokudo', food: true, duration: 30, ja: '焼き鳥', tr: 'yakitori', en: 'grilled skewers', price: 140 },
     tempura:  { room: 'shokudo', food: true, duration: 40, ja: '天ぷら盛り合わせ', tr: 'tempura moriawase', en: 'assorted tempura', price: 220 },
     chirashi: { room: 'shokudo', food: true, duration: 50, ja: 'ちらし寿司', tr: 'chirashizushi', en: 'scattered sushi bowl', price: 320 },
+    mtchirashi: { room: 'shokudo', food: true, duration: 55, ja: '海鮮ちらし', tr: 'kaisen chirashi', en: 'seafood chirashi bowl', price: 360 },
     unadon:   { room: 'shokudo', food: true, duration: 65, ja: 'うな丼', tr: 'unadon', en: 'grilled eel rice bowl', price: 420 },
     kaiseki:  { room: 'shokudo', food: true, duration: 90, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600 },
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
@@ -518,19 +519,17 @@
     return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 3.5cqw);bottom:calc(${100 - DESK.y}% - 6.7cqh);z-index:90">` +
       `<img src="objects/desk.webp" alt=""></button>`;
   }
-  // The food spot: one fixed place in the dining room, separate from its four item spots. The
-  // placemat (objects/food-mat.webp) is always drawn, placed or not, so it alone marks this as the
-  // only spot where food can go — no dashed empty-mark needed, unlike a regular spot.
+  // The food spot: one fixed place in the dining room, separate from its four item spots. Its
+  // placemat is painted into the room art itself (not drawn here), so empty it has no art of its
+  // own at all — just an invisible tap target sitting exactly where the mat is painted.
   function foodHtml() {
     const f = state.food;
-    const mat = `<img class="layer" src="objects/food-mat.webp" alt="">`;
-    let inner, label;
+    let inner = '', label;
     if (!f) {
-      inner = mat;
       label = 'Food spot, empty. Set out food for the cats here.';
     } else {
       const it = ITEMS[f.id], L = itemLayers(f.id, true);
-      inner = mat + L.back + L.front;
+      inner = L.back + L.front;
       label = `${it.tr} (${it.en}), set out at the food spot`;
     }
     // z-index 95: above every regular spot (max 80), the same fix as the study desk — a regular
