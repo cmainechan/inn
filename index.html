@@ -76,6 +76,32 @@
   @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.012, 1.02); } }
   .cat-in { animation: catin 1.2s ease-out both; }
   @keyframes catin { from { opacity: 0; } }
+  /* Ground-contact shadow: code-drawn, not baked into the art (the item prompt spec explicitly
+     excludes cast shadows for this reason -- see ART-PROMPTS-ROOMS.md / ART-PERSPECTIVE-SPEC.md).
+     Every cat and item shares one 480x400 canvas with the same baseline (process_art.py's
+     BASELINE_PAD), so one ellipse, in the same 120x100 viewBox the empty-mark ovals already use,
+     sits at the right spot under all of them with no per-item tuning. Warm brown, not black, and
+     multiply-blended so the floor's own colour and grain show through. Skewed and shifted toward
+     the lower-left, away from the rooms' shared upper-right light (ART-PROMPTS-ROOMS.md).
+  */
+  .shadow { fill: #3C2616; filter: blur(.09cqw); mix-blend-mode: multiply; opacity: .55; transform: translateX(-3%) skewX(-10deg); transform-origin: 54% 90%; }
+  /* Floor type changes how the shadow reads: glossy wood (shokudo, engawa) keeps it soft and
+     faint since the shiny floor scatters the contact point; matte tatami (zashiki) keeps it
+     closest to full strength; damp stone (onsen) sits in between. */
+  .r-zashiki .shadow { opacity: .8; }
+  .r-shokudo .shadow, .r-engawa .shadow { opacity: .45; filter: blur(.16cqw); }
+  .r-onsen .shadow { opacity: .65; }
+
+  /* Reflection: shokudo's floor is the most polished of the four ("soft reflections of window
+     light" in ART-PROMPTS-ROOMS.md), so its items get a faint flipped echo of themselves that
+     fades out going down, the same cheap trick as a rained-on street. Items only, not cats --
+     a cat's own silhouette varies by pose too much for one flat mask to read well. */
+  .r-shokudo .spot .reflection {
+    position: absolute; left: 0; top: 100%; width: 100%; height: 58%; transform: scaleY(-1); transform-origin: top;
+    opacity: .2; pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.85), rgba(0,0,0,0) 72%);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.85), rgba(0,0,0,0) 72%);
+  }
   .wobble { transform-origin: 50% 92%; animation: wob 5s ease-in-out infinite; }
   .water { position: absolute; transform: translateX(-50%); pointer-events: none; animation: shimmer 4s ease-in-out infinite; will-change: transform, opacity; }
   @keyframes shimmer { 0%, 100% { opacity: .8; transform: translateX(-50%); } 50% { opacity: 1; transform: translateX(calc(-50% + 1.5%)); } }
@@ -417,10 +443,15 @@
       `<span class="puff" style="left:${left}%;animation-delay:${delay}s;animation-duration:${dur}s"></span>`).join('') + `</div>`; };
 
   // inSpot: on the floor, an item can be drawn larger (it.scale) from its base. The shop thumbnail keeps the normal size.
+  // Shadow and reflection are only drawn in the world (inSpot), not the shop/bag thumbnail. XL baths skip the
+  // shadow -- the basin shape already grounds them, and the ellipse would just smudge across two spot-widths.
+  const SHADOW_SVG = `<svg class="layer shadow" viewBox="0 0 120 100" aria-hidden="true"><ellipse cx="60" cy="90" rx="30" ry="7"/></svg>`;
   function itemLayers(id, inSpot) {
     const it = ITEMS[id], grow = inSpot && it.scale ? ` style="transform:scale(${it.scale});transform-origin:50% 90%"` : '';
+    const shadow = inSpot && !it.xl ? SHADOW_SVG : '';
+    const reflection = inSpot && it.room === 'shokudo' ? `<img class="layer reflection" src="${art.item(id)}" alt="" aria-hidden="true">` : '';
     return {
-      back: `<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt=""${grow}>`,
+      back: `${shadow}<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt=""${grow}>${reflection}`,
       front: it.hasFront ? `<img class="layer" src="${art.front(id)}" alt="">` : ''
     };
   }
@@ -432,7 +463,7 @@
     const po = (it.poseOffset && it.poseOffset[pose]) || { x: 0, y: 0 };
     const x = it.cat.x + o.x + po.x, y = it.cat.y + o.y + po.y, w = CAT_WIDTH * (it.catScale || 1) * (o.s || 1);
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
-      `<img class="${pose === 'sleep' ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
+      SHADOW_SVG + `<img class="${pose === 'sleep' ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
   }
 
   /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */
