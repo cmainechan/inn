@@ -78,19 +78,28 @@
   @keyframes catin { from { opacity: 0; } }
   /* Ground-contact shadow: code-drawn, not baked into the art (the item prompt spec explicitly
      excludes cast shadows for this reason -- see ART-PROMPTS-ROOMS.md / ART-PERSPECTIVE-SPEC.md).
-     Every cat and item shares one 480x400 canvas with the same baseline (process_art.py's
-     BASELINE_PAD), so one ellipse, in the same 120x100 viewBox the empty-mark ovals already use,
-     sits at the right spot under all of them with no per-item tuning. Warm brown, not black, and
-     multiply-blended so the floor's own colour and grain show through. Skewed and shifted toward
-     the lower-left, away from the rooms' shared upper-right light (ART-PROMPTS-ROOMS.md).
+     Items only, not cats -- a cat is always sitting on, in, or behind an item (never bare floor),
+     so the item's own shadow already grounds the pair; a second shadow under the cat was both
+     redundant and, for a pose whose art sits close to its own baseline (e.g. the "head" peeking
+     pose), visually overlapped the cat itself. Every item shares one 480x400 canvas with the same
+     baseline (process_art.py's BASELINE_PAD), so one ellipse, in the same 120x100 viewBox the
+     empty-mark ovals already use, sits at the right spot under all of them with no per-item
+     tuning. Warm brown, not black, multiply-blended so the floor's own colour and grain show
+     through. Skewed and shifted toward the lower-left, away from the rooms' shared upper-right
+     light (ART-PROMPTS-ROOMS.md).
+     Strength: measured the panorama's own painted window-shadows directly (a lit floor patch vs
+     a shadow-stripe patch in shokudo) at luminance ratio ~0.90, i.e. the art's own shadows only
+     darken the floor by about 10%. The values below are tuned to roughly that same softness at
+     the ellipse's own centre, not the much harder ~70% darkening an untuned multiply/opacity
+     combination gives by default.
   */
-  .shadow { fill: #3C2616; filter: blur(.09cqw); mix-blend-mode: multiply; opacity: .55; transform: translateX(-3%) skewX(-10deg); transform-origin: 54% 90%; }
-  /* Floor type changes how the shadow reads: glossy wood (shokudo, engawa) keeps it soft and
-     faint since the shiny floor scatters the contact point; matte tatami (zashiki) keeps it
+  .shadow { fill: #6B4226; filter: blur(.12cqw); mix-blend-mode: multiply; opacity: .22; transform: translateX(-3%) skewX(-10deg); transform-origin: 54% 90%; }
+  /* Floor type changes how the shadow reads: glossy wood (shokudo, engawa) keeps it softest and
+     faintest since the shiny floor scatters the contact point; matte tatami (zashiki) keeps it
      closest to full strength; damp stone (onsen) sits in between. */
-  .r-zashiki .shadow { opacity: .8; }
-  .r-shokudo .shadow, .r-engawa .shadow { opacity: .45; filter: blur(.16cqw); }
-  .r-onsen .shadow { opacity: .65; }
+  .r-zashiki .shadow { opacity: .3; }
+  .r-shokudo .shadow, .r-engawa .shadow { opacity: .15; filter: blur(.2cqw); }
+  .r-onsen .shadow { opacity: .22; }
 
   /* Reflection: shokudo's floor is the most polished of the four ("soft reflections of window
      light" in ART-PROMPTS-ROOMS.md), so its items get a faint flipped echo of themselves that
@@ -462,8 +471,12 @@
     const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
     const po = (it.poseOffset && it.poseOffset[pose]) || { x: 0, y: 0 };
     const x = it.cat.x + o.x + po.x, y = it.cat.y + o.y + po.y, w = CAT_WIDTH * (it.catScale || 1) * (o.s || 1);
+    // Only 'lie' (ball, yarn, takoyaki) puts the cat on open floor beside the item, so it's the
+    // only pose that needs its own shadow -- every other pose sits on or in the item itself,
+    // where the item's own shadow already covers the ground contact.
+    const shadow = pose === 'lie' ? SHADOW_SVG : '';
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
-      SHADOW_SVG + `<img class="${pose === 'sleep' ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
+      shadow + `<img class="${pose === 'sleep' ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
   }
 
   /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */
