@@ -342,6 +342,7 @@
     basket:   { room: 'zashiki', ja: '籠', tr: 'kago', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
     tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } },
     lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 } },
+    'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 } },
 
     onigiri:  { room: 'shokudo', ja: 'おにぎり', tr: 'onigiri', en: 'rice ball', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
@@ -385,7 +386,14 @@
     dvash:  { ja: 'ハチ', tr: 'Hachi', en: 'honey', rarity: .9, likes: { yarn: 3, ball: 2 }, gift: [1, 3] },
     shoko:  { ja: 'ココア', tr: 'Kokoa', en: 'chocolate milk', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
     rimon:  { ja: 'ざくろ', tr: 'Zakuro', en: 'pomegranate', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
-    kokhav: { ja: 'ほし', tr: 'Hoshi', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] }
+    kokhav: { ja: 'ほし', tr: 'Hoshi', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] },
+    // only-gated rare cats: just one pose of art so far (sit), so `only` keeps them off every other
+    // item instead of getting the 0.4 default-like chance at e.g. cushion's sleep pose. See pickCat().
+    zohar:  { ja: 'ひかり', tr: 'Hikari', en: 'light', rarity: .15, likes: { lantern: 5 }, only: ['lantern'], gift: [5, 9] },
+    // Spring-exclusive in concept, but gated by item rather than the real season for now (see
+    // PANO_SEASONS for the actual season switch, unrelated to this) -- she only ever visits the
+    // sakura vase, so she's effectively "spring-only" as long as that's the only place she's offered.
+    nitzan: { ja: 'さくら', tr: 'Sakura', en: 'blossom', rarity: .12, likes: { 'sakura-vase': 5 }, only: ['sakura-vase'], gift: [5, 9] }
   };
   const CAT_ORDER = Object.keys(CATS);
 
@@ -497,8 +505,13 @@
   }
 
   /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */
+  // CATS[id].only, when set, restricts a cat to just those item ids -- every other cat gets a 0.4
+  // baseline weight on any item (see the .4 default below), but a cat with art for only one pose
+  // (e.g. nitzan/zohar, sit-only so far) would otherwise be picked for an item needing a pose it
+  // has no art for. Also doubles as the "gate by item, not season" mechanism for a seasonal cat.
   function pickCat(itemId, present) {
-    const pool = CAT_ORDER.filter((id) => !present.has(id)).map((id) => ({ id, w: CATS[id].rarity * (CATS[id].likes[itemId] || 0.4) }));
+    const pool = CAT_ORDER.filter((id) => !present.has(id) && (!CATS[id].only || CATS[id].only.includes(itemId)))
+      .map((id) => ({ id, w: CATS[id].rarity * (CATS[id].likes[itemId] || 0.4) }));
     const total = pool.reduce((a, b) => a + b.w, 0);
     if (!total) return null;
     let r = Math.random() * total;
