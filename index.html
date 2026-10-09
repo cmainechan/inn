@@ -306,14 +306,15 @@
     // Food: set out at FOOD_SPOT, not one of the four spots above. No cat pose or visitor — see openFood().
     // duration is minutes until it is eaten up and removed from the bag. Ordered cheapest to most
     // expensive, kaiseki is the flagship. tamagoyaki joins here once its art arrives.
-    ochazuke: { room: 'shokudo', food: true, duration: 15, ja: 'お茶漬け', tr: 'ochazuke', en: 'rice in tea broth', price: 90 },
-    tamagoyaki: { room: 'shokudo', food: true, duration: 20, ja: '卵焼き', tr: 'tamagoyaki', en: 'rolled omelette', price: 115 },
-    yakitori: { room: 'shokudo', food: true, duration: 30, ja: '焼き鳥', tr: 'yakitori', en: 'grilled skewers', price: 140 },
-    tempura:  { room: 'shokudo', food: true, duration: 40, ja: '天ぷら盛り合わせ', tr: 'tempura moriawase', en: 'assorted tempura', price: 220 },
-    chirashi: { room: 'shokudo', food: true, duration: 50, ja: 'ちらし寿司', tr: 'chirashizushi', en: 'scattered sushi bowl', price: 320 },
-    mtchirashi: { room: 'shokudo', food: true, duration: 55, ja: '海鮮ちらし', tr: 'kaisen chirashi', en: 'seafood chirashi bowl', price: 360 },
-    unadon:   { room: 'shokudo', food: true, duration: 65, ja: 'うな丼', tr: 'unadon', en: 'grilled eel rice bowl', price: 420 },
-    kaiseki:  { room: 'shokudo', food: true, duration: 90, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600 },
+    // scale 0.75 on every food item: at full size they read too big next to the other items and cats.
+    ochazuke: { room: 'shokudo', food: true, duration: 15, ja: 'お茶漬け', tr: 'ochazuke', en: 'rice in tea broth', price: 90, scale: 0.75 },
+    tamagoyaki: { room: 'shokudo', food: true, duration: 20, ja: '卵焼き', tr: 'tamagoyaki', en: 'rolled omelette', price: 115, scale: 0.75 },
+    yakitori: { room: 'shokudo', food: true, duration: 30, ja: '焼き鳥', tr: 'yakitori', en: 'grilled skewers', price: 140, scale: 0.75 },
+    tempura:  { room: 'shokudo', food: true, duration: 40, ja: '天ぷら盛り合わせ', tr: 'tempura moriawase', en: 'assorted tempura', price: 220, scale: 0.75 },
+    chirashi: { room: 'shokudo', food: true, duration: 50, ja: 'ちらし寿司', tr: 'chirashizushi', en: 'scattered sushi bowl', price: 320, scale: 0.75 },
+    mtchirashi: { room: 'shokudo', food: true, duration: 55, ja: '海鮮ちらし', tr: 'kaisen chirashi', en: 'seafood chirashi bowl', price: 360, scale: 0.75 },
+    unadon:   { room: 'shokudo', food: true, duration: 65, ja: 'うな丼', tr: 'unadon', en: 'grilled eel rice bowl', price: 420, scale: 0.75 },
+    kaiseki:  { room: 'shokudo', food: true, duration: 90, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600, scale: 0.75 },
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } } },
@@ -521,13 +522,14 @@
     return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 3.5cqw);bottom:calc(${100 - DESK.y}% - 6.7cqh);z-index:90">` +
       `<img src="objects/desk.webp" alt=""></button>`;
   }
-  // The food spot: one fixed place in the dining room, separate from its four item spots. Its
-  // placemat is painted into the room art itself (not drawn here), so empty it has no art of its
-  // own at all — just an invisible tap target sitting exactly where the mat is painted.
+  // The food spot: one fixed place in the dining room, separate from its four item spots. Empty,
+  // it gets the same dashed-oval empty-mark as a regular spot, but in amber (var(--sun)) instead
+  // of white, so it reads as a different kind of spot at a glance.
   function foodHtml() {
     const f = state.food;
     let inner = '', label;
     if (!f) {
+      inner = `<svg class="layer" viewBox="0 0 120 100" aria-hidden="true"><g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(246,185,59,.28)" stroke="#F6B93B" stroke-width="2" stroke-dasharray="5 5"/><path d="M60 84 V96 M54 90 H66" stroke="#F6B93B" stroke-width="2.6" stroke-linecap="round"/></g></svg>`;
       label = 'Food spot, empty. Set out food for the cats here.';
     } else {
       const it = ITEMS[f.id], L = itemLayers(f.id, true);
