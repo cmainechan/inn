@@ -10,10 +10,10 @@ Reads inn/raw/ and writes:
   scene/room-<id>.webp           room pictures (from raw/scene/room-<id>.png), 9:16
 
 Raw names:
-  raw/<cat>-<pose>[-<n>].png     e.g. tapuz-sit.png, tapuz-sleep-2.png
-  raw/<item>.png                 e.g. box.png
-  raw/food/<item>.png            consumable food items, e.g. yakitori.png
-  raw/scene/room-<id>.png        e.g. room-zashiki.png (see ROOM_IDS in index.html)
+  raw/cats/<cat>-<pose>[-<n>].png   e.g. tapuz-sit.png, tapuz-sleep-2.png
+  raw/objects/<item>.png            e.g. box.png
+  raw/food/<item>.png               consumable food items, e.g. yakitori.png
+  raw/scene/room-<id>.png           e.g. room-zashiki.png (see ROOM_IDS in index.html)
 
 Usage (from anywhere):
   python3 inn/tools/process_art.py [--sheet PATH]
@@ -422,16 +422,18 @@ def main():
 
     cat_frames = defaultdict(dict)
     items = {}
-    for p in sorted(RAW.glob('*.png')):
+    for p in sorted((RAW / 'cats').glob('*.png')):
         m = POSE_RE.match(p.stem)
         if m:
             cat_frames[m['cat']][(m['pose'], int(m['n'] or 1))] = p
         else:
-            items[p.stem] = p
+            raise SystemExit(f'{p}: not a <cat>-<pose>[-<n>].png name, expected in raw/cats/')
+    for p in sorted((RAW / 'objects').glob('*.png')):
+        items[p.stem] = p
     # Food items live in their own subfolder, but process and output the same way as any other item.
     for p in sorted((RAW / 'food').glob('*.png')):
         items[p.stem] = p
-    # yarn2.png is the current yarn (ball with the string toward the cat); yarn.png is kept in raw/ but not used.
+    # yarn2.png is the current yarn (ball with the string toward the cat); yarn.png is kept in raw/objects/ but not used.
     if 'yarn2' in items:
         items['yarn'] = items.pop('yarn2')
     for alias, source in ITEM_SOURCE.items():
@@ -450,7 +452,7 @@ def main():
     if items:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
         if ref is None:
-            raise SystemExit(f'items need {REF_CAT} sit in raw/ to set the shared scale')
+            raise SystemExit(f'items need {REF_CAT} sit in raw/cats/ to set the shared scale')
         ref_h = trim(cut_out(load(ref))[0]).shape[0]
         item_scale = SIT_HEIGHT / ref_h
         log(f'shared item scale {item_scale:.4f} (from {REF_CAT} sit: {ref_h} px -> {SIT_HEIGHT} px)')

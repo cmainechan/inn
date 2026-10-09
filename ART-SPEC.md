@@ -8,6 +8,8 @@ Specs for every image to generate. Save raw files to `inn/raw/` and run `python3
 - Soft picture-book style, matching the Tapuz images.
 - Square, 1254×1254 PNG.
 - Whole subject visible with about 10% margin. Side-on or front-on, eye level, centred.
+  (Superseded for room items by the shared camera in `ART-PERSPECTIVE-SPEC.md` --
+  that doc's wording is what actually matches the room backgrounds' perspective.)
 - Filenames:
   - Cats: `<cat>-<pose>.png`, for example `sheleg-sit.png`
   - Extra frames: `<cat>-sleep-2.png`

@@ -108,18 +108,36 @@ game items.
 Reference for the style: any existing item, for example `objects/box.webp` (or its raw PNG). Attach one existing item and the matching cat sitting reference to set the scale.
 
 **Shared item block (paste at the top of every item prompt)**
+
+Camera: see `ART-PERSPECTIVE-SPEC.md` for why this exact wording matters —
+it's the same camera as the room backgrounds, not a generic "eye level"
+product shot. Getting this right here is what saves a manual angle-fix
+later.
+
 ```
 Soft Japanese picture-book illustration of ONE object, same style as the
 attached reference. Flat plain light grey background (#D0D0D0). Square
-1254 x 1254. The object is centred with about 10% margin, seen from the
-side at eye level with a slight view from above. No ground shadow, no
-cast shadow on the background, no text, no cat, no people, no frame.
+1254 x 1254. The object is centred with about 10% margin. Same camera as
+the room it sits in: eye level but slightly above the floor, looking down
+at a shallow angle (roughly 15-20 degrees below horizontal). The object
+sits flat on a floor and is drawn from that shallow, slightly-overhead
+angle -- not side-on, not top-down. Its near edge sits low in the frame
+and reads wide; its far edge sits higher in the frame and reads slightly
+narrower, with its top surface faintly visible -- mild foreshortening,
+the same amount a rug or tray shows seen at a low angle rather than
+dead-on. No ground shadow, no cast shadow on the background, no text, no
+cat, no people, no frame.
 No steam, no smoke, no haze rising off the object: it never cuts out
 cleanly against the grey background (same reason the onsen prompts
 below say "no steam") and leaves a grey smudge in the finished item.
 Scale: draw it at the size shown in the notes, where "a sitting cat" is
 the attached reference cat.
 ```
+
+Before accepting a result, run it through the checklist in
+`ART-PERSPECTIVE-SPEC.md` (near edge low+wide, far edge high+narrow, a
+sliver of top surface visible, tilt matches an existing good item like
+`objects/box.webp`).
 
 | Room | Item | Prompt |
 |---|---|---|
