@@ -85,7 +85,11 @@ CLEAR_HOLES = {'stool', 'mtchirashi'}  # mtchirashi: the gap between the prawn's
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
-ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration'}
+ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration', 'kazaguruma': 'kazaguruma-stand'}
+# Free-floating overlay layers, like a bath's water: cut out and trimmed but NOT baseline-composed
+# onto the shared 480x400 canvas, because they're positioned independently at runtime by their own
+# x/y/w percent (see e.g. ITEMS.kazaguruma.wheel in index.html), not stood on the floor like an item.
+FLOATING = {'kazaguruma-wheel'}
 # Items centred on their full bounding box, not the bottom band (see body_centre_x): a box drawn at
 # an angle, like the kaiseki's two offset tiers, has its near-bottom corner off to one side, which
 # throws off body-band centring in a way that never happens for a cat or a simple sitting object.
@@ -390,6 +394,23 @@ def process_item(name, path, scale, log):
     return outputs, canvas
 
 
+def process_floating(name, path, scale, log):
+    """A free-floating overlay (see FLOATING): cut out, trim, scale to the shared item scale, and save
+    as-is with no baseline placement -- same treatment as the bath water/steam layers."""
+    pre = pre_cut_rgba(path)
+    if pre is not None:
+        rgba, bg_note = pre, 'already transparent, no cutout needed'
+    else:
+        rgba, bg, _ = cut_out(load(path))
+        bg_note = f'backdrop {bg.round().astype(int).tolist()}'
+    rgba = trim(rgba)
+    rgba = scale_img(rgba, scale * OBJECT_SIZE.get(name, 1.0))
+    log(f'  {path.name}: {bg_note}, floating overlay {rgba.shape[1]}x{rgba.shape[0]}')
+    out = OBJ_OUT / f'{name}.webp'
+    save_webp(rgba, out)
+    return out
+
+
 # ---------- contact sheet ----------
 
 def contact_sheet(rows, path):
@@ -442,6 +463,7 @@ def main():
     for alias, raw_name in ITEM_RAW_NAME.items():
         if raw_name in items:
             items[alias] = items.pop(raw_name)
+    floating = {name: items.pop(name) for name in list(items) if name in FLOATING}
 
     log = print
     sheet_rows = []
@@ -449,7 +471,7 @@ def main():
         log(f'cat {cat}')
         sheet_rows.extend(process_cat(cat, cat_frames[cat], log))
 
-    if items:
+    if items or floating:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
         if ref is None:
             raise SystemExit(f'items need {REF_CAT} sit in raw/cats/ to set the shared scale')
@@ -460,6 +482,9 @@ def main():
             log(f'item {name}')
             _, canvas = process_item(name, items[name], item_scale, log)
             sheet_rows.append((name, items[name], canvas))
+        for name in sorted(floating):
+            log(f'floating {name}')
+            process_floating(name, floating[name], item_scale, log)
 
     for path in sorted((RAW / 'scene').glob('*.png')):
         # Scenes are full-bleed backgrounds: resize only, no background removal.
