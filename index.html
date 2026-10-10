@@ -337,7 +337,7 @@
     onigiri:  { room: 'shokudo', ja: 'おにぎり', tr: 'onigiri', en: 'rice ball', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
     taiyaki:  { room: 'shokudo', ja: 'たい焼き', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
-    mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 50, y: 69.5 } },
+    mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 52.9, y: 57.2 } },
     // Food: set out at FOOD_SPOT, not one of the four spots above. No cat pose or visitor — see openFood().
     // duration is minutes until it is eaten up and removed from the bag. Ordered cheapest to most
     // expensive, kaiseki is the flagship. tamagoyaki joins here once its art arrives.
@@ -352,9 +352,10 @@
     kaiseki:  { room: 'shokudo', food: true, duration: 90, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600, scale: 0.75 },
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
-    'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } } },
-    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.4, w: 93.0, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
-    'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 31.5, w: 80.5, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 } },
+    'sakura-toro': { room: 'onsen', ja: '灯籠', tr: 'tōrō', en: 'sakura lantern', price: 260, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
+    'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } }, offset: { sheleg: { x: 0, y: -1.1, s: 0.95 } } },
+    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.4, w: 93.0, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 } } },
+    'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 31.5, w: 80.5, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 } } },
 
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
@@ -363,7 +364,8 @@
     // wheel: the spinning pinwheel head, a separate free-floating layer from the stand (see FLOATING
     // in process_art.py) so it can be positioned at the stick's tip and rotated independently in CSS,
     // instead of being baseline-composed with the stand onto one shared canvas like every other item.
-    kazaguruma: { room: 'engawa', ja: '風車', tr: 'kazaguruma', en: 'pinwheel', price: 340, pose: 'sit', cat: { x: 72, y: 87.5 }, wheel: { x: 50.1, y: 47.5, w: 27.5 }, inFront: true }
+    kazaguruma: { room: 'engawa', ja: '風車', tr: 'kazaguruma', en: 'pinwheel', price: 340, pose: 'sit', cat: { x: 72, y: 87.5 }, wheel: { x: 50.1, y: 47.5, w: 27.5 }, inFront: true },
+    fan:      { room: 'engawa', ja: '団扇', tr: 'uchiwa', en: 'fan', price: 230, pose: 'sit', wobble: true, cat: { x: 76, y: 87.5 }, inFront: true },
   };
   const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking' };
   // Poses that have art for every cat.

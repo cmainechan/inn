@@ -51,7 +51,9 @@ SIT_HEIGHT = 250      # each cat's sitting pose is scaled to this content height
 CAT_SIZE = 0.85       # cats in the layers are drawn at this fraction of SIT_HEIGHT. Measured
                       # against the Tapuz combos (the reference): their cat is about 0.85 of
                       # the layer's sitting height, while the objects match the combos at 1.0
-OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5}  # extra size factor per object, on top of the shared item scale (cats are unchanged)
+OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5, 'mochi': 1.35}  # extra size factor per object, on top of the shared item scale (cats are unchanged).
+# mochi: sized up so its silhouette is convincingly wider than the cat's "head" pose peeking over it
+# (it was barely wider than the cat's own ears before -- compare taiyaki, which already reads right).
 SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
 OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12}  # canvas px, sideways. Keeps the ball out of the paw's reach (the cat sits to its right)
 REF_CAT = 'tapuz'     # items use the same scale as this cat's sitting pose, so sizes carry over
@@ -81,7 +83,7 @@ FRONT_WALLS = {
 
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak)(?:-(?P<n>\d+))?$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
-CLEAR_HOLES = {'stool', 'mtchirashi'}  # mtchirashi: the gap between the prawn's feelers
+CLEAR_HOLES = {'stool', 'mtchirashi', 'fan'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
