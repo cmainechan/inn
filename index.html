@@ -226,15 +226,6 @@
   #test { position: fixed; left: 8px; bottom: 80px; z-index: 12; display: flex; flex-direction: column; gap: 6px; }
   #test .btn { font-size: .78rem; padding: 3px 10px; }
 
-  /* ---------- Study desk (a fixed piece of furniture, not one of the four spots) ---------- */
-  /* Same box as a spot, so the art (objects/desk.webp) is drawn at the same scale as an item. */
-  .desk {
-    position: absolute; width: 42%; aspect-ratio: 120 / 100; transform: translateX(-50%); padding: 0; border: 0;
-    background: none; cursor: pointer; border-radius: 14px;
-  }
-  .desk img { display: block; width: 100%; height: 100%; }
-  .desk:focus-visible { outline: 3px solid var(--pond); outline-offset: 3px; }
-
   /* ---------- Study overlay: a study app in a frame, above the game ---------- */
   #study { position: fixed; inset: 0; z-index: 35; background: var(--paper); display: flex; flex-direction: column; }
   .study-bar {
@@ -264,6 +255,7 @@
     <button class="btn" id="shopBtn">Shop <span class="ja" lang="ja">店</span></button>
     <button class="btn plain" id="bagBtn">Bag <span class="ja" lang="ja">袋</span></button>
     <button class="btn plain" id="catsBtn">Cats <span class="ja" lang="ja">猫</span></button>
+    <button class="btn plain" id="studyBtn">Study <span class="ja" lang="ja">学</span></button>
   </div>
 </div>
 
@@ -321,8 +313,6 @@
     { x: 32, y: 56 }, { x: 68, y: 60 },
     { x: 30, y: 76 }, { x: 70, y: 80 }
   ];
-  // The study desk is furniture in the tatami room, not one of the four spots. Tapping it opens study.
-  const DESK = { room: 'zashiki', x: 50, y: 47 };
   // The food spot: one fixed place in the dining room, not one of its four item spots. Only
   // one food item can be out at a time, and no cat poses on it or visits it directly. The placemat
   // marking the spot is now painted directly into the room art (scene/ryokan-pano*-mat.webp), not
@@ -368,7 +358,8 @@
 
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
-    bonsai:   { room: 'engawa', ja: '盆栽', tr: 'bonsai', en: 'pine bonsai', price: 260, pose: 'sit', cat: { x: 24, y: 87.5 } },
+    // delisted: no longer sold, but kept defined so it doesn't break a save that already owns/placed it.
+    bonsai:   { room: 'engawa', ja: '盆栽', tr: 'bonsai', en: 'pine bonsai', price: 260, pose: 'sit', cat: { x: 24, y: 87.5 }, delisted: true },
     // wheel: the spinning pinwheel head, a separate free-floating layer from the stand (see FLOATING
     // in process_art.py) so it can be positioned at the stick's tip and rotated independently in CSS,
     // instead of being baseline-composed with the stand onto one shared canvas like every other item.
@@ -456,6 +447,14 @@
   const isXL = (id) => !!(id && ITEMS[id].xl);
   const rowStart = (i) => i - (i % 2);
   const isSecondary = (roomId, i) => isXL(state.spots[roomId][i]) && i % 2 === 1;
+  // Retired: a spot that's permanently unusable, never rendered, never a visit/placement target.
+  // Shokudo's spot 0 sits too close to FOOD_SPOT -- both the item spot and the food spot are large
+  // (42% x ~19.7% of the room) and nearly centred on each other, so a cat's sprite at spot 0 visually
+  // overlaps whatever's set out as food (confirmed by measuring the two boxes and test-placing a cat
+  // there with food out). Retiring it keeps the room at a steady 4 "things you can set out" once the
+  // food spot is counted, without reworking FOOD_SPOT's art-tuned position or SPOTS for every room.
+  const RETIRED = { shokudo: new Set([0]) };
+  const isRetired = (roomId, i) => !!RETIRED[roomId] && RETIRED[roomId].has(i);
   const fits = (roomId, i, id) => !ITEMS[id].xl || (!state.spots[roomId][rowStart(i)] && !state.spots[roomId][rowStart(i) + 1]);
   function placeItem(roomId, i, id) {
     const s = state.spots[roomId];
@@ -543,7 +542,7 @@
     if (span > 0) {
       ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
         const k = key(r.id, i);
-        if (!itemId || state.visitors[k] || isSecondary(r.id, i)) return;
+        if (!itemId || state.visitors[k] || isSecondary(r.id, i) || isRetired(r.id, i)) return;
         if (Math.random() >= 1 - Math.exp(-span / (ARRIVAL_MINUTES * 60e3))) return;
         const cat = pickCat(itemId, present);
         if (!cat) return;
@@ -571,7 +570,7 @@
   const world = $('world');
   let cur = ROOMS.findIndex((r) => r.id === START_ROOM);
   function spotHtml(room, i) {
-    if (isSecondary(room.id, i)) return '';
+    if (isSecondary(room.id, i) || isRetired(room.id, i)) return '';
     const itemId = state.spots[room.id][i], v = state.visitors[key(room.id, i)];
     // An XL item is drawn at the middle of its row. Rows can sit left or right, so the baths form a diagonal.
     const p = isXL(itemId) ? { x: XL_X[i >= 2 ? 1 : 0], y: (SPOTS[i].y + SPOTS[i + 1].y) / 2 + XL_DROP } : SPOTS[i];
@@ -588,13 +587,6 @@
       if (v) v.fresh = false;
     }
     return `<button class="spot" data-room="${room.id}" data-i="${i}" aria-label="${label}" style="left:${p.x}%;bottom:${100 - p.y}%;z-index:${p.y}">${inner}</button>`;
-  }
-  // The study desk: fixed furniture in the tatami room (objects/desk.webp). Tapping it opens the study menu.
-  function deskHtml() {
-    // Nudges are in container units (share of the picture), so the desk stays in the same place on every screen.
-    // 3.5 cqw and 6.7 cqh equal 35px and 60px on a 900px-tall screen. It is above the spots, whose transparent boxes would otherwise catch its taps.
-    return `<button class="desk" data-desk aria-label="Study desk. Open the study menu." style="left:calc(${DESK.x}% + 3.5cqw);bottom:calc(${100 - DESK.y}% - 6.7cqh);z-index:90">` +
-      `<img src="objects/desk.webp" alt=""></button>`;
   }
   // The food spot: one fixed place in the dining room, separate from its four item spots. Empty,
   // it gets the same dashed-oval empty-mark as a regular spot, but in amber (var(--sun)) instead
@@ -614,14 +606,14 @@
     // spot's invisible button box is much bigger than its art and was swallowing the food spot's taps.
     return `<button class="spot food-spot" data-food aria-label="${label}" style="left:${FOOD_SPOT.x}%;bottom:${100 - FOOD_SPOT.y}%;z-index:95">${inner}</button>`;
   }
-  // The picture is six rooms wide: a margin, the four rooms, and a margin. The margins have no spots or desk.
+  // The picture is six rooms wide: a margin, the four rooms, and a margin. The margins have no spots.
   // They are only ever seen beside the first and last rooms.
   const MARGINS = { left: { id: 'margin-left', en: 'dining room wall', slice: 0 }, right: { id: 'margin-right', en: 'garden', slice: 5 } };
   function renderRooms() {
     const sections = [{ ...MARGINS.left, margin: true }, ...ROOMS.map((r, i) => ({ ...r, slice: i + 1 })), { ...MARGINS.right, margin: true }];
     world.innerHTML = sections.map((r) =>
       `<section class="room r-${r.id}" style="--slice:${r.slice}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
-      (r.margin ? '' : SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === DESK.room ? deskHtml() : '') + (r.id === FOOD_SPOT.room ? foodHtml() : '')) +
+      (r.margin ? '' : SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === FOOD_SPOT.room ? foodHtml() : '')) +
       `</div></section>`).join('');
     applyTimeOfDay();
     placeRooms();
@@ -728,7 +720,7 @@
     const label = section.kind === 'food' ? { ja: '食', en: 'food' } : { ja: section.room.ja, en: section.room.en };
     const all = (section.kind === 'food'
       ? Object.keys(ITEMS).filter((id) => ITEMS[id].food)
-      : Object.keys(ITEMS).filter((id) => ITEMS[id].room === section.room.id && !ITEMS[id].food)
+      : Object.keys(ITEMS).filter((id) => ITEMS[id].room === section.room.id && !ITEMS[id].food && !ITEMS[id].delisted)
     ).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
     const pages = Math.max(1, Math.ceil(all.length / SHOP_PAGE));
     shopPage = Math.min(shopPage, pages - 1);
@@ -750,7 +742,7 @@
   // The bag lists everything bought, by room. Items out in a room say where they are.
   const spotOf = (id) => { for (const r of ROOMS) { const i = state.spots[r.id].indexOf(id); if (i !== -1) return { roomId: r.id, i }; } return null; };
   // The first empty spot in a room the item fits, with no cat visiting it.
-  const freeSpotFor = (roomId, id) => SPOTS.findIndex((_, i) => !state.spots[roomId][i] && !state.visitors[key(roomId, i)] && fits(roomId, i, id));
+  const freeSpotFor = (roomId, id) => SPOTS.findIndex((_, i) => !state.spots[roomId][i] && !state.visitors[key(roomId, i)] && !isRetired(roomId, i) && fits(roomId, i, id));
   // Put out: the player picks the spot. The item waits in 'placing' until a spot is tapped or Cancel.
   let placing = null;
   function startPlacing(id) {
@@ -832,7 +824,6 @@
     else if (b) openSpot(b.dataset.room, +b.dataset.i);
     else if (foodBtn && placing) placeFoodAt();
     else if (foodBtn) openFood();
-    if (e.target.closest('[data-desk]')) openDesk();
   });
   $('sheet').addEventListener('click', (e) => {
     const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]'), study = e.target.closest('[data-study]');
@@ -886,6 +877,7 @@
   $('shopBtn').addEventListener('click', () => openShop(sectionFor(ROOMS[cur].id)));
   $('catsBtn').addEventListener('click', openCats);
   $('bagBtn').addEventListener('click', openBag);
+  $('studyBtn').addEventListener('click', openDesk);
   $('placeCancel').addEventListener('click', endPlacing);
   $('giftBtn').addEventListener('click', () => {
     const n = state.gifts; if (!n) return;
@@ -916,7 +908,7 @@
         const present = new Set(Object.values(state.visitors).map((v) => v.cat));
         ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
           const k = key(r.id, i);
-          if (!itemId || state.visitors[k] || isSecondary(r.id, i)) return;
+          if (!itemId || state.visitors[k] || isSecondary(r.id, i) || isRetired(r.id, i)) return;
           const cat = pickCat(itemId, present); if (!cat) return;
           present.add(cat); state.seen[cat] = (state.seen[cat] || 0) + 1;
           state.visitors[k] = { cat, pose: pickPose(ITEMS[itemId]), arrive: Date.now(), leave: Date.now() + 40 * 60e3, gift: randInt(...CATS[cat].gift), fresh: true };
