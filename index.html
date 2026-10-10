@@ -331,8 +331,8 @@
     box:      { room: 'zashiki', ja: '箱', tr: 'hako', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 87.5 } },
     basket:   { room: 'zashiki', ja: '籠', tr: 'kago', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
     tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } },
-    lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 } },
-    'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 } },
+    lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 }, inFront: true },
+    'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
 
     onigiri:  { room: 'shokudo', ja: 'おにぎり', tr: 'onigiri', en: 'rice ball', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
@@ -363,7 +363,7 @@
     // wheel: the spinning pinwheel head, a separate free-floating layer from the stand (see FLOATING
     // in process_art.py) so it can be positioned at the stick's tip and rotated independently in CSS,
     // instead of being baseline-composed with the stand onto one shared canvas like every other item.
-    kazaguruma: { room: 'engawa', ja: '風車', tr: 'kazaguruma', en: 'pinwheel', price: 340, pose: 'sit', cat: { x: 72, y: 87.5 }, wheel: { x: 50.1, y: 47.5, w: 27.5 } }
+    kazaguruma: { room: 'engawa', ja: '風車', tr: 'kazaguruma', en: 'pinwheel', price: 340, pose: 'sit', cat: { x: 72, y: 87.5 }, wheel: { x: 50.1, y: 47.5, w: 27.5 }, inFront: true }
   };
   const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking' };
   // Poses that have art for every cat.
@@ -484,11 +484,12 @@
     const wheel = it.wheel ? `<div class="kazaguruma-wheel-wrap" style="left:${it.wheel.x}%;top:${it.wheel.y}%;width:${it.wheel.w}%">` +
       `<img src="objects/${id}-wheel.webp" alt="" style="transform-origin:52% 54%"></div>` : '';
     return {
-      back: `${shadow}<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt=""${grow}>${wheel}${reflection}`,
+      shadow,
+      img: `<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt=""${grow}>${wheel}${reflection}`,
       front: it.hasFront ? `<img class="layer" src="${art.front(id)}" alt="">` : ''
     };
   }
-  const thumb = (id) => { const L = itemLayers(id); return `<div class="thumb">${L.back}${L.front}</div>`; };
+  const thumb = (id) => { const L = itemLayers(id); return `<div class="thumb">${L.shadow}${L.img}${L.front}</div>`; };
   const catPortrait = (id, sil) => `<div class="portrait-cat${sil ? ' sil' : ''}"><img src="${art.cat(id, 'sit')}" alt=""></div>`;
   function catLayer(v, it) {
     const pose = v.pose || it.pose;
@@ -582,7 +583,12 @@
       const it = ITEMS[itemId], L = itemLayers(itemId, true);
       const water = it.water ? `<img class="water" src="objects/${itemId}-water.webp" alt="" style="left:${it.water.x}%;top:${it.water.y}%;width:${it.water.w}%">` : '';
       const steam = it.water ? steamHtml(it.water) : '';
-      inner = L.back + water + (v ? catLayer(v, it) : '') + L.front + steam;
+      const cat = v ? catLayer(v, it) : '';
+      // it.inFront: the cat sits slightly behind this item (lantern, kazaguruma, sakura-vase -- all
+      // decorative items a cat just sits beside, not in/on), so draw the item's own picture after the
+      // cat instead of before, otherwise the cat's sprite -- much wider than the item -- paints over it.
+      // The ground shadow stays under the cat either way; only the item's own picture reorders.
+      inner = it.inFront ? (L.shadow + cat + L.img + L.front + water + steam) : (L.shadow + L.img + water + cat + L.front + steam);
       label = v ? `${CATS[v.cat].tr} ${POSE_LABEL[v.pose || it.pose]} on the ${it.en}` : `${it.tr} (${it.en})`;
       if (v) v.fresh = false;
     }
@@ -599,7 +605,7 @@
       label = 'Food spot, empty. Set out food for the cats here.';
     } else {
       const it = ITEMS[f.id], L = itemLayers(f.id, true);
-      inner = L.back + L.front;
+      inner = L.shadow + L.img + L.front;
       label = `${it.tr} (${it.en}), set out at the food spot`;
     }
     // z-index 95: above every regular spot (max 80), the same fix as the study desk — a regular
