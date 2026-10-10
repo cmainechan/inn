@@ -336,6 +336,7 @@
     tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } },
     lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 }, inFront: true },
     'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
+    counter:  { room: 'zashiki', ja: '帳場', tr: 'chōba', en: 'counter', price: 550, pose: 'sit', cat: { x: 50, y: 87.5 }, inFront: true },
 
     onigiri:  { room: 'shokudo', ja: 'おにぎり', tr: 'onigiri', en: 'rice ball', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
@@ -389,7 +390,8 @@
     // Spring-exclusive in concept, but gated by item rather than the real season for now (see
     // PANO_SEASONS for the actual season switch, unrelated to this) -- she only ever visits the
     // sakura vase, so she's effectively "spring-only" as long as that's the only place she's offered.
-    nitzan: { ja: 'さくら', tr: 'Sakura', en: 'blossom', rarity: .12, likes: { 'sakura-vase': 5 }, only: ['sakura-vase'], gift: [5, 9] }
+    nitzan: { ja: 'さくら', tr: 'Sakura', en: 'blossom', rarity: .12, likes: { 'sakura-vase': 5 }, only: ['sakura-vase'], gift: [5, 9] },
+    mattu:  { ja: 'まつ', tr: 'Matsu', en: 'pine', rarity: .12, likes: { counter: 5 }, only: ['counter'], gift: [5, 9] }
   };
   const CAT_ORDER = Object.keys(CATS);
 
