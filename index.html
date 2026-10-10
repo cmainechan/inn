@@ -118,7 +118,10 @@
      (transform-origin set inline, measured on the raw art -- see ITEMS.kazaguruma.wheel), kept
      separate so the rotate and the translateX(-50%) centring don't fight over one transform. */
   .kazaguruma-wheel-wrap { position: absolute; transform: translateX(-50%); pointer-events: none; }
-  .kazaguruma-wheel-wrap img { display: block; width: 100%; height: auto; animation: spin 2.6s linear infinite; }
+  .kazaguruma-wheel-wrap img { display: block; width: 100%; height: auto; }
+  /* Only spins when placed in a room (inSpot) -- the shop/bag thumbnail shows it still, matching
+     every other item's thumbnail (no wobble, no water shimmer there either). */
+  .kazaguruma-wheel-wrap.spin img { animation: spin 2.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .water { position: absolute; transform: translateX(-50%); pointer-events: none; animation: shimmer 4s ease-in-out infinite; will-change: transform, opacity; }
   @keyframes shimmer { 0%, 100% { opacity: .8; transform: translateX(-50%); } 50% { opacity: 1; transform: translateX(calc(-50% + 1.5%)); } }
@@ -353,9 +356,9 @@
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
     'sakura-toro': { room: 'onsen', ja: '灯籠', tr: 'tōrō', en: 'sakura lantern', price: 260, pose: 'peer', cat: { x: 73.8, y: 87.5 }, inFront: true },
-    'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } }, offset: { sheleg: { x: 0, y: -1.1, s: 0.95 } } },
-    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.4, w: 93.0, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 } } },
-    'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 31.5, w: 80.5, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 } } },
+    'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } }, offset: { sheleg: { x: 0, y: -1.1, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
+    'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.4, w: 93.0, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
+    'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 31.5, w: 80.5, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
 
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
@@ -481,9 +484,10 @@
     const it = ITEMS[id], grow = inSpot && it.scale ? ` style="transform:scale(${it.scale});transform-origin:50% 90%"` : '';
     const shadow = inSpot && !it.xl ? SHADOW_SVG : '';
     const reflection = inSpot && it.room === 'shokudo' ? `<img class="layer reflection" src="${art.item(id)}" alt="" aria-hidden="true">` : '';
-    // The wheel is drawn here too (not just in-spot), so the shop/bag thumbnail shows the spinning
-    // head, not just the bare stand -- the wheel is the item's whole visual identity.
-    const wheel = it.wheel ? `<div class="kazaguruma-wheel-wrap" style="left:${it.wheel.x}%;top:${it.wheel.y}%;width:${it.wheel.w}%">` +
+    // The wheel is drawn here too (not just in-spot), so the shop/bag thumbnail shows the wheel head,
+    // not just the bare stand -- the wheel is the item's whole visual identity. It only spins in-spot
+    // (see .spin in the CSS) -- the thumbnail shows it still, matching every other item there.
+    const wheel = it.wheel ? `<div class="kazaguruma-wheel-wrap${inSpot ? ' spin' : ''}" style="left:${it.wheel.x}%;top:${it.wheel.y}%;width:${it.wheel.w}%">` +
       `<img src="objects/${id}-wheel.webp" alt="" style="transform-origin:52% 54%"></div>` : '';
     return {
       shadow,

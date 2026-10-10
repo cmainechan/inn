@@ -51,7 +51,7 @@ SIT_HEIGHT = 250      # each cat's sitting pose is scaled to this content height
 CAT_SIZE = 0.85       # cats in the layers are drawn at this fraction of SIT_HEIGHT. Measured
                       # against the Tapuz combos (the reference): their cat is about 0.85 of
                       # the layer's sitting height, while the objects match the combos at 1.0
-OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5, 'mochi': 1.35}  # extra size factor per object, on top of the shared item scale (cats are unchanged).
+OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5, 'mochi': 1.35, 'sakura-toro': 0.95}  # extra size factor per object, on top of the shared item scale (cats are unchanged).
 # mochi: sized up so its silhouette is convincingly wider than the cat's "head" pose peeking over it
 # (it was barely wider than the cat's own ears before -- compare taiyaki, which already reads right).
 SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
