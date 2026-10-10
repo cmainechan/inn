@@ -336,12 +336,14 @@
     tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 500, pose: 'sit', cat: { x: 50, y: 94 } },
     lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 }, inFront: true },
     'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
-    counter:  { room: 'zashiki', ja: '帳場', tr: 'chōba', en: 'counter', price: 550, pose: 'sit', cat: { x: 50, y: 87.5 }, inFront: true },
 
     onigiri:  { room: 'shokudo', ja: 'おにぎり', tr: 'onigiri', en: 'rice ball', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
     taiyaki:  { room: 'shokudo', ja: 'たい焼き', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
     mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 52.9, y: 57.2 } },
+    // XL: spans two spots (rowStart pairing). Shokudo's spot 0 is retired, so fits()/freeSpotFor
+    // route this to the (2,3) pair -- see the fits() retired-check added alongside this item.
+    counter:  { room: 'shokudo', xl: true, ja: '帳場', tr: 'chōba', en: 'counter', price: 550, pose: 'sit', scale: 1.5, catScale: 1.25, cat: { x: 50, y: 73.25 }, inFront: true },
     // Food: set out at FOOD_SPOT, not one of the four spots above. No cat pose or visitor — see openFood().
     // duration is minutes until it is eaten up and removed from the bag. Ordered cheapest to most
     // expensive, kaiseki is the flagship. tamagoyaki joins here once its art arrives.
@@ -462,7 +464,8 @@
   // food spot is counted, without reworking FOOD_SPOT's art-tuned position or SPOTS for every room.
   const RETIRED = { shokudo: new Set([0]) };
   const isRetired = (roomId, i) => !!RETIRED[roomId] && RETIRED[roomId].has(i);
-  const fits = (roomId, i, id) => !ITEMS[id].xl || (!state.spots[roomId][rowStart(i)] && !state.spots[roomId][rowStart(i) + 1]);
+  const fits = (roomId, i, id) => !ITEMS[id].xl || (!isRetired(roomId, rowStart(i)) && !isRetired(roomId, rowStart(i) + 1) &&
+    !state.spots[roomId][rowStart(i)] && !state.spots[roomId][rowStart(i) + 1]);
   function placeItem(roomId, i, id) {
     const s = state.spots[roomId];
     if (ITEMS[id].xl) { s[rowStart(i)] = id; s[rowStart(i) + 1] = id; } else s[i] = id;
@@ -483,7 +486,12 @@
   // shadow -- the basin shape already grounds them, and the ellipse would just smudge across two spot-widths.
   const SHADOW_SVG = `<svg class="layer shadow" viewBox="0 0 120 100" aria-hidden="true"><ellipse cx="60" cy="90" rx="30" ry="7"/></svg>`;
   function itemLayers(id, inSpot) {
-    const it = ITEMS[id], grow = inSpot && it.scale ? ` style="transform:scale(${it.scale});transform-origin:50% 90%"` : '';
+    // XL items scale up from a bottom anchor, so the image overflows above its own spot box into
+    // whatever spot sits above it (shokudo mixes an XL row with ordinary spots, unlike onsen where
+    // XL always fills the whole room). pointer-events:none on the overflowing image stops it from
+    // stealing clicks meant for that spot; the button's own (unscaled) box still catches clicks on
+    // the item itself.
+    const it = ITEMS[id], grow = inSpot && it.scale ? ` style="transform:scale(${it.scale});transform-origin:50% 90%${it.xl ? ';pointer-events:none' : ''}"` : '';
     const shadow = inSpot && !it.xl ? SHADOW_SVG : '';
     const reflection = inSpot && it.room === 'shokudo' ? `<img class="layer reflection" src="${art.item(id)}" alt="" aria-hidden="true">` : '';
     // The wheel is drawn here too (not just in-spot), so the shop/bag thumbnail shows the wheel head,
