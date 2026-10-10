@@ -352,7 +352,7 @@
     kaiseki:  { room: 'shokudo', food: true, duration: 90, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600, scale: 0.75 },
     'taiyaki-xl': { room: 'onsen', ja: '大きなたい焼き', tr: 'ookina taiyaki', en: 'big taiyaki', price: 280, pose: 'ride', poses: ['ride', 'half', 'soak'], cat: { x: 56.25, y: 65 }, offset: { rimon: { x: 0, y: 0.5, s: 1 }, pilpel: { x: 0, y: 0, s: 1.05 } } },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
-    'sakura-toro': { room: 'onsen', ja: '灯籠', tr: 'tōrō', en: 'sakura lantern', price: 260, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
+    'sakura-toro': { room: 'onsen', ja: '灯籠', tr: 'tōrō', en: 'sakura lantern', price: 260, pose: 'peer', cat: { x: 73.8, y: 87.5 }, inFront: true },
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 300, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } }, offset: { sheleg: { x: 0, y: -1.1, s: 0.95 } } },
     'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.4, w: 93.0, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 380, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 } } },
     'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 31.5, w: 80.5, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 } } },
@@ -367,9 +367,9 @@
     kazaguruma: { room: 'engawa', ja: '風車', tr: 'kazaguruma', en: 'pinwheel', price: 340, pose: 'sit', cat: { x: 72, y: 87.5 }, wheel: { x: 50.1, y: 47.5, w: 27.5 }, inFront: true },
     fan:      { room: 'engawa', ja: '団扇', tr: 'uchiwa', en: 'fan', price: 230, pose: 'sit', wobble: true, cat: { x: 76, y: 87.5 }, inFront: true },
   };
-  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking' };
+  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking', peer: 'peering' };
   // Poses that have art for every cat.
-  const READY_POSES = new Set(['sit', 'sleep', 'lie', 'half', 'soak', 'ride']);
+  const READY_POSES = new Set(['sit', 'sleep', 'lie', 'half', 'soak', 'ride', 'peer']);
 
   // ja: the name shown in Japanese. tr: romaji. en: the English meaning, shown on the cat's card.
   const CATS = {
