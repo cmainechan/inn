@@ -14,7 +14,7 @@ Reads inn/raw/ and writes:
                                   plate at runtime. A cat can have several poses (n = 1, 2, ...); the
                                   game picks one at random when a trip's photo is taken (see
                                   SELFIE_POSES/randomPose in index.html).
-  stamps/<dest>.webp             day-trip stamp badge (from raw/stamp/<dest>.png), trimmed and
+  stamps/<dest>.webp             day-trip stamp badge (from raw/stamps/stamp-<dest>.png), trimmed and
                                   height-normalised like a selfie cutout -- a smaller bonus collectible
                                   alongside the polaroid, one per destination (see STAMP_CHANCE in
                                   index.html), not per cat.
@@ -26,7 +26,7 @@ Raw names:
   raw/scene/room-<id>.png           e.g. room-zashiki.png (see ROOM_IDS in index.html)
   raw/polaroids/bg-<dest>.png       day-trip background plate, e.g. bg-kawaguchiko.png
   raw/polaroids/cat-<cat><n>.png    day-trip cat cutout, pose n (1, 2, ...), e.g. cat-tapuz1.png
-  raw/stamp/<dest>.png              day-trip stamp badge, e.g. kawaguchiko.png
+  raw/stamps/stamp-<dest>.png       day-trip stamp badge, e.g. stamp-kawaguchiko.png
 
 Usage (from anywhere):
   python3 inn/tools/process_art.py [--sheet PATH]
@@ -467,7 +467,7 @@ def process_polaroid(kind, id_, n, path, log):
 
 
 def process_stamp(dest, path, log):
-    """A destination's day-trip stamp, from raw/stamp/<dest>.png -- a bonus collectible alongside
+    """A destination's day-trip stamp, from raw/stamps/stamp-<dest>.png -- a bonus collectible alongside
     the polaroid (see STAMP_CHANCE in index.html), one per destination rather than per cat. Cut out
     (or used as-is if already transparent -- see pre_cut_rgba), trimmed and height-normalised to
     STAMP_HEIGHT, same treatment as a selfie cutout: not baseline-composed, since it's displayed as
@@ -588,9 +588,10 @@ def main():
         log(f'polaroid {p.name}')
         process_polaroid(m['kind'], m['id'], m['n'], p, log)
 
-    for p in sorted((RAW / 'stamp').glob('*.png')):
+    for p in sorted((RAW / 'stamps').glob('stamp-*.png')):
+        dest = p.stem.removeprefix('stamp-')
         log(f'stamp {p.name}')
-        process_stamp(p.stem, p, log)
+        process_stamp(dest, p, log)
 
     for path in sorted((RAW / 'scene').glob(f'{ROOM_PREFIX}*.png')):
         # Each room is a 9:16 portrait picture. The generator gives 941 x 1672, so 1080 x 1920 is an upscale.

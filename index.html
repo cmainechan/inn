@@ -233,14 +233,14 @@
      canvas as every other object, mostly transparent around it. Same zoom+shift idea as the cat chips
      below, tuned to the ticket's content band instead of the cat's so it sits centred in the chip
      rather than pinned to the bottom edge. */
-  .book-chip.dest img.ticket-img { position: absolute; width: auto; height: 137%; top: -38%; left: 50%; transform: translateX(-50%); }
+  .book-chip.dest img.ticket-img { position: absolute; width: auto; height: 137%; top: -53%; left: 50%; transform: translateX(-50%); }
   /* The stamp badge (see STAMP_CHANCE/art.stamp): a small corner marker on a destination chip once
      its stamp is collected, independent of the ticket art underneath. */
   .book-chip img.stamp-badge { position: absolute; z-index: 1; right: 3px; bottom: 3px; width: 16px; height: 16px;
     border-radius: 50%; object-fit: contain; background: rgba(255,255,255,.9);
     box-shadow: 0 1px 2px rgba(0,0,0,.35); pointer-events: none;
     overflow: hidden; font-size: 0; color: transparent; }   /* no stamp art yet (see art.stamp) -- a
-    quiet blank circle rather than a broken-image icon + alt text until raw/stamp/<dest>.png lands.
+    quiet blank circle rather than a broken-image icon + alt text until raw/stamps/stamp-<dest>.png lands.
     ".book-chip img" prefix needed so this beats that rule's own specificity. */
   /* Cat chips (not .dest): the sit-pose art is a tall canvas with the cat sitting low, lots of empty
      headroom above -- plain cover just scales the whole canvas in, leaving the cat crammed low in
@@ -252,6 +252,19 @@
   .book-chip.empty.active { opacity: .7; }
   .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; margin-top: 10px; }
   .book-grid .polaroid.dim { opacity: .3; }
+  /* The stamp book (see stampsHtml): one passport-style slot per destination. Blank/dashed until
+     collected, then a solid ink-red frame around the stamp art. */
+  .stamp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px; }
+  .stamp-slot { border: 2px dashed var(--line); border-radius: 12px; padding: 14px 10px; text-align: center; background: #fff; }
+  .stamp-slot.got { border-style: solid; border-color: #b23b3b; background: #fff8f4; }
+  /* No circular mask on the stamp art itself -- a rectangular stamp should look rectangular, not
+     get cropped into a circle it doesn't fill. The circle is only for the "?" placeholder. */
+  .stamp-face { height: 76px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; }
+  .stamp-face span { width: 76px; height: 76px; border-radius: 50%; background: #f3f1ea;
+    color: var(--muted); font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .stamp-face img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+  .stamp-label .ja { display: block; font-size: 1.05rem; }
+  .stamp-label .en { display: block; font-size: .78rem; color: var(--muted); margin-top: 2px; }
   .muted { color: var(--muted); }
 
   .placing { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 74px); z-index: 20; display: flex; align-items: center; gap: 10px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 6px 8px 6px 16px; white-space: nowrap; }
@@ -474,7 +487,7 @@
   // Stamps: a second, smaller day-trip collectible -- one per destination (not per cat), see
   // state.stamps. Every trip home still guarantees its polaroid; on top of that there's a
   // STAMP_CHANCE chance of also picking up that destination's stamp, if it isn't already collected.
-  // Art: raw/stamp/<dest>.png -> stamps/<dest>.webp (process_art.py).
+  // Art: raw/stamps/stamp-<dest>.png -> stamps/<dest>.webp (process_art.py).
   const STAMP_CHANCE = 0.2;
   function polaroidHtml(destId, catId, { mini, reveal = true, pose = 1 } = {}) {
     const o = TRIP_OFFSET[destId];
@@ -961,14 +974,15 @@
       (rooms || '<p class="muted">Nothing in your bag yet. Open the shop to buy something.</p>'));
   }
   // The Cats sheet has two tabs: the roster (existing) and the Polaroids book (one photo per
-  // cat+destination pair). Kept as one sheet/one dock button rather than a separate top-level
-  // screen, since they're both "what do I know about my cats" views.
+  // cat+destination pair), and the stamp book (one slot per destination, see STAMP_CHANCE). Kept as
+  // one sheet/one dock button rather than separate top-level screens, since they're all "what do I
+  // know about my cats/trips" views.
   let catsTab = 'roster';
   let bookFilter = { cat: null, dest: null };
   function catsTabsHtml() {
+    const tab = (id, label) => `<button class="btn${catsTab === id ? '' : ' plain'}" data-cats-tab="${id}">${label}</button>`;
     return `<div class="row" style="justify-content:center;margin-bottom:10px">` +
-      `<button class="btn${catsTab === 'roster' ? '' : ' plain'}" data-cats-tab="roster">Cats</button>` +
-      `<button class="btn${catsTab === 'book' ? '' : ' plain'}" data-cats-tab="book">Polaroids</button></div>`;
+      tab('roster', 'Cats') + tab('book', 'Polaroids') + tab('stamps', 'Stamps') + `</div>`;
   }
   function rosterHtml() {
     return `<div class="grid">${CAT_ORDER.map((id) => {
@@ -1006,9 +1020,22 @@
     return `<p class="muted">Tap a cat or a place to filter.</p>` +
       `<div class="book-chips">${catChips}</div><div class="book-chips">${destChips}</div>` + grid;
   }
+  // The stamp book: one slot per destination (see STAMP_CHANCE), independent of cat. A blank dashed
+  // slot until collected, then the stamp art in a solid ink-red frame -- a passport-book feel rather
+  // than a filterable grid, since there's only ever one slot per destination.
+  function stampsHtml() {
+    const slots = Object.keys(DESTINATIONS).map((id) => {
+      const d = DESTINATIONS[id], got = state.stamps.includes(id);
+      const face = got ? `<img src="${art.stamp(id)}" alt="${d.en}" onerror="this.outerHTML='&lt;span&gt;?&lt;/span&gt;'">` : `<span>?</span>`;
+      return `<div class="stamp-slot${got ? ' got' : ''}"><div class="stamp-face">${face}</div>` +
+        `<div class="stamp-label">${jaSpan(d.ja)}<span class="en">${d.en}</span></div></div>`;
+    }).join('');
+    return `<p class="muted">A bonus pickup from day trips, alongside the polaroid.</p>` +
+      `<div class="stamp-grid">${slots}</div>`;
+  }
   function openCats() {
-    openSheet(`<h2>Cats <span class="ja" lang="ja">猫</span></h2>${catsTabsHtml()}` +
-      (catsTab === 'roster' ? rosterHtml() : bookHtml()) +
+    const body = catsTab === 'roster' ? rosterHtml() : catsTab === 'book' ? bookHtml() : stampsHtml();
+    openSheet(`<h2>Cats <span class="ja" lang="ja">猫</span></h2>${catsTabsHtml()}` + body +
       `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
 
