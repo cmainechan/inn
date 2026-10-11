@@ -142,6 +142,42 @@
   }
   @keyframes wob { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(1.5deg); } }
 
+  /* Falling leaves: clipped to each room's window/outside view (WEATHER_ZONES in index.html's
+     script, measured against raw/scene/ryokan-pano.png), so they drift past glass or open air,
+     never across the room's own floor. The clip-path is set inline per room from the same
+     rectangle the leaf spawn positions use, so there's one source of truth for "where outside is". */
+  .weather { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  /* Two nested elements split sway (horizontal) from fall (vertical + rotate) -- same reason the
+     kazaguruma wheel gets its own wrap: one transform per element, so centering/sway/spin never fight. */
+  .leaf-sway { position: absolute; animation: leaf-sway ease-in-out infinite; }
+  .leaf { display: block; width: 11px; height: 11px; border-radius: 0 60% 0 60%; opacity: 0; animation: leaf-fall linear infinite; }
+  .leaf-0 { background: #C97A3D; } .leaf-1 { background: #A8432F; } .leaf-2 { background: #D9A441; }
+  /* Same fall/sway motion, reskinned per season (data-weather, set on <html> by applyPano() from
+     PANO_SEASONS). A higher-specificity attribute selector always wins over the plain .leaf-N
+     colours above regardless of source order, so there's no cascade ordering to get wrong here. */
+  :root[data-weather="sakura"] .leaf { width: 9px; height: 9px; border-radius: 50% 0 50% 50%; }
+  :root[data-weather="sakura"] .leaf-0 { background: #F6C9D9; }
+  :root[data-weather="sakura"] .leaf-1 { background: #F2A9C4; }
+  :root[data-weather="sakura"] .leaf-2 { background: #FBE1EA; }
+  /* A circle's own rotation is invisible, so snow reuses leaf-fall's rotate for free -- no separate
+     keyframes needed. A flat white disc read as a hard dot, not snow -- a radial-gradient fading to
+     transparent at the edge gives it a soft, fluffy silhouette instead of a crisp circle, and varying
+     size/blur across the three leaf-N variants (reused as "near/mid/far" here, not 3 leaf shapes)
+     adds a little depth, the same way real falling snow isn't all one size. */
+  :root[data-weather="snow"] .leaf { border-radius: 50%; }
+  :root[data-weather="snow"] .leaf-0 { width: 6px; height: 6px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.85) 60%, rgba(255,255,255,0) 100%); }
+  :root[data-weather="snow"] .leaf-1 { width: 9px; height: 9px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.8) 55%, rgba(255,255,255,0) 100%); filter: blur(.3px); }
+  :root[data-weather="snow"] .leaf-2 { width: 13px; height: 13px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.75) 50%, rgba(255,255,255,0) 100%); filter: blur(.6px); }
+  @keyframes leaf-sway { 0%, 100% { transform: translateX(calc(-50% - 6px)); } 50% { transform: translateX(calc(-50% + 6px)); } }
+  /* --fall (cqh, set per leaf) is the zone's own height in % of the stage, so the same keyframe
+     works for every room's differently-sized zone without a bespoke animation per room. */
+  @keyframes leaf-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10% { opacity: .85; }
+    85% { opacity: .85; }
+    100% { transform: translateY(var(--fall)) rotate(540deg); opacity: 0; }
+  }
+
   /* ---------- HUD, floating over the world ---------- */
   /* The HUD is pinned to the screen edges, not to the picture: fish top left, room name top centre, gift top right. */
   .hud { position: fixed; left: 0; right: 0; z-index: 10; display: flex; align-items: center; gap: 8px; padding: 0 12px; pointer-events: none; }
@@ -354,10 +390,13 @@
   // why these groupings). months are 0-indexed (Date#getMonth()). 'default' is the maple/autumn
   // art already used everywhere else (scene/ryokan-pano.webp) and also the only scene shipped so
   // far without its own -<variant> file, so it needs no suffix.
+  // weather: which WEATHER_ZONES particle skin applies this season (see applyPano() / the
+  // :root[data-weather] CSS rules) -- same falling-particle layer and WEATHER_ZONES rects every
+  // season, just reskinned, rather than a separate effect per season.
   const PANO_SEASONS = [
-    { months: [2, 3, 4, 5], file: 'scene/ryokan-pano-spring.webp' },   // Mar - Jun
-    { months: [6, 7, 8, 9], file: 'scene/ryokan-pano.webp' },          // Jul - Oct (default art)
-    { months: [10, 11, 0, 1], file: 'scene/ryokan-pano-winter.webp' }, // Nov - Feb
+    { months: [2, 3, 4, 5], file: 'scene/ryokan-pano-spring.webp', weather: 'sakura' },   // Mar - Jun
+    { months: [6, 7, 8, 9], file: 'scene/ryokan-pano.webp', weather: 'leaves' },          // Jul - Oct (default art)
+    { months: [10, 11, 0, 1], file: 'scene/ryokan-pano-winter.webp', weather: 'snow' },   // Nov - Feb
   ];
   // Horizontal centre of the XL row: top row, bottom row.
   const XL_X = [32, 70];
@@ -377,6 +416,49 @@
   // horizontally on the mat; y nudged up then back down by ~1% net, landing close to the original
   // measured bottom edge, so items sit on the mat rather than float above it.
   const FOOD_SPOT = { room: 'shokudo', x: 38.2, y: 48.6 };
+  // Where "outside" is visible from each room -- a window, or (onsen) the open-air backdrop itself --
+  // as one or more rectangles in percent of that room's own slice, same coordinate space as
+  // SPOTS/FOOD_SPOT. Measured in Photopea against raw/scene/ryokan-pano.png (4096x1213). No shokudo
+  // entry: the dining room has no outside view, so it never gets a weather layer (see weatherHtml()).
+  // Onsen has two separate rectangles (the open sky over the near bath, and a second patch of sky
+  // further back past the roofline) rather than one rect spanning both, since the roof overhang
+  // between them isn't "outside" and would otherwise get leaves/snow drifting across it.
+  const WEATHER_ZONES = {
+    zashiki: [{ top: 15.1, right: 90.2, bottom: 37.0, left: 59.1 }],
+    engawa:  [{ top: 13.2, right: 88.2, bottom: 40.2, left: 13.5 }],
+    onsen:   [
+      { top: 0,    right: 100,  bottom: 36.4, left: 64.1 },
+      { top: 14.1, right: 63.3, bottom: 45.3, left: 4.4 },
+    ],
+  };
+  // Leaves are spread across each zone's own width (frac is 0-1 of the zone, not the room), so a
+  // narrow zone (zashiki) still looks dense instead of mostly landing outside the clip and vanishing.
+  // delay/dur are hand-picked, not random, so the leaves don't resync into an obvious loop.
+  const LEAF_SPREAD = [
+    { frac: .10, delay: 0,   dur: 7.5 },
+    { frac: .28, delay: 1.8, dur: 6.5 },
+    { frac: .45, delay: 3.4, dur: 8 },
+    { frac: .62, delay: .9,  dur: 7 },
+    { frac: .80, delay: 2.6, dur: 6.8 },
+    { frac: .93, delay: 4.2, dur: 7.3 },
+  ];
+  function weatherZoneHtml(z) {
+    const clip = `inset(${z.top}% ${100 - z.right}% ${100 - z.bottom}% ${z.left}%)`;
+    const fall = z.bottom - z.top;
+    const leaves = LEAF_SPREAD.map(({ frac, delay, dur }, i) => {
+      const left = z.left + frac * (z.right - z.left);
+      return `<span class="leaf-sway" style="left:${left.toFixed(1)}%;top:${z.top}%;animation-duration:${(dur * .6).toFixed(1)}s;animation-delay:${delay}s">` +
+        `<span class="leaf leaf-${i % 3}" style="--fall:${fall.toFixed(1)}cqh;animation-duration:${dur}s;animation-delay:${delay}s"></span></span>`;
+    }).join('');
+    return `<div class="weather" aria-hidden="true" style="clip-path:${clip}">${leaves}</div>`;
+  }
+  // A room can have more than one outside rectangle (see onsen in WEATHER_ZONES) -- each gets its
+  // own clipped layer, since clip-path only takes one shape and the gap between the rects (a roof
+  // overhang, a wall) isn't "outside" either.
+  function weatherHtml(roomId) {
+    const zones = WEATHER_ZONES[roomId];
+    return zones ? zones.map(weatherZoneHtml).join('') : '';
+  }
 
   /* ---------- Items ---------- */
   const CAT_WIDTH = 100;
@@ -762,7 +844,7 @@
     const sections = [{ ...MARGINS.left, margin: true }, ...ROOMS.map((r, i) => ({ ...r, slice: i + 1 })), { ...MARGINS.right, margin: true }];
     world.innerHTML = sections.map((r) =>
       `<section class="room r-${r.id}" style="--slice:${r.slice}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
-      (r.margin ? '' : SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === FOOD_SPOT.room ? foodHtml() : '')) +
+      (r.margin ? '' : weatherHtml(r.id) + SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === FOOD_SPOT.room ? foodHtml() : '')) +
       `</div></section>`).join('');
     applyTimeOfDay();
     placeRooms();
@@ -1214,8 +1296,9 @@
     const entry = forced === 'autumn' ? PANO_SEASONS.find((s) => s.file === 'scene/ryokan-pano.webp')
       : forced ? PANO_SEASONS.find((s) => s.file.includes('-' + forced))
       : PANO_SEASONS.find((s) => s.months.includes(new Date().getMonth()));
-    const file = (entry || PANO_SEASONS[1]).file;
-    document.documentElement.style.setProperty('--pano', `url("${file}")`);
+    const chosen = entry || PANO_SEASONS[1];
+    document.documentElement.style.setProperty('--pano', `url("${chosen.file}")`);
+    document.documentElement.dataset.weather = chosen.weather;
   }
 
   function start() {
