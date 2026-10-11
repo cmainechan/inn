@@ -9,8 +9,11 @@ Reads inn/raw/ and writes:
   scene/<name>.webp              backgrounds (from raw/scene/), 16:11
   scene/room-<id>.webp           room pictures (from raw/scene/room-<id>.png), 9:16
   polaroids/<dest>-bg.webp       day-trip destination plate (from raw/polaroids/bg-<dest>.png), square
-  polaroids/<cat>-selfie.webp    day-trip cat cutout (from raw/polaroids/cat-<cat>.png), trimmed,
-                                  NOT placed on a canvas -- composited over a destination plate at runtime
+  polaroids/<cat>-selfie<n>.webp day-trip cat cutout, pose <n> (from raw/polaroids/cat-<cat><n>.png),
+                                  trimmed, NOT placed on a canvas -- composited over a destination
+                                  plate at runtime. A cat can have several poses (n = 1, 2, ...); the
+                                  game picks one at random when a trip's photo is taken (see
+                                  SELFIE_POSES/randomPose in index.html).
 
 Raw names:
   raw/cats/<cat>-<pose>[-<n>].png   e.g. tapuz-sit.png, tapuz-sleep-2.png
@@ -18,7 +21,7 @@ Raw names:
   raw/food/<item>.png               consumable food items, e.g. yakitori.png
   raw/scene/room-<id>.png           e.g. room-zashiki.png (see ROOM_IDS in index.html)
   raw/polaroids/bg-<dest>.png       day-trip background plate, e.g. bg-kawaguchiko.png
-  raw/polaroids/cat-<cat>.png       day-trip cat cutout (the 'selfie' pose), e.g. cat-tapuz.png
+  raw/polaroids/cat-<cat><n>.png    day-trip cat cutout, pose n (1, 2, ...), e.g. cat-tapuz1.png
 
 Usage (from anywhere):
   python3 inn/tools/process_art.py [--sheet PATH]
@@ -45,7 +48,7 @@ POLA_SIZE = (1200, 1200)   # square, like an instant-film photo. The cat cutout 
                             # runtime (its own x/y/scale per cat+destination), same idea as FLOATING items.
 SELFIE_HEIGHT = 1400       # px. Shared content height every cat-<cat>.png cutout is normalised to,
                             # so one cat reads the same size as another before runtime placement scales it down.
-POLA_RE = re.compile(r'^(?P<kind>bg|cat)-(?P<id>[a-z]+)$')
+POLA_RE = re.compile(r'^(?P<kind>bg|cat)-(?P<id>[a-z]+)(?P<n>\d+)?$')
 SCENE_SIZE = (1280, 880)   # 16:11, the yard's shape
 SCENE_QUALITY = 88
 ROOM_SIZE = (1080, 1920)   # 9:16 portrait, one room of the ryokan (the rooms game in index.html)
@@ -428,13 +431,13 @@ def process_floating(name, path, scale, log):
     return out
 
 
-def process_polaroid(kind, id_, path, log):
+def process_polaroid(kind, id_, n, path, log):
     """Trip art, from raw/polaroids/. Two kinds, told apart by filename prefix (see POLA_RE):
-      bg-<dest>.png   a full-bleed destination plate, resize-only like a scene background.
-      cat-<cat>.png   a cat cutout (the 'selfie' pose) on the usual gray backdrop, cut out and
-                      trimmed like any other cat/item art, then height-normalised to SELFIE_HEIGHT.
-                      NOT baseline-composed onto a canvas -- like FLOATING items, it's positioned
-                      independently at runtime (its own x/y/scale per cat+destination pairing)."""
+      bg-<dest>.png     a full-bleed destination plate, resize-only like a scene background.
+      cat-<cat><n>.png  a cat cutout, pose n, on the usual gray backdrop, cut out and trimmed like
+                        any other cat/item art, then height-normalised to SELFIE_HEIGHT. NOT
+                        baseline-composed onto a canvas -- like FLOATING items, it's positioned
+                        independently at runtime (its own x/y/scale per cat+destination pairing)."""
     if kind == 'bg':
         img = Image.open(path).convert('RGB').resize(POLA_SIZE, Image.Resampling.LANCZOS)
         out = POLA_OUT / f'{id_}-bg.webp'
@@ -442,11 +445,13 @@ def process_polaroid(kind, id_, path, log):
         img.save(out, 'WEBP', quality=SCENE_QUALITY, method=6)
         log(f'  {path.name}: background plate, resized to {POLA_SIZE[0]}x{POLA_SIZE[1]}')
         return out
+    if n is None:
+        raise SystemExit(f'{path}: cat cutouts need a pose number, e.g. cat-{id_}1.png')
     rgba, bg, _ = cut_out(load(path))
     rgba = trim(rgba)
     s = SELFIE_HEIGHT / rgba.shape[0]
     rgba = scale_img(rgba, s)
-    out = POLA_OUT / f'{id_}-selfie.webp'
+    out = POLA_OUT / f'{id_}-selfie{n}.webp'
     save_webp(rgba, out)
     log(f'  {path.name}: backdrop {bg.round().astype(int).tolist()}, cutout {rgba.shape[1]}x{rgba.shape[0]} '
         f'(scale {s:.4f} -> content height {SELFIE_HEIGHT})')
@@ -550,9 +555,9 @@ def main():
     for p in sorted((RAW / 'polaroids').glob('*.png')):
         m = POLA_RE.match(p.stem)
         if not m:
-            raise SystemExit(f'{p}: not a bg-<dest>.png or cat-<cat>.png name, expected in raw/polaroids/')
+            raise SystemExit(f'{p}: not a bg-<dest>.png or cat-<cat><n>.png name, expected in raw/polaroids/')
         log(f'polaroid {p.name}')
-        process_polaroid(m['kind'], m['id'], p, log)
+        process_polaroid(m['kind'], m['id'], m['n'], p, log)
 
     for path in sorted((RAW / 'scene').glob(f'{ROOM_PREFIX}*.png')):
         # Each room is a 9:16 portrait picture. The generator gives 941 x 1672, so 1080 x 1920 is an upscale.
