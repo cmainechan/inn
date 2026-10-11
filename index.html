@@ -423,9 +423,19 @@
   const TRIPPABLE = CAT_ORDER.filter((id) => !CATS[id].only);
 
   // Day trips: send a cat away for `duration` minutes; they come back with a selfie for the
-  // collection book (see state.trip / state.selfies). Just one destination while this is being tested.
+  // collection book (see state.trip / state.selfies). Shop's Trips page sorts by price, which here
+  // tracks roughly real-world distance/travel time FROM TAKAYAMA (the ryokan's setting):
+  //   Matsumoto   ~85 km / 2.5h by road  -- the closest, a straightforward castle-town trip
+  //   Kawaguchiko ~195 km / 4h           -- over the mountains towards Fuji
+  //   Chureito    ~200 km / ~4h20m       -- same Fuji-Five-Lakes area as Kawaguchiko, plus the
+  //                                          pagoda's hillside climb, so a touch longer/pricier
+  //   Biei        ~1,050 km              -- Hokkaido; no real same-day road/rail route exists, so
+  //                                          this is the fictional "pinnacle" outlier, priced accordingly
   const DESTINATIONS = {
-    kawaguchiko: { ja: '河口湖', tr: 'Kawaguchiko', en: 'Lake Kawaguchi', price: 600, duration: 240 },
+    matsumoto:   { ja: '松本城',   tr: 'Matsumoto',  en: 'Matsumoto Castle',  price: 420,  duration: 150 },
+    kawaguchiko: { ja: '河口湖',   tr: 'Kawaguchiko', en: 'Lake Kawaguchi',    price: 600,  duration: 240 },
+    chureito:    { ja: '忠霊塔',   tr: 'Chūreitō',    en: 'Chureito Pagoda',   price: 640,  duration: 260 },
+    biei:        { ja: '美瑛',     tr: 'Biei',        en: 'Biei flower fields', price: 1400, duration: 600 },
   };
   // Per cat+destination: where its selfie cutout sits over the destination plate, and how big.
   // x/y are the cutout's CENTRE as a percent of the square polaroid frame; w is its width, also
@@ -435,6 +445,10 @@
   // in the book, so this grows one tuned offset at a time instead of needing every pair up front.
   const TRIP_OFFSET = {
     kawaguchiko: { tapuz: { x: 36.8, y: 66.4, w: 62 } },
+    // Same Tapuz selfie cutout, reused over the three new plates at the given anchor point.
+    matsumoto:   { tapuz: { x: 36.5, y: 65.4, w: 62 } },
+    chureito:    { tapuz: { x: 36.5, y: 65.4, w: 62 } },
+    biei:        { tapuz: { x: 36.5, y: 65.4, w: 62 } },
   };
   function polaroidHtml(destId, catId, { mini, reveal = true } = {}) {
     const o = TRIP_OFFSET[destId] && TRIP_OFFSET[destId][catId];
@@ -843,8 +857,9 @@
     const ids = all.slice(shopPage * SHOP_PAGE, (shopPage + 1) * SHOP_PAGE);
     // Item pages: the middle arrows only show when the room has more than one page of four.
     const pager = (dir, pageLabel) => pages > 1 ? `<button class="btn plain" data-shop-page="${dir}" aria-label="${pageLabel}" ${shopPage + dir < 0 || shopPage + dir >= pages ? 'disabled' : ''}>${dir < 0 ? '‹' : '›'}</button>` : '<span></span>';
+    const tripDuration = (mins) => { const h = Math.floor(mins / 60), m = mins % 60; return m ? `${h}h ${m}m` : `${h}h`; };
     const cardHtml = section.kind === 'trip' ? (id) => {
-      const d = DESTINATIONS[id], hrs = d.duration / 60;
+      const d = DESTINATIONS[id];
       const eligible = TRIPPABLE.some((cid) => (state.seen[cid] || 0) > 0);
       // Same thumb/ja/en/act shape as a regular item card, so this page fills the same grid height
       // as every other shop page. Only one cat can travel at a time (see state.trip), so the card
@@ -860,7 +875,7 @@
       } else {
         act = `<button class="btn" data-trip="${id}" ${fish < d.price ? 'disabled' : ''}>${d.price} 🐟</button>`;
       }
-      return `<div class="card">${ticketThumb(id)}${jaSpan(d.ja)}<div class="en">${d.en} · ${hrs}h</div>${act}</div>`;
+      return `<div class="card">${ticketThumb(id)}${jaSpan(d.ja)}<div class="en">${d.en} · ${tripDuration(d.duration)}</div>${act}</div>`;
     } : (id) => {
       const it = ITEMS[id], owned = state.owned.includes(id);
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
