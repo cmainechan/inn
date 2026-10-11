@@ -286,6 +286,7 @@
   <button class="btn plain" data-test="fish">+50 fish</button>
   <button class="btn plain" data-test="summon">Summon cats</button>
   <button class="btn plain" data-test="trip">Trip preview</button>
+  <button class="btn plain" data-test="trip-home">Finish trip</button>
   <button class="btn plain" data-test="reset">Reset</button>
 </div>
 
@@ -1091,6 +1092,11 @@
         openSheet(`<h2>Trip preview</h2><p class="muted">Tapuz · Kawaguchiko. Tune TRIP_OFFSET.kawaguchiko.tapuz in index.html and reload to adjust.</p>` +
           polaroidHtml('kawaguchiko', 'tapuz') +
           `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+      }
+      if (b.dataset.test === 'trip-home') {
+        if (!state.trip) { toast('No cat is currently traveling.'); return; }
+        state.trip.returnsAt = Date.now();
+        tick(false);
       }
     });
   }
