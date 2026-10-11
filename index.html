@@ -287,6 +287,7 @@
   .book-chip.empty { opacity: .4; filter: grayscale(.6); }
   .book-chip.empty.active { opacity: .7; }
   .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; margin-top: 10px; }
+  .book-grid .polaroid.mini { cursor: pointer; }
   .book-grid .polaroid.dim { opacity: .3; }
   /* The stamp book (see stampsHtml): one passport-style slot per destination. Blank/dashed until
      collected, then a solid ink-red frame around the stamp art. */
@@ -542,11 +543,18 @@
   //                                          pagoda's hillside climb, so a touch longer/pricier
   //   Biei        ~1,050 km              -- Hokkaido; no real same-day road/rail route exists, so
   //                                          this is the fictional "pinnacle" outlier, priced accordingly
+  //   Yoshino     ~180 km / ~3h by road  -- south towards Nara, past Matsumoto but short of the
+  //                                          Fuji-Five-Lakes pair
+  //   Hirosaki    ~650 km / ~6h          -- Aomori, far north; reachable same-day (unlike Biei) via
+  //                                          shinkansen, so priced below Biei's fictional outlier but
+  //                                          well above everything else
   const DESTINATIONS = {
     matsumoto:   { ja: '松本城',   tr: 'Matsumoto',  en: 'Matsumoto Castle',  price: 420,  duration: 150 },
     kawaguchiko: { ja: '河口湖',   tr: 'Kawaguchiko', en: 'Lake Kawaguchi',    price: 600,  duration: 240 },
     chureito:    { ja: '忠霊塔',   tr: 'Chūreitō',    en: 'Chureito Pagoda',   price: 640,  duration: 260 },
     biei:        { ja: '美瑛',     tr: 'Biei',        en: 'Biei flower fields', price: 1400, duration: 600 },
+    yoshino:     { ja: '吉野山',   tr: 'Yoshino',     en: 'Mount Yoshino',     price: 520,  duration: 190 },
+    hirosaki:    { ja: '弘前公園', tr: 'Hirosaki',    en: 'Hirosaki Park',     price: 950,  duration: 340 },
   };
   // Where a cat's selfie cutout sits over a destination plate, and how big. x/y are the cutout's
   // CENTRE as a percent of the square polaroid frame; w is its width, also percent. Measured against
@@ -561,6 +569,11 @@
     matsumoto:   { x: 36.5, y: 65.4, w: 62 },
     chureito:    { x: 36.5, y: 65.4, w: 62 },
     biei:        { x: 36.5, y: 65.4, w: 62 },
+    // Measured at x:399 y:859 on the raw 1254x1254 plate (bg-yoshino.png / bg-hirosaki.png), same
+    // method as the others. w is 62 * 0.85 -- these two want the cat 15% smaller than every other
+    // destination's selfie.
+    yoshino:     { x: 31.8, y: 68.5, w: 52.7 },
+    hirosaki:    { x: 31.8, y: 68.5, w: 52.7 },
   };
   // How many selfie poses each trippable cat has art for (raw/polaroids/cat-<cat><n>.png -> process_art.py).
   // A trip photo picks one of these at random (see randomPose) so the book doesn't look monotonous.
@@ -571,7 +584,7 @@
   // STAMP_CHANCE chance of also picking up that destination's stamp, if it isn't already collected.
   // Art: raw/stamps/stamp-<dest>.png -> stamps/<dest>.webp (process_art.py).
   const STAMP_CHANCE = 0.2;
-  function polaroidHtml(destId, catId, { mini, reveal = true, pose = 1 } = {}) {
+  function polaroidHtml(destId, catId, { mini, reveal = true, pose = 1, idx } = {}) {
     const o = TRIP_OFFSET[destId];
     const show = o && reveal;
     const cls = `polaroid${mini ? ' mini' : ''}${show ? '' : ' locked'}`;
@@ -583,7 +596,8 @@
         `<img class="selfie" src="${art.selfie(catId, pose)}" alt="" style="left:${o.x}%;top:${o.y}%;width:${o.w}%"></div>`
       : `<div class="photo unknown">?</div>`;
     const caption = mini ? `<div class="caption">${CATS[catId].tr} · ${DESTINATIONS[destId].en}</div>` : '';
-    return `<div class="${cls}" data-cat="${catId}" data-dest="${destId}">${photo}${caption}</div>`;
+    const idxAttr = idx === undefined ? '' : ` data-idx="${idx}"`;
+    return `<div class="${cls}" data-cat="${catId}" data-dest="${destId}" data-pose="${pose}"${idxAttr}>${photo}${caption}</div>`;
   }
 
   // Study modules: one line each to add. Every module is a page on this site, so it can share the 'fish' wallet.
@@ -890,11 +904,14 @@
 
   /* ---------- Sheets ---------- */
   let sheetCtx = null;
+  // Set while a zoomed polaroid (opened from the Polaroids book, see openPolaroidZoom) is showing,
+  // so its Close button returns to the book instead of closing the whole Cats sheet.
+  let zoomReturn = false;
   function openSheet(html) {
     $('sheet').innerHTML = html; $('overlay').hidden = false;
     const f = $('sheet').querySelector('button'); if (f) f.focus();
   }
-  function closeSheet() { $('overlay').hidden = true; sheetCtx = null; }
+  function closeSheet() { $('overlay').hidden = true; sheetCtx = null; zoomReturn = false; }
 
   function openSpot(roomId, i) {
     sheetCtx = { roomId, i };
@@ -1078,29 +1095,52 @@
   // grid only ever shows pairs that are both collected AND have a tuned destination (TRIP_OFFSET) --
   // no "?" placeholders for the rest, so a filter chip with nothing to show just goes empty rather
   // than padding the grid.
+  // All collected polaroids (unfiltered), and the subset the current bookFilter shows -- shared by
+  // bookHtml (to render the grid) and openPolaroidZoom (so its prev/next steps through exactly the
+  // same set the grid is showing, not every polaroid regardless of filter).
+  const collectedSelfies = () => state.selfies
+    .map((key) => { const [c, d, pose] = key.split(':'); return { c, d, pose: Number(pose) || 1 }; })
+    .filter(({ d }) => TRIP_OFFSET[d]);
+  const bookCells = () => collectedSelfies().filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
   function bookHtml() {
     const cats = TRIPPABLE, dests = Object.keys(DESTINATIONS);
-    const collected = state.selfies
-      .map((key) => { const [c, d, pose] = key.split(':'); return { c, d, pose: Number(pose) || 1 }; })
-      .filter(({ d }) => TRIP_OFFSET[d]);
+    const collected = collectedSelfies();
     const catsWithPhotos = new Set(collected.map((p) => p.c));
     const destsWithPhotos = new Set(collected.map((p) => p.d));
     const chip = (active, empty, extra, inner, badge) =>
       `<button class="book-chip${extra ? ' ' + extra : ''}${active ? ' active' : ''}${empty ? ' empty' : ''}" ${inner.attrs}>${inner.html}${badge || ''}</button>`;
     const catChips = cats.map((id) => chip(bookFilter.cat === id, !catsWithPhotos.has(id), '', { attrs: `data-book-cat="${id}"`, html: `<img src="${art.cat(id, 'sit')}" alt="${CATS[id].tr}">` })).join('');
-    // A destination's stamp (see STAMP_CHANCE) shows as a small badge in the corner of its chip,
-    // on top of the ticket art, once collected -- a bonus on top of the polaroid, not required to
-    // view the book.
-    const destChips = dests.map((id) => {
-      const badge = state.stamps.includes(id) ? `<img class="stamp-badge" src="${art.stamp(id)}" alt="Stamp collected">` : '';
-      return chip(bookFilter.dest === id, !destsWithPhotos.has(id), 'dest', { attrs: `data-book-dest="${id}"`, html: `<img class="ticket-img" src="${art.ticket(id)}" alt="${DESTINATIONS[id].en}">` }, badge);
-    }).join('');
-    const cells = collected.filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
+    // No stamp badge here even when collected (see STAMP_CHANCE) -- it covered part of the ticket
+    // art on these small chips. The Stamps tab is the place to see which stamps are collected.
+    const destChips = dests.map((id) =>
+      chip(bookFilter.dest === id, !destsWithPhotos.has(id), 'dest', { attrs: `data-book-dest="${id}"`, html: `<img class="ticket-img" src="${art.ticket(id)}" alt="${DESTINATIONS[id].en}">` })
+    ).join('');
+    const cells = bookCells();
     const grid = cells.length
-      ? `<div class="book-grid">${cells.map(({ c, d, pose }) => polaroidHtml(d, c, { mini: true, pose })).join('')}</div>`
+      ? `<div class="book-grid">${cells.map(({ c, d, pose }, i) => polaroidHtml(d, c, { mini: true, pose, idx: i })).join('')}</div>`
       : `<p class="muted" style="text-align:center;margin-top:24px">${collected.length ? 'No polaroids for this combination yet.' : 'No polaroids yet — send a cat on a trip!'}</p>`;
     return `<p class="muted">Tap a cat or a place to filter.</p>` +
       `<div class="book-chips">${catChips}</div><div class="book-chips">${destChips}</div>` + grid;
+  }
+  // Tapping a mini polaroid in the book grid shows it full size, by its index into bookCells() --
+  // the same filtered set the grid itself is showing, so prev/next step through exactly what's
+  // currently visible rather than every polaroid regardless of filter. Close returns to the book
+  // (with its filter still applied) rather than closing the whole Cats sheet, since that's where it
+  // was opened from.
+  function openPolaroidZoom(idx) {
+    const cells = bookCells(), cell = cells[idx];
+    if (!cell) return;
+    zoomReturn = true;
+    const nav = cells.length > 1
+      ? `<div class="row" style="justify-content:center;gap:20px">` +
+        `<button class="btn plain" data-zoom-nav="${idx - 1}" aria-label="Previous photo" ${idx <= 0 ? 'disabled' : ''}>‹</button>` +
+        `<button class="btn plain" data-zoom-nav="${idx + 1}" aria-label="Next photo" ${idx >= cells.length - 1 ? 'disabled' : ''}>›</button>` +
+        `</div>`
+      : '';
+    openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
+      `<h2>${CATS[cell.c].tr} · ${DESTINATIONS[cell.d].en}</h2>` +
+      polaroidHtml(cell.d, cell.c, { pose: cell.pose }) + nav +
+      `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
   // The stamp book: one slot per destination (see STAMP_CHANCE), independent of cat. A blank dashed
   // slot until collected, then the stamp art in a solid ink-red frame -- a passport-book feel rather
@@ -1167,10 +1207,14 @@
     const bookCat = e.target.closest('[data-book-cat]'), bookDest = e.target.closest('[data-book-dest]');
     const catsTabBtn = e.target.closest('[data-cats-tab]');
     const tripBuy = e.target.closest('[data-trip]'), tripPick = e.target.closest('[data-trip-pick]');
+    const polaroidZoom = e.target.closest('.book-grid .polaroid.mini');
+    const zoomNav = e.target.closest('[data-zoom-nav]');
     if (shopStep) openShop(shopIdx + +shopStep.dataset.shopStep);
     else if (catsTabBtn) { catsTab = catsTabBtn.dataset.catsTab; openCats(); }
     else if (tripBuy) openTripPick(tripBuy.dataset.trip);
     else if (tripPick) startTrip(tripPick.dataset.tripPick);
+    else if (polaroidZoom) openPolaroidZoom(+polaroidZoom.dataset.idx);
+    else if (zoomNav) openPolaroidZoom(+zoomNav.dataset.zoomNav);
     else if (bookCat) { const id = bookCat.dataset.bookCat; bookFilter.cat = bookFilter.cat === id ? null : id; openCats(); }
     else if (bookDest) { const id = bookDest.dataset.bookDest; bookFilter.dest = bookFilter.dest === id ? null : id; openCats(); }
     else if (shopPageBtn) { shopPage += +shopPageBtn.dataset.shopPage; openShop(shopIdx); }
@@ -1194,6 +1238,7 @@
       if (!canPlaceNow(id)) { toast(`Bought ${jaSpan(it.ja)} ${it.tr}. ${it.food ? 'The food spot is already in use.' : 'No empty spot in that room yet.'} It is in your Bag.`); openShop(shopIdx); return; }
       closeSheet(); startPlacing(id); goRoom(ROOMS.findIndex((r) => r.id === it.room));
     } else if (study) { closeSheet(); openStudy(study.dataset.study); }
+    else if (act && act.dataset.act === 'close' && zoomReturn) { zoomReturn = false; openCats(); }
     else if (act) closeSheet();
   });
   $('overlay').addEventListener('click', (e) => { if (e.target.id === 'overlay') closeSheet(); });
