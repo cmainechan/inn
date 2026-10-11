@@ -233,7 +233,15 @@
      canvas as every other object, mostly transparent around it. Same zoom+shift idea as the cat chips
      below, tuned to the ticket's content band instead of the cat's so it sits centred in the chip
      rather than pinned to the bottom edge. */
-  .book-chip.dest img { position: absolute; width: auto; height: 137%; top: -38%; left: 50%; transform: translateX(-50%); }
+  .book-chip.dest img.ticket-img { position: absolute; width: auto; height: 137%; top: -38%; left: 50%; transform: translateX(-50%); }
+  /* The stamp badge (see STAMP_CHANCE/art.stamp): a small corner marker on a destination chip once
+     its stamp is collected, independent of the ticket art underneath. */
+  .book-chip img.stamp-badge { position: absolute; z-index: 1; right: 3px; bottom: 3px; width: 16px; height: 16px;
+    border-radius: 50%; object-fit: contain; background: rgba(255,255,255,.9);
+    box-shadow: 0 1px 2px rgba(0,0,0,.35); pointer-events: none;
+    overflow: hidden; font-size: 0; color: transparent; }   /* no stamp art yet (see art.stamp) -- a
+    quiet blank circle rather than a broken-image icon + alt text until raw/stamp/<dest>.png lands.
+    ".book-chip img" prefix needed so this beats that rule's own specificity. */
   /* Cat chips (not .dest): the sit-pose art is a tall canvas with the cat sitting low, lots of empty
      headroom above -- plain cover just scales the whole canvas in, leaving the cat crammed low in
      the circle. Zoom and shift to the cat's own band (see process_art.py SIT_HEIGHT/BASELINE_PAD)
@@ -294,6 +302,7 @@
   <button class="btn plain" data-test="summon">Summon cats</button>
   <button class="btn plain" data-test="trip">Trip preview</button>
   <button class="btn plain" data-test="trip-home">Finish trip</button>
+  <button class="btn plain" data-test="stamp">+Stamp</button>
   <button class="btn plain" data-test="reset">Reset</button>
 </div>
 
@@ -462,6 +471,11 @@
   // A trip photo picks one of these at random (see randomPose) so the book doesn't look monotonous.
   const SELFIE_POSES = { tapuz: 3, pilpel: 2, sheleg: 2, dvash: 2, shoko: 2, rimon: 2, kokhav: 2 };
   const randomPose = (catId) => 1 + Math.floor(Math.random() * (SELFIE_POSES[catId] || 1));
+  // Stamps: a second, smaller day-trip collectible -- one per destination (not per cat), see
+  // state.stamps. Every trip home still guarantees its polaroid; on top of that there's a
+  // STAMP_CHANCE chance of also picking up that destination's stamp, if it isn't already collected.
+  // Art: raw/stamp/<dest>.png -> stamps/<dest>.webp (process_art.py).
+  const STAMP_CHANCE = 0.2;
   function polaroidHtml(destId, catId, { mini, reveal = true, pose = 1 } = {}) {
     const o = TRIP_OFFSET[destId];
     const show = o && reveal;
@@ -497,7 +511,7 @@
   const setFish = (n) => { store.set(FISH_KEY, String(Math.max(0, Math.floor(n)))); renderWallet(true); };
 
   const freshSpots = () => { const o = {}; ROOMS.forEach((r) => { o[r.id] = SPOTS.map(() => null); }); return o; };
-  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null, trip: null, selfies: [] });
+  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null, trip: null, selfies: [], stamps: [] });
   function load() {
     const s = freshState();
     try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
@@ -555,7 +569,8 @@
     if (isXL(s[i])) { s[rowStart(i)] = null; s[rowStart(i) + 1] = null; } else s[i] = null;
   }
   const art = { cat: (c, p) => `cats/${c}/${p}.webp`, item: (id) => `objects/${id}.webp`, front: (id) => `objects/${id}-front.webp`,
-    ticket: (dest) => `objects/tkt-${dest}.webp`, tripBg: (dest) => `polaroids/${dest}-bg.webp`, selfie: (cat, pose) => `polaroids/${cat}-selfie${pose}.webp` };
+    ticket: (dest) => `objects/tkt-${dest}.webp`, tripBg: (dest) => `polaroids/${dest}-bg.webp`, selfie: (cat, pose) => `polaroids/${cat}-selfie${pose}.webp`,
+    stamp: (dest) => `stamps/${dest}.webp` };
   // Steam rises from the same box as the water, so it only needs the bath's existing water position.
   // steamDy nudges the steam's start point down from the water's own position, without moving the water.
   const steamHtml = (w) => { const sy = w.y + (w.steamDy || 0); return `<div class="steam" style="--sx:${w.x}%;--sy:${sy}%;--sw:${w.w}%">` +
@@ -642,7 +657,9 @@
     if (state.trip && now >= state.trip.returnsAt) {
       const { catId, destId } = state.trip, pairKey = `${catId}:${destId}`;
       if (!state.selfies.some((s) => s.startsWith(`${pairKey}:`))) state.selfies.push(`${pairKey}:${randomPose(catId)}`);
-      ev.tripHome = { catId, destId };
+      let stampWon = false;
+      if (!state.stamps.includes(destId) && Math.random() < STAMP_CHANCE) { state.stamps.push(destId); stampWon = true; }
+      ev.tripHome = { catId, destId, stampWon };
       state.trip = null;
       ev.changed = true;
     }
@@ -671,8 +688,9 @@
     const ev = simulate(Date.now());
     if (ev.changed) { save(); renderRooms(); renderWallet(); }
     if (ev.tripHome) {
-      const { catId, destId } = ev.tripHome;
-      toast(`${jaSpan(CATS[catId].ja)} ${CATS[catId].tr} is back from ${DESTINATIONS[destId].en} with a polaroid!`);
+      const { catId, destId, stampWon } = ev.tripHome;
+      const bonus = stampWon ? ` ...and a ${DESTINATIONS[destId].en} stamp!` : '';
+      toast(`${jaSpan(CATS[catId].ja)} ${CATS[catId].tr} is back from ${DESTINATIONS[destId].en} with a polaroid!${bonus}`);
     }
     if (!ev.arrived.length) return;
     if (summary && ev.span > 60e3) toast(`While you were away, ${ev.arrived.length} cat${ev.arrived.length > 1 ? 's' : ''} visited.`);
@@ -971,10 +989,16 @@
       .filter(({ d }) => TRIP_OFFSET[d]);
     const catsWithPhotos = new Set(collected.map((p) => p.c));
     const destsWithPhotos = new Set(collected.map((p) => p.d));
-    const chip = (active, empty, extra, inner) =>
-      `<button class="book-chip${extra ? ' ' + extra : ''}${active ? ' active' : ''}${empty ? ' empty' : ''}" ${inner.attrs}>${inner.html}</button>`;
+    const chip = (active, empty, extra, inner, badge) =>
+      `<button class="book-chip${extra ? ' ' + extra : ''}${active ? ' active' : ''}${empty ? ' empty' : ''}" ${inner.attrs}>${inner.html}${badge || ''}</button>`;
     const catChips = cats.map((id) => chip(bookFilter.cat === id, !catsWithPhotos.has(id), '', { attrs: `data-book-cat="${id}"`, html: `<img src="${art.cat(id, 'sit')}" alt="${CATS[id].tr}">` })).join('');
-    const destChips = dests.map((id) => chip(bookFilter.dest === id, !destsWithPhotos.has(id), 'dest', { attrs: `data-book-dest="${id}"`, html: `<img src="${art.ticket(id)}" alt="${DESTINATIONS[id].en}">` })).join('');
+    // A destination's stamp (see STAMP_CHANCE) shows as a small badge in the corner of its chip,
+    // on top of the ticket art, once collected -- a bonus on top of the polaroid, not required to
+    // view the book.
+    const destChips = dests.map((id) => {
+      const badge = state.stamps.includes(id) ? `<img class="stamp-badge" src="${art.stamp(id)}" alt="Stamp collected">` : '';
+      return chip(bookFilter.dest === id, !destsWithPhotos.has(id), 'dest', { attrs: `data-book-dest="${id}"`, html: `<img class="ticket-img" src="${art.ticket(id)}" alt="${DESTINATIONS[id].en}">` }, badge);
+    }).join('');
     const cells = collected.filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
     const grid = cells.length
       ? `<div class="book-grid">${cells.map(({ c, d, pose }) => polaroidHtml(d, c, { mini: true, pose })).join('')}</div>`
@@ -1136,6 +1160,14 @@
         if (!state.trip) { toast('No cat is currently traveling.'); return; }
         state.trip.returnsAt = Date.now();
         tick(false);
+      }
+      if (b.dataset.test === 'stamp') {
+        const remaining = Object.keys(DESTINATIONS).filter((id) => !state.stamps.includes(id));
+        if (!remaining.length) { toast('Every stamp is already collected.'); return; }
+        const destId = remaining[Math.floor(Math.random() * remaining.length)];
+        state.stamps.push(destId);
+        save();
+        toast(`+stamp: ${DESTINATIONS[destId].en}`);
       }
     });
   }

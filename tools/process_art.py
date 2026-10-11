@@ -14,6 +14,10 @@ Reads inn/raw/ and writes:
                                   plate at runtime. A cat can have several poses (n = 1, 2, ...); the
                                   game picks one at random when a trip's photo is taken (see
                                   SELFIE_POSES/randomPose in index.html).
+  stamps/<dest>.webp             day-trip stamp badge (from raw/stamp/<dest>.png), trimmed and
+                                  height-normalised like a selfie cutout -- a smaller bonus collectible
+                                  alongside the polaroid, one per destination (see STAMP_CHANCE in
+                                  index.html), not per cat.
 
 Raw names:
   raw/cats/<cat>-<pose>[-<n>].png   e.g. tapuz-sit.png, tapuz-sleep-2.png
@@ -22,6 +26,7 @@ Raw names:
   raw/scene/room-<id>.png           e.g. room-zashiki.png (see ROOM_IDS in index.html)
   raw/polaroids/bg-<dest>.png       day-trip background plate, e.g. bg-kawaguchiko.png
   raw/polaroids/cat-<cat><n>.png    day-trip cat cutout, pose n (1, 2, ...), e.g. cat-tapuz1.png
+  raw/stamp/<dest>.png              day-trip stamp badge, e.g. kawaguchiko.png
 
 Usage (from anywhere):
   python3 inn/tools/process_art.py [--sheet PATH]
@@ -43,6 +48,9 @@ YARD = TOOLS.parent
 RAW, CATS_OUT, OBJ_OUT = YARD / 'raw', YARD / 'cats', YARD / 'objects'
 SCENE_OUT = YARD / 'scene'
 POLA_OUT = YARD / 'polaroids'
+STAMP_OUT = YARD / 'stamps'
+STAMP_HEIGHT = 400        # px content height a stamp badge is normalised to, well above its ~16px
+                            # display size in the book's chip corner (see .stamp-badge in index.html).
 POLA_SIZE = (1200, 1200)   # square, like an instant-film photo. The cat cutout is NOT scaled to this --
                             # it's trimmed and height-normalised to SELFIE_HEIGHT, then positioned at
                             # runtime (its own x/y/scale per cat+destination), same idea as FLOATING items.
@@ -458,6 +466,27 @@ def process_polaroid(kind, id_, n, path, log):
     return out
 
 
+def process_stamp(dest, path, log):
+    """A destination's day-trip stamp, from raw/stamp/<dest>.png -- a bonus collectible alongside
+    the polaroid (see STAMP_CHANCE in index.html), one per destination rather than per cat. Cut out
+    (or used as-is if already transparent -- see pre_cut_rgba), trimmed and height-normalised to
+    STAMP_HEIGHT, same treatment as a selfie cutout: not baseline-composed, since it's displayed as
+    a small badge rather than stood on a floor."""
+    pre = pre_cut_rgba(path)
+    if pre is not None:
+        rgba, bg_note = pre, 'already transparent, no cutout needed'
+    else:
+        rgba, bg, _ = cut_out(load(path))
+        bg_note = f'backdrop {bg.round().astype(int).tolist()}'
+    rgba = trim(rgba)
+    s = STAMP_HEIGHT / rgba.shape[0]
+    rgba = scale_img(rgba, s)
+    out = STAMP_OUT / f'{dest}.webp'
+    save_webp(rgba, out)
+    log(f'  {path.name}: {bg_note}, stamp {rgba.shape[1]}x{rgba.shape[0]} (scale {s:.4f} -> content height {STAMP_HEIGHT})')
+    return out
+
+
 # ---------- contact sheet ----------
 
 def contact_sheet(rows, path):
@@ -558,6 +587,10 @@ def main():
             raise SystemExit(f'{p}: not a bg-<dest>.png or cat-<cat><n>.png name, expected in raw/polaroids/')
         log(f'polaroid {p.name}')
         process_polaroid(m['kind'], m['id'], m['n'], p, log)
+
+    for p in sorted((RAW / 'stamp').glob('*.png')):
+        log(f'stamp {p.name}')
+        process_stamp(p.stem, p, log)
 
     for path in sorted((RAW / 'scene').glob(f'{ROOM_PREFIX}*.png')):
         # Each room is a 9:16 portrait picture. The generator gives 941 x 1672, so 1080 x 1920 is an upscale.
