@@ -229,6 +229,10 @@
   .book-chip { position: relative; border: 2px solid var(--line); border-radius: 50%; width: 52px; height: 52px; padding: 0; overflow: hidden; cursor: pointer; background: #fff; flex: none; }
   .book-chip img { width: 100%; height: 100%; object-fit: cover; }
   .book-chip.dest { border-radius: 10px; }
+  /* Ticket art (see ticketThumb/art.ticket): a tilted card baseline-anchored on the same 480x400 item
+     canvas as every other object, mostly transparent around it. Same zoom+shift idea as the cat chips
+     above, tuned to the ticket's content band instead of the cat's. */
+  .book-chip.dest img { position: absolute; width: auto; height: 141%; top: -37%; left: 50%; transform: translateX(-50%); }
   /* Cat chips (not .dest): the sit-pose art is a tall canvas with the cat sitting low, lots of empty
      headroom above -- plain cover just scales the whole canvas in, leaving the cat crammed low in
      the circle. Zoom and shift to the cat's own band (see process_art.py SIT_HEIGHT/BASELINE_PAD)
@@ -954,7 +958,7 @@
     const cats = TRIPPABLE, dests = Object.keys(DESTINATIONS);
     const chip = (active, extra, inner) => `<button class="book-chip${extra ? ' ' + extra : ''}${active ? ' active' : ''}" ${inner.attrs}>${inner.html}</button>`;
     const catChips = cats.map((id) => chip(bookFilter.cat === id, '', { attrs: `data-book-cat="${id}"`, html: `<img src="${art.cat(id, 'sit')}" alt="${CATS[id].tr}">` })).join('');
-    const destChips = dests.map((id) => chip(bookFilter.dest === id, 'dest', { attrs: `data-book-dest="${id}"`, html: `<img src="${art.tripBg(id)}" alt="${DESTINATIONS[id].en}">` })).join('');
+    const destChips = dests.map((id) => chip(bookFilter.dest === id, 'dest', { attrs: `data-book-dest="${id}"`, html: `<img src="${art.ticket(id)}" alt="${DESTINATIONS[id].en}">` })).join('');
     const cells = cats.flatMap((c) => dests.map((d) => ({ c, d })))
       .filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
     return `<p class="muted">Tap a cat or a place to filter.</p>` +
