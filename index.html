@@ -214,9 +214,29 @@
   .card { background: #fff; border: 2px solid var(--line); border-radius: 18px; padding: 8px 8px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; }
   button.card { font: inherit; color: var(--ink); cursor: pointer; }
   .card .ja { font-size: 1.45rem; line-height: 1.3; }
-  .card .en { color: var(--muted); font-size: .88rem; margin-bottom: 8px; }
+  .card .en { color: var(--muted); font-size: .88rem; line-height: 1.25; min-height: 2.5em; margin-bottom: 8px; }
   .card .btn { margin-top: auto; padding: 4px 12px; font-size: .95rem; }
   .tag { margin-top: auto; font-weight: 600; color: var(--leaf); padding: 5px 0; }
+  .polaroid { width: 100%; max-width: 360px; margin: 10px auto; background: #fff; border-radius: 4px;
+    padding: 14px 14px 36px; box-shadow: 0 4px 14px rgba(0,0,0,.18); transform: rotate(-1.5deg); }
+  .polaroid .photo { position: relative; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 1px; }
+  .polaroid .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .polaroid .selfie { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
+  .polaroid .photo.unknown { display: flex; align-items: center; justify-content: center; background: #E4E4E0; color: var(--muted); font-size: 2.6rem; font-weight: 600; }
+  .polaroid.mini { max-width: none; padding: 7px 7px 20px; }
+  .polaroid.mini .caption { font-size: .72rem; text-align: center; margin-top: 4px; color: var(--muted); }
+  .book-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .book-chip { position: relative; border: 2px solid var(--line); border-radius: 50%; width: 52px; height: 52px; padding: 0; overflow: hidden; cursor: pointer; background: #fff; flex: none; }
+  .book-chip img { width: 100%; height: 100%; object-fit: cover; }
+  .book-chip.dest { border-radius: 10px; }
+  /* Cat chips (not .dest): the sit-pose art is a tall canvas with the cat sitting low, lots of empty
+     headroom above -- plain cover just scales the whole canvas in, leaving the cat crammed low in
+     the circle. Zoom and shift to the cat's own band (see process_art.py SIT_HEIGHT/BASELINE_PAD)
+     so it reads centred, the way the other chips naturally do. */
+  .book-chip:not(.dest) img { position: absolute; width: auto; height: 167%; top: -67%; left: 50%; transform: translateX(-50%); }
+  .book-chip.active { border-color: var(--leaf, #5a9a4a); box-shadow: 0 0 0 2px var(--leaf, #5a9a4a); }
+  .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; margin-top: 10px; }
+  .book-grid .polaroid.dim { opacity: .3; }
   .muted { color: var(--muted); }
 
   .placing { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 74px); z-index: 20; display: flex; align-items: center; gap: 10px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 6px 8px 6px 16px; white-space: nowrap; }
@@ -265,6 +285,7 @@
 <div id="test" hidden>
   <button class="btn plain" data-test="fish">+50 fish</button>
   <button class="btn plain" data-test="summon">Summon cats</button>
+  <button class="btn plain" data-test="trip">Trip preview</button>
   <button class="btn plain" data-test="reset">Reset</button>
 </div>
 
@@ -396,6 +417,38 @@
     mattu:  { ja: 'まつ', tr: 'Matsu', en: 'pine', rarity: .12, likes: { counter: 5 }, only: ['counter'], gift: [5, 9] }
   };
   const CAT_ORDER = Object.keys(CATS);
+  // Rare cats (gated by `only`, see above) don't go on day trips -- reuses that same flag rather
+  // than a second "is this cat rare" marker, since today the two sets are identical.
+  const TRIPPABLE = CAT_ORDER.filter((id) => !CATS[id].only);
+
+  // Day trips: send a cat away for `duration` minutes; they come back with a selfie for the
+  // collection book (see state.trip / state.selfies). Just one destination while this is being tested.
+  const DESTINATIONS = {
+    kawaguchiko: { ja: '河口湖', tr: 'Kawaguchiko', en: 'Lake Kawaguchi', price: 600, duration: 240 },
+  };
+  // Per cat+destination: where its selfie cutout sits over the destination plate, and how big.
+  // x/y are the cutout's CENTRE as a percent of the square polaroid frame; w is its width, also
+  // percent. Measured against the 1254x1254 raw bg plate (close enough to the processed 1200x1200
+  // that the percent conversion washes out the difference).
+  // Only pairs listed here render for real -- anything else falls back to a locked/silhouette cell
+  // in the book, so this grows one tuned offset at a time instead of needing every pair up front.
+  const TRIP_OFFSET = {
+    kawaguchiko: { tapuz: { x: 36.8, y: 66.4, w: 62 } },
+  };
+  function polaroidHtml(destId, catId, { mini, reveal = true } = {}) {
+    const o = TRIP_OFFSET[destId] && TRIP_OFFSET[destId][catId];
+    const show = o && reveal;
+    const cls = `polaroid${mini ? ' mini' : ''}${show ? '' : ' locked'}`;
+    // No art yet for this pair, OR not collected yet: a plain "?" rather than a grayed-out version
+    // of another cat's scene, since a future cat here might get its own distinct background, not
+    // this destination's shared plate.
+    const photo = show
+      ? `<div class="photo"><img class="bg" src="${art.tripBg(destId)}" alt="">` +
+        `<img class="selfie" src="${art.selfie(catId)}" alt="" style="left:${o.x}%;top:${o.y}%;width:${o.w}%"></div>`
+      : `<div class="photo unknown">?</div>`;
+    const caption = mini ? `<div class="caption">${CATS[catId].tr} · ${DESTINATIONS[destId].en}</div>` : '';
+    return `<div class="${cls}" data-cat="${catId}" data-dest="${destId}">${photo}${caption}</div>`;
+  }
 
   // Study modules: one line each to add. Every module is a page on this site, so it can share the 'fish' wallet.
   const STUDY = [
@@ -417,7 +470,7 @@
   const setFish = (n) => { store.set(FISH_KEY, String(Math.max(0, Math.floor(n)))); renderWallet(true); };
 
   const freshSpots = () => { const o = {}; ROOMS.forEach((r) => { o[r.id] = SPOTS.map(() => null); }); return o; };
-  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null });
+  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null, trip: null, selfies: [] });
   function load() {
     const s = freshState();
     try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
@@ -474,7 +527,8 @@
     const s = state.spots[roomId];
     if (isXL(s[i])) { s[rowStart(i)] = null; s[rowStart(i) + 1] = null; } else s[i] = null;
   }
-  const art = { cat: (c, p) => `cats/${c}/${p}.webp`, item: (id) => `objects/${id}.webp`, front: (id) => `objects/${id}-front.webp` };
+  const art = { cat: (c, p) => `cats/${c}/${p}.webp`, item: (id) => `objects/${id}.webp`, front: (id) => `objects/${id}-front.webp`,
+    ticket: (dest) => `objects/tkt-${dest}.webp`, tripBg: (dest) => `polaroids/${dest}-bg.webp`, selfie: (cat) => `polaroids/${cat}-selfie.webp` };
   // Steam rises from the same box as the water, so it only needs the bath's existing water position.
   // steamDy nudges the steam's start point down from the water's own position, without moving the water.
   const steamHtml = (w) => { const sy = w.y + (w.steamDy || 0); return `<div class="steam" style="--sx:${w.x}%;--sy:${sy}%;--sw:${w.w}%">` +
@@ -555,7 +609,17 @@
       state.food = null;
       ev.changed = true;
     }
+    // A cat on a day trip comes home with a polaroid (see state.trip / state.selfies, and the
+    // "Trips" shop page). One entry per cat+destination -- a repeat trip just doesn't add a new one.
+    if (state.trip && now >= state.trip.returnsAt) {
+      const { catId, destId } = state.trip, pairKey = `${catId}:${destId}`;
+      if (!state.selfies.includes(pairKey)) state.selfies.push(pairKey);
+      ev.tripHome = { catId, destId };
+      state.trip = null;
+      ev.changed = true;
+    }
     const present = new Set(Object.values(state.visitors).map((v) => v.cat));
+    if (state.trip) present.add(state.trip.catId);   // a traveling cat can't also be visiting a room
     if (span > 0) {
       ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
         const k = key(r.id, i);
@@ -578,6 +642,10 @@
   function tick(summary) {
     const ev = simulate(Date.now());
     if (ev.changed) { save(); renderRooms(); renderWallet(); }
+    if (ev.tripHome) {
+      const { catId, destId } = ev.tripHome;
+      toast(`${jaSpan(CATS[catId].ja)} ${CATS[catId].tr} is back from ${DESTINATIONS[destId].en} with a polaroid!`);
+    }
     if (!ev.arrived.length) return;
     if (summary && ev.span > 60e3) toast(`While you were away, ${ev.arrived.length} cat${ev.arrived.length > 1 ? 's' : ''} visited.`);
     else ev.arrived.forEach((a) => { const r = ROOMS.find((x) => x.id === a.room); toast(`${jaSpan(CATS[a.cat].ja)} ${CATS[a.cat].tr} came to the ${jaSpan(r.ja)} ${r.en}!`); });
@@ -724,14 +792,39 @@
       openSheet(`<h2>Set out food · ${jaSpan(room.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     }
   }
+  // Picking a cat to send on a day trip. Only cats that have actually visited (state.seen) are
+  // offerable -- sending one you've never met would be backwards -- and rare, `only`-gated cats
+  // (TRIPPABLE excludes them) never show up here at all.
+  let tripPickDest = null;
+  function openTripPick(destId) {
+    tripPickDest = destId;
+    const d = DESTINATIONS[destId];
+    const avail = TRIPPABLE.filter((id) => (state.seen[id] || 0) > 0);
+    const body = avail.length
+      ? `<div class="pick">${avail.map((id) => `<button data-trip-pick="${id}">${catPortrait(id)}${jaSpan(CATS[id].ja)}<span>${CATS[id].tr}</span></button>`).join('')}</div>`
+      : `<p class="muted">No cats have visited yet to send on a trip.</p>`;
+    openSheet(`<h2>Send a cat · ${jaSpan(d.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+  }
+  function startTrip(catId) {
+    const destId = tripPickDest, d = DESTINATIONS[destId], fish = getFish();
+    if (!d || state.trip || fish < d.price) return;   // stale sheet (e.g. a trip started in another tab/tick)
+    Object.keys(state.visitors).forEach((k) => { if (state.visitors[k].cat === catId) delete state.visitors[k]; });
+    state.trip = { catId, destId, returnsAt: Date.now() + d.duration * 60e3 };
+    setFish(fish - d.price);
+    save(); renderRooms();
+    toast(`${jaSpan(CATS[catId].ja)} ${CATS[catId].tr} left for ${d.en}!`);
+    openShop(shopIdx);
+  }
   // The shop browses the rooms with the ‹ › buttons, one page per room, in ROOMS order, except
   // Food leads as its own page before every room — it's a separate kind of item (consumable, set
   // out at FOOD_SPOT, not one of the four regular spots), so it reads oddly mixed into the dining
-  // room's furniture page. sectionFor() maps a game room to its shop page, skipping over Food.
-  const SHOP_SECTIONS = [{ kind: 'food' }, ...ROOMS.map((r) => ({ kind: 'room', room: r }))];
+  // room's furniture page. Trips trail at the very end, as the "pinnacle" page past every room.
+  // sectionFor() maps a game room to its shop page, skipping over Food and Trips.
+  const SHOP_SECTIONS = [{ kind: 'food' }, ...ROOMS.map((r) => ({ kind: 'room', room: r })), { kind: 'trip' }];
   const sectionFor = (roomId) => SHOP_SECTIONS.findIndex((s) => s.kind === 'room' && s.room.id === roomId);
   let shopIdx = 0, shopPage = 0;
   const SHOP_PAGE = 4;   // items per screen, as a 2 x 2 grid
+  const ticketThumb = (dest) => `<div class="thumb"><img class="layer" src="${art.ticket(dest)}" alt=""></div>`;
   function openShop(idx) {
     if (idx !== undefined) {
       const n = ((idx % SHOP_SECTIONS.length) + SHOP_SECTIONS.length) % SHOP_SECTIONS.length;
@@ -739,27 +832,46 @@
       shopIdx = n;
     }
     const section = SHOP_SECTIONS[shopIdx], fish = getFish();
-    const label = section.kind === 'food' ? { ja: '食', en: 'food' } : { ja: section.room.ja, en: section.room.en };
-    const all = (section.kind === 'food'
-      ? Object.keys(ITEMS).filter((id) => ITEMS[id].food)
+    const label = section.kind === 'food' ? { ja: '食', en: 'food' } : section.kind === 'trip' ? { ja: '旅', en: 'day trips' } : { ja: section.room.ja, en: section.room.en };
+    const all = (section.kind === 'food' ? Object.keys(ITEMS).filter((id) => ITEMS[id].food)
+      : section.kind === 'trip' ? Object.keys(DESTINATIONS)
       : Object.keys(ITEMS).filter((id) => ITEMS[id].room === section.room.id && !ITEMS[id].food && !ITEMS[id].delisted)
-    ).sort((a, b) => ITEMS[a].price - ITEMS[b].price);
+    ).sort((a, b) => (section.kind === 'trip' ? DESTINATIONS[a].price - DESTINATIONS[b].price : ITEMS[a].price - ITEMS[b].price));
     const pages = Math.max(1, Math.ceil(all.length / SHOP_PAGE));
     shopPage = Math.min(shopPage, pages - 1);
     const ids = all.slice(shopPage * SHOP_PAGE, (shopPage + 1) * SHOP_PAGE);
     // Item pages: the middle arrows only show when the room has more than one page of four.
     const pager = (dir, pageLabel) => pages > 1 ? `<button class="btn plain" data-shop-page="${dir}" aria-label="${pageLabel}" ${shopPage + dir < 0 || shopPage + dir >= pages ? 'disabled' : ''}>${dir < 0 ? '‹' : '›'}</button>` : '<span></span>';
+    const cardHtml = section.kind === 'trip' ? (id) => {
+      const d = DESTINATIONS[id], hrs = d.duration / 60;
+      const eligible = TRIPPABLE.some((cid) => (state.seen[cid] || 0) > 0);
+      // Same thumb/ja/en/act shape as a regular item card, so this page fills the same grid height
+      // as every other shop page. Only one cat can travel at a time (see state.trip), so the card
+      // shows status instead of a buy button whenever a trip -- to here or elsewhere -- is active.
+      let act;
+      if (state.trip && state.trip.destId === id) {
+        const mins = Math.max(1, Math.round((state.trip.returnsAt - Date.now()) / 60e3));
+        act = `<div class="tag" style="color:var(--muted)">${CATS[state.trip.catId].tr} · back in ${mins}m</div>`;
+      } else if (state.trip) {
+        act = `<div class="tag" style="color:var(--muted)">A cat is already traveling</div>`;
+      } else if (!eligible) {
+        act = `<button class="btn" disabled title="Meet a cat first">${d.price} 🐟</button>`;
+      } else {
+        act = `<button class="btn" data-trip="${id}" ${fish < d.price ? 'disabled' : ''}>${d.price} 🐟</button>`;
+      }
+      return `<div class="card">${ticketThumb(id)}${jaSpan(d.ja)}<div class="en">${d.en} · ${hrs}h</div>${act}</div>`;
+    } : (id) => {
+      const it = ITEMS[id], owned = state.owned.includes(id);
+      const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
+        : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
+      return `<div class="card">${thumb(id)}${jaSpan(it.ja)}<div class="en">${it.en}</div>${act}</div>`;
+    };
     openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
       `<div class="shop-head"><h2>Shop</h2></div>` +
       `<div class="shop-room"><button class="btn plain" data-shop-step="-1" aria-label="Previous">‹</button>` +
       `<span>${jaSpan(label.ja)} <span class="muted">${label.en}</span></span>` +
       `<button class="btn plain" data-shop-step="1" aria-label="Next">›</button></div>` +
-      `<div class="shop-body">${pager(-1, 'Earlier items')}<div class="grid">${ids.map((id) => {
-      const it = ITEMS[id], owned = state.owned.includes(id);
-      const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
-        : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
-      return `<div class="card">${thumb(id)}${jaSpan(it.ja)}<div class="en">${it.en}</div>${act}</div>`;
-    }).join('')}${'<div class="card ghost" aria-hidden="true"><div class="thumb"></div><span class="ja">&nbsp;</span><div class="en">&nbsp;</div><span class="btn">&nbsp;</span></div>'.repeat(SHOP_PAGE - ids.length)}</div>${pager(1, 'Later items')}</div>`);
+      `<div class="shop-body">${pager(-1, 'Earlier items')}<div class="grid">${ids.map(cardHtml).join('')}${'<div class="card ghost" aria-hidden="true"><div class="thumb"></div><span class="ja">&nbsp;</span><div class="en">&nbsp;</div><span class="btn">&nbsp;</span></div>'.repeat(SHOP_PAGE - ids.length)}</div>${pager(1, 'Later items')}</div>`);
   }
   // The bag lists everything bought, by room. Items out in a room say where they are.
   const spotOf = (id) => { for (const r of ROOMS) { const i = state.spots[r.id].indexOf(id); if (i !== -1) return { roomId: r.id, i }; } return null; };
@@ -801,13 +913,42 @@
     openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button><h2>Bag · <span class="ja" lang="ja">袋</span></h2>` +
       (rooms || '<p class="muted">Nothing in your bag yet. Open the shop to buy something.</p>'));
   }
-  function openCats() {
-    openSheet(`<h2>Cats <span class="ja" lang="ja">猫</span></h2><div class="grid">${CAT_ORDER.map((id) => {
+  // The Cats sheet has two tabs: the roster (existing) and the Polaroids book (one photo per
+  // cat+destination pair). Kept as one sheet/one dock button rather than a separate top-level
+  // screen, since they're both "what do I know about my cats" views.
+  let catsTab = 'roster';
+  let bookFilter = { cat: null, dest: null };
+  function catsTabsHtml() {
+    return `<div class="row" style="justify-content:center;margin-bottom:10px">` +
+      `<button class="btn${catsTab === 'roster' ? '' : ' plain'}" data-cats-tab="roster">Cats</button>` +
+      `<button class="btn${catsTab === 'book' ? '' : ' plain'}" data-cats-tab="book">Polaroids</button></div>`;
+  }
+  function rosterHtml() {
+    return `<div class="grid">${CAT_ORDER.map((id) => {
       const c = CATS[id], n = state.seen[id] || 0;
       if (!n) return `<div class="card">${catPortrait(id, true)}<div class="ja">?</div><div class="en">Not met yet</div></div>`;
       const fav = Object.keys(c.likes).sort((a, b) => c.likes[b] - c.likes[a])[0];
       return `<div class="card">${catPortrait(id)}<div class="ja">${c.ja}</div><div class="en">${c.tr} · “${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${jaSpan(ITEMS[fav].ja)}</div></div>`;
-    }).join('')}</div><div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+    }).join('')}</div>`;
+  }
+  // state.selfies holds "<cat>:<dest>" keys actually collected (see tick()/simulate()). TRIP_OFFSET
+  // (see above) decides which pairs have art at all; a pair that's un-collected, or has no art yet,
+  // shows a "?" placeholder regardless of filter (see polaroidHtml).
+  function bookHtml() {
+    const cats = TRIPPABLE, dests = Object.keys(DESTINATIONS);
+    const chip = (active, extra, inner) => `<button class="book-chip${extra ? ' ' + extra : ''}${active ? ' active' : ''}" ${inner.attrs}>${inner.html}</button>`;
+    const catChips = cats.map((id) => chip(bookFilter.cat === id, '', { attrs: `data-book-cat="${id}"`, html: `<img src="${art.cat(id, 'sit')}" alt="${CATS[id].tr}">` })).join('');
+    const destChips = dests.map((id) => chip(bookFilter.dest === id, 'dest', { attrs: `data-book-dest="${id}"`, html: `<img src="${art.tripBg(id)}" alt="${DESTINATIONS[id].en}">` })).join('');
+    const cells = cats.flatMap((c) => dests.map((d) => ({ c, d })))
+      .filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
+    return `<p class="muted">Tap a cat or a place to filter.</p>` +
+      `<div class="book-chips">${catChips}</div><div class="book-chips">${destChips}</div>` +
+      `<div class="book-grid">${cells.map(({ c, d }) => polaroidHtml(d, c, { mini: true, reveal: state.selfies.includes(`${c}:${d}`) })).join('')}</div>`;
+  }
+  function openCats() {
+    openSheet(`<h2>Cats <span class="ja" lang="ja">猫</span></h2>${catsTabsHtml()}` +
+      (catsTab === 'roster' ? rosterHtml() : bookHtml()) +
+      `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
 
   // The study desk: pick a module, and it opens full screen in a frame. Fish earned there go to the shared wallet.
@@ -853,7 +994,15 @@
     const shopStep = e.target.closest('[data-shop-step]');
     const bagOut = e.target.closest('[data-bag-out]'), bagAway = e.target.closest('[data-bag-away]');
     const shopPageBtn = e.target.closest('[data-shop-page]');
+    const bookCat = e.target.closest('[data-book-cat]'), bookDest = e.target.closest('[data-book-dest]');
+    const catsTabBtn = e.target.closest('[data-cats-tab]');
+    const tripBuy = e.target.closest('[data-trip]'), tripPick = e.target.closest('[data-trip-pick]');
     if (shopStep) openShop(shopIdx + +shopStep.dataset.shopStep);
+    else if (catsTabBtn) { catsTab = catsTabBtn.dataset.catsTab; openCats(); }
+    else if (tripBuy) openTripPick(tripBuy.dataset.trip);
+    else if (tripPick) startTrip(tripPick.dataset.tripPick);
+    else if (bookCat) { const id = bookCat.dataset.bookCat; bookFilter.cat = bookFilter.cat === id ? null : id; openCats(); }
+    else if (bookDest) { const id = bookDest.dataset.bookDest; bookFilter.dest = bookFilter.dest === id ? null : id; openCats(); }
     else if (shopPageBtn) { shopPage += +shopPageBtn.dataset.shopPage; openShop(shopIdx); }
     else if (bagOut) {
       const id = bagOut.dataset.bagOut, it = ITEMS[id];
@@ -938,6 +1087,11 @@
         save(); renderRooms();
       }
       if (b.dataset.test === 'reset' && confirm('Erase the inn, cats and fish?')) { store.remove(SAVE_KEY); store.remove(FISH_KEY); state = freshState(); start(); }
+      if (b.dataset.test === 'trip') {
+        openSheet(`<h2>Trip preview</h2><p class="muted">Tapuz · Kawaguchiko. Tune TRIP_OFFSET.kawaguchiko.tapuz in index.html and reload to adjust.</p>` +
+          polaroidHtml('kawaguchiko', 'tapuz') +
+          `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
+      }
     });
   }
 
