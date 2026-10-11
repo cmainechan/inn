@@ -231,14 +231,17 @@
   .book-chip.dest { border-radius: 10px; }
   /* Ticket art (see ticketThumb/art.ticket): a tilted card baseline-anchored on the same 480x400 item
      canvas as every other object, mostly transparent around it. Same zoom+shift idea as the cat chips
-     above, tuned to the ticket's content band instead of the cat's. */
-  .book-chip.dest img { position: absolute; width: auto; height: 141%; top: -37%; left: 50%; transform: translateX(-50%); }
+     below, tuned to the ticket's content band instead of the cat's so it sits centred in the chip
+     rather than pinned to the bottom edge. */
+  .book-chip.dest img { position: absolute; width: auto; height: 137%; top: -38%; left: 50%; transform: translateX(-50%); }
   /* Cat chips (not .dest): the sit-pose art is a tall canvas with the cat sitting low, lots of empty
      headroom above -- plain cover just scales the whole canvas in, leaving the cat crammed low in
      the circle. Zoom and shift to the cat's own band (see process_art.py SIT_HEIGHT/BASELINE_PAD)
      so it reads centred, the way the other chips naturally do. */
   .book-chip:not(.dest) img { position: absolute; width: auto; height: 167%; top: -67%; left: 50%; transform: translateX(-50%); }
   .book-chip.active { border-color: var(--leaf, #5a9a4a); box-shadow: 0 0 0 2px var(--leaf, #5a9a4a); }
+  .book-chip.empty { opacity: .4; filter: grayscale(.6); }
+  .book-chip.empty.active { opacity: .7; }
   .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; margin-top: 10px; }
   .book-grid .polaroid.dim { opacity: .3; }
   .muted { color: var(--muted); }
@@ -951,19 +954,26 @@
       return `<div class="card">${catPortrait(id)}<div class="ja">${c.ja}</div><div class="en">${c.tr} · “${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${jaSpan(ITEMS[fav].ja)}</div></div>`;
     }).join('')}</div>`;
   }
-  // state.selfies holds "<cat>:<dest>" keys actually collected (see tick()/simulate()). TRIP_OFFSET
-  // (see above) decides which pairs have art at all; a pair that's un-collected, or has no art yet,
-  // shows a "?" placeholder regardless of filter (see polaroidHtml).
+  // state.selfies holds "<cat>:<dest>" keys actually collected (see tick()/simulate()). The grid only
+  // ever shows pairs that are both collected AND have tuned art (TRIP_OFFSET) -- no "?" placeholders
+  // for the rest, so a filter chip with nothing to show just goes empty rather than padding the grid.
   function bookHtml() {
     const cats = TRIPPABLE, dests = Object.keys(DESTINATIONS);
-    const chip = (active, extra, inner) => `<button class="book-chip${extra ? ' ' + extra : ''}${active ? ' active' : ''}" ${inner.attrs}>${inner.html}</button>`;
-    const catChips = cats.map((id) => chip(bookFilter.cat === id, '', { attrs: `data-book-cat="${id}"`, html: `<img src="${art.cat(id, 'sit')}" alt="${CATS[id].tr}">` })).join('');
-    const destChips = dests.map((id) => chip(bookFilter.dest === id, 'dest', { attrs: `data-book-dest="${id}"`, html: `<img src="${art.ticket(id)}" alt="${DESTINATIONS[id].en}">` })).join('');
-    const cells = cats.flatMap((c) => dests.map((d) => ({ c, d })))
-      .filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
+    const collected = state.selfies
+      .map((key) => { const [c, d] = key.split(':'); return { c, d }; })
+      .filter(({ c, d }) => TRIP_OFFSET[d] && TRIP_OFFSET[d][c]);
+    const catsWithPhotos = new Set(collected.map((p) => p.c));
+    const destsWithPhotos = new Set(collected.map((p) => p.d));
+    const chip = (active, empty, extra, inner) =>
+      `<button class="book-chip${extra ? ' ' + extra : ''}${active ? ' active' : ''}${empty ? ' empty' : ''}" ${inner.attrs}>${inner.html}</button>`;
+    const catChips = cats.map((id) => chip(bookFilter.cat === id, !catsWithPhotos.has(id), '', { attrs: `data-book-cat="${id}"`, html: `<img src="${art.cat(id, 'sit')}" alt="${CATS[id].tr}">` })).join('');
+    const destChips = dests.map((id) => chip(bookFilter.dest === id, !destsWithPhotos.has(id), 'dest', { attrs: `data-book-dest="${id}"`, html: `<img src="${art.ticket(id)}" alt="${DESTINATIONS[id].en}">` })).join('');
+    const cells = collected.filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
+    const grid = cells.length
+      ? `<div class="book-grid">${cells.map(({ c, d }) => polaroidHtml(d, c, { mini: true })).join('')}</div>`
+      : `<p class="muted" style="text-align:center;margin-top:24px">${collected.length ? 'No polaroids for this combination yet.' : 'No polaroids yet — send a cat on a trip!'}</p>`;
     return `<p class="muted">Tap a cat or a place to filter.</p>` +
-      `<div class="book-chips">${catChips}</div><div class="book-chips">${destChips}</div>` +
-      `<div class="book-grid">${cells.map(({ c, d }) => polaroidHtml(d, c, { mini: true, reveal: state.selfies.includes(`${c}:${d}`) })).join('')}</div>`;
+      `<div class="book-chips">${catChips}</div><div class="book-chips">${destChips}</div>` + grid;
   }
   function openCats() {
     openSheet(`<h2>Cats <span class="ja" lang="ja">猫</span></h2>${catsTabsHtml()}` +
