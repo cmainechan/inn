@@ -441,14 +441,19 @@ def process_floating(name, path, scale, log):
 
 def process_polaroid(kind, id_, n, path, log):
     """Trip art, from raw/polaroids/. Two kinds, told apart by filename prefix (see POLA_RE):
-      bg-<dest>.png     a full-bleed destination plate, resize-only like a scene background.
+      bg-<dest>.png     a full-bleed destination plate, resize-only like a scene background. A
+                        trailing digit (bg-<dest><n>.png) names one of several background VARIANTS
+                        for that destination (see BG_VARIANTS in index.html) rather than a pose --
+                        it's kept as part of the output id (e.g. bg-hirosaki2.png -> hirosaki2-bg.webp)
+                        so each variant gets its own file instead of colliding on one.
       cat-<cat><n>.png  a cat cutout, pose n, on the usual gray backdrop, cut out and trimmed like
                         any other cat/item art, then height-normalised to SELFIE_HEIGHT. NOT
                         baseline-composed onto a canvas -- like FLOATING items, it's positioned
                         independently at runtime (its own x/y/scale per cat+destination pairing)."""
     if kind == 'bg':
+        name = f'{id_}{n}' if n else id_
         img = Image.open(path).convert('RGB').resize(POLA_SIZE, Image.Resampling.LANCZOS)
-        out = POLA_OUT / f'{id_}-bg.webp'
+        out = POLA_OUT / f'{name}-bg.webp'
         out.parent.mkdir(parents=True, exist_ok=True)
         img.save(out, 'WEBP', quality=SCENE_QUALITY, method=6)
         log(f'  {path.name}: background plate, resized to {POLA_SIZE[0]}x{POLA_SIZE[1]}')

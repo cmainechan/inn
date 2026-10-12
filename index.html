@@ -558,7 +558,16 @@
     biei:        { ja: '美瑛',     tr: 'Biei',        en: 'Biei flower fields', price: 1400, duration: 600 },
     yoshino:     { ja: '吉野山',   tr: 'Yoshino',     en: 'Mount Yoshino',     price: 520,  duration: 190 },
     hirosaki:    { ja: '弘前公園', tr: 'Hirosaki',    en: 'Hirosaki Park',     price: 950,  duration: 340 },
+    // My estimate (price/duration not given) -- amend if it's off.
+    miyajima:    { ja: '宮島',     tr: 'Miyajima',    en: 'Miyajima',          price: 880,  duration: 320 },
   };
+  // Destinations with more than one background plate: one is picked at random when a cat's trip
+  // there completes (see tick()), then stuck with for that cat/destination pair like the pose is.
+  // Each variant key is its own entry in TRIP_OFFSET and its own raw/polaroids/bg-<key>.png.
+  const BG_VARIANTS = { hirosaki: ['hirosaki1', 'hirosaki2'] };
+  const bgKeys = (destId) => BG_VARIANTS[destId] || [destId];
+  const pickBgKey = (destId) => { const ks = bgKeys(destId); return ks[Math.floor(Math.random() * ks.length)]; };
+  const destHasArt = (destId) => bgKeys(destId).some((k) => TRIP_OFFSET[k]);
   // Where a cat's selfie cutout sits over a destination plate, and how big. x/y are the cutout's
   // CENTRE as a percent of the square polaroid frame; w is its width, also percent. Measured against
   // the 1254x1254 raw bg plate (close enough to the processed 1200x1200 that the percent conversion
@@ -566,7 +575,9 @@
   // every selfie cutout is height-normalised and framed the same way (see SELFIE_HEIGHT in
   // process_art.py), so they all read right at the same spot; nudge a specific cat in here later if
   // one of its poses ever looks off. Only destinations listed here render for real -- anything else
-  // falls back to a locked/silhouette cell in the book.
+  // falls back to a locked/silhouette cell in the book. Keyed by bg variant (see BG_VARIANTS above) --
+  // for a single-plate destination that's just its destId, e.g. "matsumoto"; for one with multiple
+  // plates it's each plate's own key, e.g. "hirosaki1"/"hirosaki2".
   const TRIP_OFFSET = {
     kawaguchiko: { x: 36.8, y: 66.4, w: 62 },
     // Measured at x:535 y:787 on the raw 1254x1254 plate -- shifted inward from the other
@@ -574,11 +585,15 @@
     matsumoto:   { x: 42.7, y: 62.8, w: 62 },
     chureito:    { x: 42.7, y: 62.8, w: 62 },
     biei:        { x: 36.5, y: 65.4, w: 62 },
-    // Measured at x:399 y:859 on the raw 1254x1254 plate (bg-yoshino.png / bg-hirosaki.png), same
+    // Measured at x:399 y:859 on the raw 1254x1254 plate (bg-yoshino.png / bg-hirosaki1.png), same
     // method as the others. w is 62 * 0.85 -- these two want the cat 15% smaller than every other
     // destination's selfie.
     yoshino:     { x: 31.8, y: 68.5, w: 52.7 },
-    hirosaki:    { x: 31.8, y: 68.5, w: 52.7 },
+    hirosaki1:   { x: 31.8, y: 68.5, w: 52.7 },
+    // Measured at x:485 y:841 on the raw 1254x1254 plate (bg-hirosaki2.png / bg-miyajima.png), same
+    // 15%-smaller sizing as above.
+    hirosaki2:   { x: 38.7, y: 67.1, w: 52.7 },
+    miyajima:    { x: 38.7, y: 67.1, w: 52.7 },
   };
   // How many selfie poses each trippable cat has art for (raw/polaroids/cat-<cat><n>.png -> process_art.py).
   // A trip photo picks one of these at random (see randomPose) so the book doesn't look monotonous.
@@ -589,15 +604,16 @@
   // STAMP_CHANCE chance of also picking up that destination's stamp, if it isn't already collected.
   // Art: raw/stamps/stamp-<dest>.png -> stamps/<dest>.webp (process_art.py).
   const STAMP_CHANCE = 0.2;
-  function polaroidHtml(destId, catId, { mini, reveal = true, pose = 1, idx } = {}) {
-    const o = TRIP_OFFSET[destId];
+  function polaroidHtml(destId, catId, { mini, reveal = true, pose = 1, idx, bg } = {}) {
+    const bgKey = bg || destId;
+    const o = TRIP_OFFSET[bgKey];
     const show = o && reveal;
     const cls = `polaroid${mini ? ' mini' : ''}${show ? '' : ' locked'}`;
     // No art yet for this destination, OR not collected yet: a plain "?" rather than a grayed-out
     // version of another cat's scene, since a future cat here might get its own distinct background,
     // not this destination's shared plate.
     const photo = show
-      ? `<div class="photo"><img class="bg" src="${art.tripBg(destId)}" alt="">` +
+      ? `<div class="photo"><img class="bg" src="${art.tripBg(bgKey)}" alt="">` +
         `<img class="selfie" src="${art.selfie(catId, pose)}" alt="" style="left:${o.x}%;top:${o.y}%;width:${o.w}%"></div>`
       : `<div class="photo unknown">?</div>`;
     const caption = mini ? `<div class="caption">${CATS[catId].tr} · ${DESTINATIONS[destId].en}</div>` : '';
@@ -766,11 +782,12 @@
       ev.changed = true;
     }
     // A cat on a day trip comes home with a polaroid (see state.trip / state.selfies, and the
-    // "Trips" shop page). One entry per cat+destination, keyed "<cat>:<dest>:<pose>" -- the pose is
-    // rolled once, on first arrival, and then stuck with; a repeat trip doesn't add a new entry.
+    // "Trips" shop page). One entry per cat+destination, keyed "<cat>:<dest>:<pose>:<bg>" -- the pose
+    // and bg variant (see BG_VARIANTS) are each rolled once, on first arrival, and then stuck with;
+    // a repeat trip doesn't add a new entry.
     if (state.trip && now >= state.trip.returnsAt) {
       const { catId, destId } = state.trip, pairKey = `${catId}:${destId}`;
-      if (!state.selfies.some((s) => s.startsWith(`${pairKey}:`))) state.selfies.push(`${pairKey}:${randomPose(catId)}`);
+      if (!state.selfies.some((s) => s.startsWith(`${pairKey}:`))) state.selfies.push(`${pairKey}:${randomPose(catId)}:${pickBgKey(destId)}`);
       let stampWon = false;
       if (!state.stamps.includes(destId) && Math.random() < STAMP_CHANCE) { state.stamps.push(destId); stampWon = true; }
       ev.tripHome = { catId, destId, stampWon };
@@ -1096,16 +1113,16 @@
       return `<div class="card">${catPortrait(id)}<div class="ja">${c.ja}</div><div class="en">${c.tr} · “${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${jaSpan(ITEMS[fav].ja)}</div></div>`;
     }).join('')}</div>`;
   }
-  // state.selfies holds "<cat>:<dest>:<pose>" keys actually collected (see tick()/simulate()). The
-  // grid only ever shows pairs that are both collected AND have a tuned destination (TRIP_OFFSET) --
-  // no "?" placeholders for the rest, so a filter chip with nothing to show just goes empty rather
+  // state.selfies holds "<cat>:<dest>:<pose>:<bg>" keys actually collected (see tick()/simulate()).
+  // The grid only ever shows pairs that are both collected AND have a tuned destination (TRIP_OFFSET)
+  // -- no "?" placeholders for the rest, so a filter chip with nothing to show just goes empty rather
   // than padding the grid.
   // All collected polaroids (unfiltered), and the subset the current bookFilter shows -- shared by
   // bookHtml (to render the grid) and openPolaroidZoom (so its prev/next steps through exactly the
   // same set the grid is showing, not every polaroid regardless of filter).
   const collectedSelfies = () => state.selfies
-    .map((key) => { const [c, d, pose] = key.split(':'); return { c, d, pose: Number(pose) || 1 }; })
-    .filter(({ d }) => TRIP_OFFSET[d]);
+    .map((key) => { const [c, d, pose, bg] = key.split(':'); return { c, d, pose: Number(pose) || 1, bg: bg || d }; })
+    .filter(({ d }) => destHasArt(d));
   const bookCells = () => collectedSelfies().filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
   function bookHtml() {
     const cats = TRIPPABLE, dests = Object.keys(DESTINATIONS);
@@ -1122,7 +1139,7 @@
     ).join('');
     const cells = bookCells();
     const grid = cells.length
-      ? `<div class="book-grid">${cells.map(({ c, d, pose }, i) => polaroidHtml(d, c, { mini: true, pose, idx: i })).join('')}</div>`
+      ? `<div class="book-grid">${cells.map(({ c, d, pose, bg }, i) => polaroidHtml(d, c, { mini: true, pose, idx: i, bg })).join('')}</div>`
       : `<p class="muted" style="text-align:center;margin-top:24px">${collected.length ? 'No polaroids for this combination yet.' : 'No polaroids yet — send a cat on a trip!'}</p>`;
     return `<p class="muted">Tap a cat or a place to filter.</p>` +
       `<div class="book-chips">${catChips}</div><div class="book-chips">${destChips}</div>` + grid;
@@ -1139,8 +1156,8 @@
     const prev = `<button class="btn plain" data-zoom-nav="${idx - 1}" aria-label="Previous photo" ${idx <= 0 ? 'disabled' : ''}>‹</button>`;
     const next = `<button class="btn plain" data-zoom-nav="${idx + 1}" aria-label="Next photo" ${idx >= cells.length - 1 ? 'disabled' : ''}>›</button>`;
     const frame = cells.length > 1
-      ? `<div class="zoom-frame">${prev}${polaroidHtml(cell.d, cell.c, { pose: cell.pose })}${next}</div>`
-      : polaroidHtml(cell.d, cell.c, { pose: cell.pose });
+      ? `<div class="zoom-frame">${prev}${polaroidHtml(cell.d, cell.c, { pose: cell.pose, bg: cell.bg })}${next}</div>`
+      : polaroidHtml(cell.d, cell.c, { pose: cell.pose, bg: cell.bg });
     openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
       `<h2>${CATS[cell.c].tr} · ${DESTINATIONS[cell.d].en}</h2>` +
       frame +
@@ -1309,9 +1326,9 @@
       if (b.dataset.test === 'trip') {
         const catId = TRIPPABLE[Math.floor(Math.random() * TRIPPABLE.length)];
         const destId = Object.keys(DESTINATIONS)[Math.floor(Math.random() * Object.keys(DESTINATIONS).length)];
-        const pose = randomPose(catId);
-        openSheet(`<h2>Trip preview</h2><p class="muted">${CATS[catId].tr} · ${DESTINATIONS[destId].en} · pose ${pose}. Reopen for another random roll; tune TRIP_OFFSET in index.html to adjust.</p>` +
-          polaroidHtml(destId, catId, { pose }) +
+        const pose = randomPose(catId), bg = pickBgKey(destId);
+        openSheet(`<h2>Trip preview</h2><p class="muted">${CATS[catId].tr} · ${DESTINATIONS[destId].en} · pose ${pose} · bg ${bg}. Reopen for another random roll; tune TRIP_OFFSET in index.html to adjust.</p>` +
+          polaroidHtml(destId, catId, { pose, bg }) +
           `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
       }
       if (b.dataset.test === 'trip-home') {
