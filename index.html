@@ -237,6 +237,9 @@
   .shop-room .btn, .shop-body .btn { padding: 2px 12px; font-size: 1.3rem; line-height: 1.2; flex: none; }
   .shop-body { display: flex; align-items: center; gap: 8px; }
   .shop-body .grid { flex: 1; min-width: 0; grid-template-columns: repeat(2, 1fr); margin-top: 4px; }
+  .zoom-frame { display: flex; align-items: center; gap: 8px; }
+  .zoom-frame .btn { padding: 2px 12px; font-size: 1.3rem; line-height: 1.2; flex: none; }
+  .zoom-frame .polaroid { flex: 1; min-width: 0; margin: 10px 0; }
   /* Empty slots keep a short last page the same height as a full one. */
   .card.ghost { visibility: hidden; }
   .bag-room { margin: 14px 0 2px; font-size: 1rem; }
@@ -1131,15 +1134,14 @@
     const cells = bookCells(), cell = cells[idx];
     if (!cell) return;
     zoomReturn = true;
-    const nav = cells.length > 1
-      ? `<div class="row" style="justify-content:center;gap:20px">` +
-        `<button class="btn plain" data-zoom-nav="${idx - 1}" aria-label="Previous photo" ${idx <= 0 ? 'disabled' : ''}>‹</button>` +
-        `<button class="btn plain" data-zoom-nav="${idx + 1}" aria-label="Next photo" ${idx >= cells.length - 1 ? 'disabled' : ''}>›</button>` +
-        `</div>`
-      : '';
+    const prev = `<button class="btn plain" data-zoom-nav="${idx - 1}" aria-label="Previous photo" ${idx <= 0 ? 'disabled' : ''}>‹</button>`;
+    const next = `<button class="btn plain" data-zoom-nav="${idx + 1}" aria-label="Next photo" ${idx >= cells.length - 1 ? 'disabled' : ''}>›</button>`;
+    const frame = cells.length > 1
+      ? `<div class="zoom-frame">${prev}${polaroidHtml(cell.d, cell.c, { pose: cell.pose })}${next}</div>`
+      : polaroidHtml(cell.d, cell.c, { pose: cell.pose });
     openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
       `<h2>${CATS[cell.c].tr} · ${DESTINATIONS[cell.d].en}</h2>` +
-      polaroidHtml(cell.d, cell.c, { pose: cell.pose }) + nav +
+      frame +
       `<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
   // The stamp book: one slot per destination (see STAMP_CHANCE), independent of cat. A blank dashed
