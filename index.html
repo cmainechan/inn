@@ -420,6 +420,28 @@
   // horizontally on the mat; y nudged up then back down by ~1% net, landing close to the original
   // measured bottom edge, so items sit on the mat rather than float above it.
   const FOOD_SPOT = { room: 'shokudo', x: 38.2, y: 48.6 };
+  // Companion spot where a cat sits to eat whatever's set out at FOOD_SPOT -- a second fixed
+  // position in the dining room, not one of the four regular item spots, same idea as FOOD_SPOT
+  // itself. Measured pixel-for-pixel against raw/scene/ryokan-pano.png (4096x1213, 6 equal slices,
+  // shokudo is slice 1): raw x:794 y:507 -> (794 - 4096/6) / (4096/6) and 507/1213 as percent of
+  // the room. Nudged down 110px total and right 10px net (left 25px then right 25px) from that raw
+  // measurement (too high, sitting up on the shelf) at the 763x1357 test-window render used to
+  // check it -- see HANDOFF-RYOKAN.md's px-to-percent note.
+  const FOOD_CAT_SPOT = { room: 'shokudo', x: 16.3, y: 49.9 };
+  // Cats with 'full' (eating) pose art so far -- narrower than the full roster until more lands
+  // (see raw/cats/*-full.png). Widen this once every cat's art is in.
+  const FOOD_CAT_POOL = ['tapuz'];
+  // Cats with more than one 'full' frame (tapuz-full.png + tapuz-full-2.png), picked at random per
+  // visit rather than stuck with one forever -- same idea as a selfie's pose (see randomPose).
+  const FULL_FRAMES = { tapuz: 2 };
+  const pickFullPose = (cat) => {
+    const n = FULL_FRAMES[cat] || 1, i = 1 + Math.floor(Math.random() * n);
+    return i === 1 ? 'full' : `full-${i}`;
+  };
+  // The cat's own position within the companion spot's box, same convention as any item's `cat`
+  // offset (see ITEMS) -- starts at the usual floor-sitting default (50/87.5, as cushion/box/etc
+  // use) until it's tuned against the live render.
+  const FOOD_CAT_ITEM = { cat: { x: 50, y: 87.5 } };
   // Where "outside" is visible from each room -- a window, or (onsen) the open-air backdrop itself --
   // as one or more rectangles in percent of that room's own slice, same coordinate space as
   // SPOTS/FOOD_SPOT. Measured in Photopea against raw/scene/ryokan-pano.png (4096x1213). No shokudo
@@ -510,7 +532,9 @@
     kazaguruma: { room: 'engawa', ja: '風車', tr: 'kazaguruma', en: 'pinwheel', price: 340, pose: 'sit', cat: { x: 72, y: 87.5 }, wheel: { x: 50.1, y: 47.5, w: 27.5 }, inFront: true },
     fan:      { room: 'engawa', ja: '団扇', tr: 'uchiwa', en: 'fan', price: 230, pose: 'sit', wobble: true, cat: { x: 76, y: 87.5 }, inFront: true },
   };
-  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking', peer: 'peering' };
+  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking', peer: 'peering', full: 'eating' };
+  // 'full'/'full-2'/... frames (see FULL_FRAMES) all read as the same label, so strip the frame suffix first.
+  const poseLabel = (pose) => POSE_LABEL[pose.split('-')[0]];
   // Poses that have art for every cat.
   const READY_POSES = new Set(['sit', 'sleep', 'lie', 'half', 'soak', 'ride', 'peer']);
 
@@ -558,8 +582,9 @@
     biei:        { ja: '美瑛',     tr: 'Biei',        en: 'Biei flower fields', price: 1400, duration: 600 },
     yoshino:     { ja: '吉野山',   tr: 'Yoshino',     en: 'Mount Yoshino',     price: 520,  duration: 190 },
     hirosaki:    { ja: '弘前公園', tr: 'Hirosaki',    en: 'Hirosaki Park',     price: 950,  duration: 340 },
-    // My estimate (price/duration not given) -- amend if it's off.
-    miyajima:    { ja: '宮島',     tr: 'Miyajima',    en: 'Miyajima',          price: 880,  duration: 320 },
+    // Takayama -> Miyajima (via shinkansen through Nagoya) is a touch shorter than Takayama ->
+    // Hirosaki (Aomori), both being far-flung multi-hour trips -- priced just under it accordingly.
+    miyajima:    { ja: '宮島',     tr: 'Miyajima',    en: 'Miyajima',          price: 860,  duration: 330 },
   };
   // Destinations with more than one background plate: one is picked at random when a cat's trip
   // there completes (see tick()), then stuck with for that cat/destination pair like the pose is.
@@ -641,7 +666,7 @@
   const setFish = (n) => { store.set(FISH_KEY, String(Math.max(0, Math.floor(n)))); renderWallet(true); };
 
   const freshSpots = () => { const o = {}; ROOMS.forEach((r) => { o[r.id] = SPOTS.map(() => null); }); return o; };
-  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null, trip: null, selfies: [], stamps: [] });
+  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null, foodVisitor: null, trip: null, selfies: [], stamps: [] });
   function load() {
     const s = freshState();
     try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
@@ -649,6 +674,7 @@
     // Owned items that were removed from the shop would break the spot picker, so drop them.
     s.owned = s.owned.filter((id) => ITEMS[id]);
     if (s.food && !(ITEMS[s.food.id] && ITEMS[s.food.id].food)) s.food = null;
+    if (!s.food) s.foodVisitor = null;   // nothing to eat, so no one's eating
     // Tidy saves from before XL items and removed items: drop unknown ids, and give both spots of an XL row the item.
     ROOMS.forEach((r) => {
       const sp = s.spots[r.id];
@@ -765,6 +791,16 @@
     const ok = (it.poses || [it.pose]).filter((p) => READY_POSES.has(p));
     return ok.length ? ok[Math.floor(Math.random() * ok.length)] : it.pose;
   }
+  // Like pickCat, but restricted to FOOD_CAT_POOL (only cats with 'full' art so far) and weighted
+  // by rarity alone -- there's no single item here for a `likes` bonus to apply against.
+  function pickFoodCat(present) {
+    const pool = FOOD_CAT_POOL.filter((id) => !present.has(id)).map((id) => ({ id, w: CATS[id].rarity }));
+    const total = pool.reduce((a, b) => a + b.w, 0);
+    if (!total) return null;
+    let r = Math.random() * total;
+    for (const p of pool) { r -= p.w; if (r <= 0) return p.id; }
+    return pool[pool.length - 1].id;
+  }
   function simulate(now) {
     const ev = { arrived: [], changed: false, span: 0 };
     if (state.lastCheck == null) { state.lastCheck = now; ev.changed = true; return ev; }
@@ -779,6 +815,14 @@
     if (state.food && now >= state.food.expiresAt) {
       state.owned = state.owned.filter((id) => id !== state.food.id);
       state.food = null;
+      ev.changed = true;
+    }
+    // A cat eating at the food spot (state.foodVisitor) leaves when it's done, same gift-on-leave
+    // rule as any other visit -- or right away if the food itself is already gone, since there's
+    // nothing left to eat.
+    if (state.foodVisitor && (now >= state.foodVisitor.leave || !state.food)) {
+      state.gifts += state.foodVisitor.gift;
+      state.foodVisitor = null;
       ev.changed = true;
     }
     // A cat on a day trip comes home with a polaroid (see state.trip / state.selfies, and the
@@ -797,6 +841,20 @@
     const present = new Set(Object.values(state.visitors).map((v) => v.cat));
     if (state.trip) present.add(state.trip.catId);   // a traveling cat can't also be visiting a room
     if (span > 0) {
+      // A cat wandering over to eat whatever's out at the food spot -- same arrival odds as any
+      // other visit, just keyed to state.foodVisitor instead of a room spot (see above).
+      if (state.food && !state.foodVisitor && Math.random() < 1 - Math.exp(-span / (ARRIVAL_MINUTES * 60e3))) {
+        const cat = pickFoodCat(present);
+        if (cat) {
+          present.add(cat);
+          const arrive = start + Math.random() * span, leave = arrive + rand(STAY_MIN, STAY_MAX) * 60e3;
+          const gift = randInt(CATS[cat].gift[0], CATS[cat].gift[1]);
+          state.seen[cat] = (state.seen[cat] || 0) + 1;
+          ev.arrived.push({ cat, room: FOOD_CAT_SPOT.room });
+          ev.changed = true;
+          if (leave <= now) state.gifts += gift; else state.foodVisitor = { cat, pose: pickFullPose(cat), arrive, leave, gift, fresh: true };
+        }
+      }
       ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
         const k = key(r.id, i);
         if (!itemId || state.visitors[k] || isSecondary(r.id, i) || isRetired(r.id, i)) return;
@@ -873,6 +931,16 @@
     // spot's invisible button box is much bigger than its art and was swallowing the food spot's taps.
     return `<button class="spot food-spot" data-food aria-label="${label}" style="left:${FOOD_SPOT.x}%;bottom:${100 - FOOD_SPOT.y}%;z-index:95">${inner}</button>`;
   }
+  // The cat eating beside the food, if one's currently visiting (state.foodVisitor) -- a second
+  // fixed spot next to FOOD_SPOT, only rendered while occupied (nothing to put out or pick up here,
+  // unlike every other spot, so an empty food-cat-spot has nothing to show or click).
+  function foodCatHtml() {
+    const v = state.foodVisitor;
+    if (!v) return '';
+    const inner = catLayer(v, FOOD_CAT_ITEM);
+    v.fresh = false;
+    return `<button class="spot food-cat-spot" data-food-cat aria-label="${CATS[v.cat].tr} ${poseLabel(v.pose)} beside the food" style="left:${FOOD_CAT_SPOT.x}%;bottom:${100 - FOOD_CAT_SPOT.y}%;z-index:94">${inner}</button>`;
+  }
   // The picture is six rooms wide: a margin, the four rooms, and a margin. The margins have no spots.
   // They are only ever seen beside the first and last rooms.
   const MARGINS = { left: { id: 'margin-left', en: 'dining room wall', slice: 0 }, right: { id: 'margin-right', en: 'garden', slice: 5 } };
@@ -880,7 +948,7 @@
     const sections = [{ ...MARGINS.left, margin: true }, ...ROOMS.map((r, i) => ({ ...r, slice: i + 1 })), { ...MARGINS.right, margin: true }];
     world.innerHTML = sections.map((r) =>
       `<section class="room r-${r.id}" style="--slice:${r.slice}" aria-label="${r.en}"><div class="stage"><div class="bg"></div><div class="tint"></div>` +
-      (r.margin ? '' : weatherHtml(r.id) + SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === FOOD_SPOT.room ? foodHtml() : '')) +
+      (r.margin ? '' : weatherHtml(r.id) + SPOTS.map((_, i) => spotHtml(r, i)).join('') + (r.id === FOOD_SPOT.room ? foodHtml() + foodCatHtml() : '')) +
       `</div></section>`).join('');
     applyTimeOfDay();
     placeRooms();
@@ -971,6 +1039,14 @@
         : `<p class="muted">You have no food yet. Open the shop to buy some for the ${room.en}.</p>`;
       openSheet(`<h2>Set out food · ${jaSpan(room.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     }
+  }
+  // The cat eating beside the food -- only ever opens while state.foodVisitor is set (see
+  // foodCatHtml), so there's no "empty" branch like openFood has.
+  function openFoodCat() {
+    const v = state.foodVisitor, c = CATS[v.cat], mins = Math.max(1, Math.round((v.leave - Date.now()) / 60e3));
+    openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><div class="ja">${c.ja}</div><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
+      <p>${poseLabel(v.pose)[0].toUpperCase() + poseLabel(v.pose).slice(1)} beside the food. Staying about ${mins} more minute${mins > 1 ? 's' : ''}.</p></div></div>
+      <div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
   // Picking a cat to send on a day trip. Only cats that have actually visited (state.seen) are
   // offerable -- sending one you've never met would be backwards -- and rare, `only`-gated cats
@@ -1213,11 +1289,12 @@
 
   /* ---------- Events ---------- */
   world.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-room]'), foodBtn = e.target.closest('[data-food]');
+    const b = e.target.closest('[data-room]'), foodBtn = e.target.closest('[data-food]'), foodCatBtn = e.target.closest('[data-food-cat]');
     if (b && placing) placeAt(b.dataset.room, +b.dataset.i);
     else if (b) openSpot(b.dataset.room, +b.dataset.i);
     else if (foodBtn && placing) placeFoodAt();
     else if (foodBtn) openFood();
+    else if (foodCatBtn) openFoodCat();
   });
   $('sheet').addEventListener('click', (e) => {
     const place = e.target.closest('[data-place]'), act = e.target.closest('[data-act]'), buy = e.target.closest('[data-buy]'), study = e.target.closest('[data-study]');
