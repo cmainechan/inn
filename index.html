@@ -150,12 +150,12 @@
   /* Two nested elements split sway (horizontal) from fall (vertical + rotate) -- same reason the
      kazaguruma wheel gets its own wrap: one transform per element, so centering/sway/spin never fight. */
   .leaf-sway { position: absolute; animation: leaf-sway ease-in-out infinite; }
-  .leaf { display: block; width: 11px; height: 11px; border-radius: 0 60% 0 60%; opacity: 0; animation: leaf-fall linear infinite; }
+  .leaf { display: block; width: 7.7px; height: 7.7px; border-radius: 0 60% 0 60%; opacity: 0; animation: leaf-fall linear infinite; }
   .leaf-0 { background: #C97A3D; } .leaf-1 { background: #A8432F; } .leaf-2 { background: #D9A441; }
   /* Same fall/sway motion, reskinned per season (data-weather, set on <html> by applyPano() from
      PANO_SEASONS). A higher-specificity attribute selector always wins over the plain .leaf-N
      colours above regardless of source order, so there's no cascade ordering to get wrong here. */
-  :root[data-weather="sakura"] .leaf { width: 9px; height: 9px; border-radius: 50% 0 50% 50%; }
+  :root[data-weather="sakura"] .leaf { width: 6.3px; height: 6.3px; border-radius: 50% 0 50% 50%; }
   :root[data-weather="sakura"] .leaf-0 { background: #F6C9D9; }
   :root[data-weather="sakura"] .leaf-1 { background: #F2A9C4; }
   :root[data-weather="sakura"] .leaf-2 { background: #FBE1EA; }
@@ -165,9 +165,9 @@
      size/blur across the three leaf-N variants (reused as "near/mid/far" here, not 3 leaf shapes)
      adds a little depth, the same way real falling snow isn't all one size. */
   :root[data-weather="snow"] .leaf { border-radius: 50%; }
-  :root[data-weather="snow"] .leaf-0 { width: 6px; height: 6px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.85) 60%, rgba(255,255,255,0) 100%); }
-  :root[data-weather="snow"] .leaf-1 { width: 9px; height: 9px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.8) 55%, rgba(255,255,255,0) 100%); filter: blur(.3px); }
-  :root[data-weather="snow"] .leaf-2 { width: 13px; height: 13px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.75) 50%, rgba(255,255,255,0) 100%); filter: blur(.6px); }
+  :root[data-weather="snow"] .leaf-0 { width: 4.2px; height: 4.2px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.85) 60%, rgba(255,255,255,0) 100%); }
+  :root[data-weather="snow"] .leaf-1 { width: 6.3px; height: 6.3px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.8) 55%, rgba(255,255,255,0) 100%); filter: blur(.3px); }
+  :root[data-weather="snow"] .leaf-2 { width: 9.1px; height: 9.1px; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,.75) 50%, rgba(255,255,255,0) 100%); filter: blur(.6px); }
   @keyframes leaf-sway { 0%, 100% { transform: translateX(calc(-50% - 6px)); } 50% { transform: translateX(calc(-50% + 6px)); } }
   /* --fall (cqh, set per leaf) is the zone's own height in % of the stage, so the same keyframe
      works for every room's differently-sized zone without a bespoke animation per room. */
