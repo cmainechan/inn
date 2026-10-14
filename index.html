@@ -428,9 +428,9 @@
   // measurement (too high, sitting up on the shelf) at the 763x1357 test-window render used to
   // check it -- see HANDOFF-RYOKAN.md's px-to-percent note.
   const FOOD_CAT_SPOT = { room: 'shokudo', x: 16.3, y: 49.9 };
-  // Cats with 'full' (eating) pose art so far -- narrower than the full roster until more lands
-  // (see raw/cats/*-full.png). Widen this once every cat's art is in.
-  const FOOD_CAT_POOL = ['tapuz'];
+  // Cats with 'full' (eating) pose art -- every cat now has one except zohar/nitzan, whose
+  // `only` gating (see CATS) keeps them off every spot but their own lantern/sakura-vase anyway.
+  const FOOD_CAT_POOL = ['tapuz', 'pilpel', 'sheleg', 'dvash', 'shoko', 'rimon', 'kokhav'];
   // Cats with more than one 'full' frame (tapuz-full.png + tapuz-full-2.png), picked at random per
   // visit rather than stuck with one forever -- same idea as a selfie's pose (see randomPose).
   const FULL_FRAMES = { tapuz: 2 };
