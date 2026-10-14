@@ -1399,6 +1399,13 @@
           present.add(cat); state.seen[cat] = (state.seen[cat] || 0) + 1;
           state.visitors[k] = { cat, pose: pickPose(ITEMS[itemId]), arrive: Date.now(), leave: Date.now() + 40 * 60e3, gift: randInt(...CATS[cat].gift), fresh: true };
         }));
+        if (state.food && !state.foodVisitor) {
+          const foodCat = pickFoodCat(present);
+          if (foodCat) {
+            state.seen[foodCat] = (state.seen[foodCat] || 0) + 1;
+            state.foodVisitor = { cat: foodCat, pose: pickFullPose(foodCat), arrive: Date.now(), leave: Date.now() + 40 * 60e3, gift: randInt(...CATS[foodCat].gift), fresh: true };
+          }
+        }
         save(); renderRooms();
       }
       if (b.dataset.test === 'reset' && confirm('Erase the inn, cats and fish?')) { store.remove(SAVE_KEY); store.remove(FISH_KEY); state = freshState(); start(); }
