@@ -1408,7 +1408,15 @@
     toast(`+${amount} 🐟 from your study.`);
   });
   // If a study page adds fish in another tab (or in the frame, through the shared storage), update the count here.
-  window.addEventListener('storage', (e) => { if (e.key === FISH_KEY) renderWallet(true); });
+  // SAVE_KEY changing means another tab/window of this same game saved something (a trip starting,
+  // a visitor arriving, etc.) -- adopt it immediately instead of silently sitting on this tab's own
+  // stale copy, which would otherwise overwrite the newer save next time THIS tab autosaves (every
+  // tick(), on any change). Without this, two tabs open at once can lose data from one of them with
+  // no warning -- e.g. a trip started in tab A quietly vanishing when tab B's next save fires.
+  window.addEventListener('storage', (e) => {
+    if (e.key === FISH_KEY) renderWallet(true);
+    if (e.key === SAVE_KEY && e.newValue) { state = load(); renderRooms(); renderChrome(); renderWallet(); renderTripBadge(); }
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderWallet(); tick(true); } });
 
   /* ---------- Testing tools (?test) ---------- */
