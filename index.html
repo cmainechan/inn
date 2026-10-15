@@ -547,7 +547,16 @@
     shoko:  { tr: 'Shoko', en: 'chocolate milk', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
     rimon:  { tr: 'Rimon', en: 'pomegranate', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
     kokhav: { tr: 'Kokhav', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] },
-    zayit:  { tr: 'Zayit', en: 'olive', rarity: .85, likes: { basket: 3, ball: 2 }, gift: [1, 3] },
+    // The six newest cats (below) were deliberately given likes among items no earlier cat favoured,
+    // instead of repeating cushion/box/basket/yarn/ball/tent -- between them every non-rare item
+    // (everything except lantern/sakura-vase/counter, each reserved for an `only`-gated rare cat) is
+    // now someone's favourite. See pickCat() for how `likes` weights a visit.
+    zayit:  { tr: 'Zayit', en: 'olive', rarity: .85, likes: { kazaguruma: 3, fan: 2 }, gift: [1, 3] },
+    kafe:   { tr: 'Kafe', en: 'coffee', rarity: .85, likes: { onigiri: 3, mochi: 2 }, gift: [1, 3] },
+    namer:  { tr: 'Namer', en: 'leopard', rarity: .85, likes: { 'taiyaki-xl': 3, 'onsen-clay': 2 }, gift: [1, 3] },
+    tchelet: { tr: 'Tchelet', en: 'sky-blue', rarity: .85, likes: { 'onsen-hex': 3, 'onsen-hinoki': 2 }, gift: [1, 3] },
+    barzel: { tr: 'Barzel', en: 'iron', rarity: .85, likes: { stool: 3, 'sakura-toro': 2 }, gift: [1, 3] },
+    kinamon: { tr: 'Kinamon', en: 'cinnamon', rarity: .85, likes: { takoyaki: 3, taiyaki: 2 }, gift: [1, 3] },
     // only-gated rare cats: just one pose of art so far (sit), so `only` keeps them off every other
     // item instead of getting the 0.4 default-like chance at e.g. cushion's sleep pose. See pickCat().
     zohar:  { tr: 'Zohar', en: 'light', rarity: .15, likes: { lantern: 5 }, only: ['lantern'], gift: [5, 9] },
@@ -625,7 +634,7 @@
   };
   // How many selfie poses each trippable cat has art for (raw/polaroids/cat-<cat><n>.png -> process_art.py).
   // A trip photo picks one of these at random (see randomPose) so the book doesn't look monotonous.
-  const SELFIE_POSES = { tapuz: 3, pilpel: 2, sheleg: 2, dvash: 2, shoko: 2, rimon: 2, kokhav: 2, zayit: 2 };
+  const SELFIE_POSES = { tapuz: 3, pilpel: 2, sheleg: 2, dvash: 2, shoko: 2, rimon: 2, kokhav: 2, zayit: 2, kafe: 1, namer: 1, tchelet: 1, barzel: 1, kinamon: 1 };
   const randomPose = (catId) => 1 + Math.floor(Math.random() * (SELFIE_POSES[catId] || 1));
   // Stamps: a second, smaller day-trip collectible -- one per destination (not per cat), see
   // state.stamps. Every trip home still guarantees its polaroid; on top of that there's a
