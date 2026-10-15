@@ -538,23 +538,25 @@
   // Poses that have art for every cat.
   const READY_POSES = new Set(['sit', 'sleep', 'lie', 'half', 'soak', 'ride', 'peer']);
 
-  // ja: the name shown in Japanese. tr: romaji. en: the English meaning, shown on the cat's card.
+  // tr: the cat's Hebrew name (romanized). en: its meaning, shown in quotes on the cat's card.
   const CATS = {
-    tapuz:  { ja: 'みかん', tr: 'Mikan', en: 'orange', rarity: 1, likes: { cushion: 3, ball: 2 }, gift: [1, 3] },
-    pilpel: { ja: 'こしょう', tr: 'Kosho', en: 'pepper', rarity: 1, likes: { box: 3, tent: 2 }, gift: [1, 3] },
-    sheleg: { ja: 'ゆき', tr: 'Yuki', en: 'snow', rarity: .8, likes: { basket: 3, cushion: 2 }, gift: [1, 3] },
-    dvash:  { ja: 'ハチ', tr: 'Hachi', en: 'honey', rarity: .9, likes: { yarn: 3, ball: 2 }, gift: [1, 3] },
-    shoko:  { ja: 'ココア', tr: 'Kokoa', en: 'chocolate milk', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
-    rimon:  { ja: 'ざくろ', tr: 'Zakuro', en: 'pomegranate', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
-    kokhav: { ja: 'ほし', tr: 'Hoshi', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] },
+    tapuz:  { tr: 'Tapuz', en: 'orange', rarity: 1, likes: { cushion: 3, ball: 2 }, gift: [1, 3] },
+    pilpel: { tr: 'Pilpel', en: 'pepper', rarity: 1, likes: { box: 3, tent: 2 }, gift: [1, 3] },
+    sheleg: { tr: 'Sheleg', en: 'snow', rarity: .8, likes: { basket: 3, cushion: 2 }, gift: [1, 3] },
+    dvash:  { tr: 'Dvash', en: 'honey', rarity: .9, likes: { yarn: 3, ball: 2 }, gift: [1, 3] },
+    shoko:  { tr: 'Shoko', en: 'chocolate milk', rarity: .9, likes: { ball: 3, box: 2 }, gift: [2, 3] },
+    rimon:  { tr: 'Rimon', en: 'pomegranate', rarity: .5, likes: { yarn: 2, basket: 2 }, gift: [3, 5] },
+    kokhav: { tr: 'Kokhav', en: 'star', rarity: .25, likes: { tent: 4 }, gift: [5, 8] },
     // only-gated rare cats: just one pose of art so far (sit), so `only` keeps them off every other
     // item instead of getting the 0.4 default-like chance at e.g. cushion's sleep pose. See pickCat().
-    zohar:  { ja: 'ひかり', tr: 'Hikari', en: 'light', rarity: .15, likes: { lantern: 5 }, only: ['lantern'], gift: [5, 9] },
+    zohar:  { tr: 'Zohar', en: 'light', rarity: .15, likes: { lantern: 5 }, only: ['lantern'], gift: [5, 9] },
     // Spring-exclusive in concept, but gated by item rather than the real season for now (see
     // PANO_SEASONS for the actual season switch, unrelated to this) -- she only ever visits the
     // sakura vase, so she's effectively "spring-only" as long as that's the only place she's offered.
-    nitzan: { ja: 'さくら', tr: 'Sakura', en: 'blossom', rarity: .12, likes: { 'sakura-vase': 5 }, only: ['sakura-vase'], gift: [5, 9] },
-    mattu:  { ja: 'まつ', tr: 'Matsu', en: 'pine', rarity: .12, likes: { counter: 5 }, only: ['counter'], gift: [5, 9] }
+    nitzan: { tr: 'Nitzan', en: 'blossom', rarity: .12, likes: { 'sakura-vase': 5 }, only: ['sakura-vase'], gift: [5, 9] },
+    // Hebrew for Matthew, not a literal-meaning name like the others above (see CATS' usual
+    // word-for-a-thing pattern) -- "gift of God" is Matityahu's own meaning, not a translated object.
+    mattu:  { tr: 'Matityahu', en: 'gift of God', rarity: .12, likes: { counter: 5 }, only: ['counter'], gift: [5, 9] }
   };
   const CAT_ORDER = Object.keys(CATS);
   // Rare cats (gated by `only`, see above) don't go on day trips -- reuses that same flag rather
@@ -881,11 +883,11 @@
     if (ev.tripHome) {
       const { catId, destId, stampWon } = ev.tripHome;
       const bonus = stampWon ? ` ...and a ${DESTINATIONS[destId].en} stamp!` : '';
-      toast(`${jaSpan(CATS[catId].ja)} ${CATS[catId].tr} is back from ${DESTINATIONS[destId].en} with a polaroid!${bonus}`);
+      toast(`${CATS[catId].tr} is back from ${DESTINATIONS[destId].en} with a polaroid!${bonus}`);
     }
     if (!ev.arrived.length) return;
     if (summary && ev.span > 60e3) toast(`While you were away, ${ev.arrived.length} cat${ev.arrived.length > 1 ? 's' : ''} visited.`);
-    else ev.arrived.forEach((a) => { const r = ROOMS.find((x) => x.id === a.room); toast(`${jaSpan(CATS[a.cat].ja)} ${CATS[a.cat].tr} came to the ${jaSpan(r.ja)} ${r.en}!`); });
+    else ev.arrived.forEach((a) => { const r = ROOMS.find((x) => x.id === a.room); toast(`${CATS[a.cat].tr} came to the ${jaSpan(r.ja)} ${r.en}!`); });
   }
 
   /* ---------- Rendering ---------- */
@@ -1010,7 +1012,7 @@
     const itemId = state.spots[roomId][i], v = state.visitors[key(roomId, i)];
     if (v) {
       const c = CATS[v.cat], it = ITEMS[itemId], mins = Math.max(1, Math.round((v.leave - Date.now()) / 60e3));
-      openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><div class="ja">${c.ja}</div><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
+      openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
         <p>${POSE_LABEL[v.pose || it.pose][0].toUpperCase() + POSE_LABEL[v.pose || it.pose].slice(1)} on the ${jaSpan(it.ja)}. Staying about ${mins} more minute${mins > 1 ? 's' : ''}.</p></div></div>
         <div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
     } else if (itemId) {
@@ -1046,7 +1048,7 @@
   // foodCatHtml), so there's no "empty" branch like openFood has.
   function openFoodCat() {
     const v = state.foodVisitor, c = CATS[v.cat], mins = Math.max(1, Math.round((v.leave - Date.now()) / 60e3));
-    openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><div class="ja">${c.ja}</div><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
+    openSheet(`<div class="portrait">${catPortrait(v.cat)}<div><h2>${c.tr}</h2><div class="muted">“${c.en}”</div>
       <p>${poseLabel(v.pose)[0].toUpperCase() + poseLabel(v.pose).slice(1)} beside the food. Staying about ${mins} more minute${mins > 1 ? 's' : ''}.</p></div></div>
       <div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
@@ -1059,7 +1061,7 @@
     const d = DESTINATIONS[destId];
     const avail = TRIPPABLE.filter((id) => (state.seen[id] || 0) > 0);
     const body = avail.length
-      ? `<div class="pick">${avail.map((id) => `<button data-trip-pick="${id}">${catPortrait(id)}${jaSpan(CATS[id].ja)}<span>${CATS[id].tr}</span></button>`).join('')}</div>`
+      ? `<div class="pick">${avail.map((id) => `<button data-trip-pick="${id}">${catPortrait(id)}<span>${CATS[id].tr}</span></button>`).join('')}</div>`
       : `<p class="muted">No cats have visited yet to send on a trip.</p>`;
     openSheet(`<h2>Send a cat · ${jaSpan(d.ja)}</h2>${body}<div class="row"><button class="btn plain" data-act="close">Close</button></div>`);
   }
@@ -1070,7 +1072,7 @@
     state.trip = { catId, destId, returnsAt: Date.now() + d.duration * 60e3 };
     setFish(fish - d.price);
     save(); renderRooms();
-    toast(`${jaSpan(CATS[catId].ja)} ${CATS[catId].tr} left for ${d.en}!`);
+    toast(`${CATS[catId].tr} left for ${d.en}!`);
     openShop(shopIdx);
   }
   // The shop browses the rooms with the ‹ › buttons, one page per room, in ROOMS order, except
@@ -1188,7 +1190,7 @@
       const c = CATS[id], n = state.seen[id] || 0;
       if (!n) return `<div class="card">${catPortrait(id, true)}<div class="ja">?</div><div class="en">Not met yet</div></div>`;
       const fav = Object.keys(c.likes).sort((a, b) => c.likes[b] - c.likes[a])[0];
-      return `<div class="card">${catPortrait(id)}<div class="ja">${c.ja}</div><div class="en">${c.tr} · “${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${jaSpan(ITEMS[fav].ja)}</div></div>`;
+      return `<div class="card">${catPortrait(id)}<div class="ja">${c.tr}</div><div class="en">“${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${jaSpan(ITEMS[fav].ja)}</div></div>`;
     }).join('')}</div>`;
   }
   // state.selfies holds "<cat>:<dest>:<pose>:<bg>" keys actually collected (see tick()/simulate()).
