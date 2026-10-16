@@ -3,7 +3,8 @@
 
 Reads inn/raw/ and writes:
   cats/<cat>/<pose>.webp         poses: sit, sleep, lie, head (head: peeking over an edge),
-                                  full (eating at the food spot, see FOOD_CAT_SPOT in index.html)
+                                  full (eating at the food spot, see FOOD_CAT_SPOT in index.html),
+                                  belly1, belly2 (two belly-up variants)
   cats/<cat>/<pose>-<n>.webp     optional extra frames, e.g. sleep-2.png -> sleep-2.webp
   objects/<item>.webp
   objects/<item>-front.webp      items listed in FRONT_WALLS
@@ -105,9 +106,9 @@ FRONT_CURVES = {
 FRONT_WALLS = {
 }
 
-POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak|peer|full)(?:-(?P<n>\d+))?$')
+POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak|peer|full|belly1|belly2)(?:-(?P<n>\d+))?$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
-CLEAR_HOLES = {'stool', 'mtchirashi', 'fan'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle
+CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.

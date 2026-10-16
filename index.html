@@ -500,6 +500,8 @@
     tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 400, pose: 'sit', cat: { x: 50, y: 94 } },
     lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 }, inFront: true },
     'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
+    // belly2: the cat lies on its back underneath, batting up at the hanging charms.
+    gym:      { room: 'zashiki', ja: '吊るし飾り', tr: 'tsurushi kazari', en: 'hanging charm stand', price: 420, pose: 'belly2', cat: { x: 44, y: 93 } },
 
     onigiri:  { room: 'shokudo', ja: 'おにぎり', tr: 'onigiri', en: 'rice ball', price: 110, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
@@ -526,6 +528,7 @@
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 350, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } }, offset: { sheleg: { x: 0, y: -1.1, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
     'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.4, w: 93.0, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 400, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
     'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 31.5, w: 80.5, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
+    eggs:     { room: 'onsen', ja: '温泉卵かご', tr: 'onsen tamago kago', en: 'hot-spring egg basket', price: 240, pose: 'sleep', cat: { x: 50, y: 80 } },
 
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
@@ -536,12 +539,16 @@
     // instead of being baseline-composed with the stand onto one shared canvas like every other item.
     kazaguruma: { room: 'engawa', ja: '風車', tr: 'kazaguruma', en: 'pinwheel', price: 250, pose: 'sit', cat: { x: 72, y: 87.5 }, wheel: { x: 50.1, y: 47.5, w: 27.5 }, inFront: true },
     fan:      { room: 'engawa', ja: '団扇', tr: 'uchiwa', en: 'fan', price: 230, pose: 'sit', wobble: true, cat: { x: 76, y: 87.5 }, inFront: true },
+    'temaki-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', wobble: true, cat: { x: 73, y: 93 } },
+    // belly1: the cat lies on its back underneath the flag, batting up at it.
+    koinobori: { room: 'engawa', ja: '鯉のぼり', tr: 'koinobori', en: 'carp streamer', price: 320, pose: 'belly1', cat: { x: 60, y: 93 } },
   };
-  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking', peer: 'peering', full: 'eating' };
+  const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking', peer: 'peering', full: 'eating', belly1: 'playing', belly2: 'playing' };
   // 'full'/'full-2'/... frames (see FULL_FRAMES) all read as the same label, so strip the frame suffix first.
   const poseLabel = (pose) => POSE_LABEL[pose.split('-')[0]];
-  // Poses that have art for every cat.
-  const READY_POSES = new Set(['sit', 'sleep', 'lie', 'half', 'soak', 'ride', 'peer']);
+  // Poses that have art for every cat. belly1/belly2: lying on the back batting upward, for toys
+  // a cat plays beneath rather than sits on/in (gym, koinobori).
+  const READY_POSES = new Set(['sit', 'sleep', 'lie', 'half', 'soak', 'ride', 'peer', 'belly1', 'belly2']);
 
   // tr: the cat's Hebrew name (romanized). en: its meaning, shown in quotes on the cat's card.
   const CATS = {
