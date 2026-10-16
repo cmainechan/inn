@@ -108,7 +108,14 @@ FRONT_WALLS = {
 
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak|peer|full|belly1|belly2)(?:-(?P<n>\d+))?$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
-CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg
+CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the mouth-ring opening and the gap between the pole and the flag's collar strap
+# Items with a soft, low-saturation contact shadow baked into the raw art right where the subject
+# meets the backdrop (e.g. under the gym's feet). It's dark enough that cut_out()'s colour-distance
+# test reads it as subject, leaving an opaque grey smudge once composited over a real room floor.
+# Before cutting out, any near-greyscale pixel (max-min channel < DESHADOW_CHROMA) is flattened to
+# the backdrop colour so the normal background flood-fill removes it like the rest of the backdrop.
+DESHADOW = {'gym'}
+DESHADOW_CHROMA = 20
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
@@ -384,7 +391,12 @@ def process_item(name, path, scale, log):
     if pre is not None:
         rgba, bg_note = pre, 'already transparent, no cutout needed'
     else:
-        rgba, bg, _ = cut_out(load(path), clear_holes=name in CLEAR_HOLES)
+        img = load(path)
+        if name in DESHADOW:
+            chroma = img[..., :3].max(-1) - img[..., :3].min(-1)
+            img = img.copy()
+            img[chroma < DESHADOW_CHROMA, :3] = border_colour(img)
+        rgba, bg, _ = cut_out(img, clear_holes=name in CLEAR_HOLES)
         bg_note = f'backdrop {bg.round().astype(int).tolist()}'
     if name in SHADOW_CUT:
         rgba = drop_shadow(rgba, from_frac=SHADOW_CUT[name])
