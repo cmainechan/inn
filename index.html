@@ -601,7 +601,11 @@
     // it back down toward the bottom of the icon.
     // wobbleDeg: rocks further than the 1.5deg default -- at this item's 0.5x in-room scale the
     // default amplitude was barely visible (see --wob-deg in @keyframes wob).
-    'temaki-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', wobble: true, wobbleDeg: 13, scale: 0.5, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
+    // hugged: for a visiting cat with a CAT_HUG entry (barzel-belly2 so far), the item is drawn
+    // sandwiched between the cat's body and a second paws overlay instead of at its own normal
+    // baseline position -- see catLayer. belly2 isn't in `poses` yet (test on barzel first; every
+    // other cat would get belly2's arms-up pose with the ball just resting in front of it, unheld).
+    'temaki-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', hugged: true, wobble: true, wobbleDeg: 13, scale: 0.5, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
     // belly1: the cat lies on its back underneath the flag, batting up at it.
     // fish: measured directly from the shared raw canvas before koinobori-stand.png/koinobori-fish.png
     // were split apart, so it lines back up with the pole exactly (see itemLayers' `fish`). origin is
@@ -889,7 +893,21 @@
     'tapuz-belly1': { origin: '60.5% 88.2%' },
     'sheleg-belly1': { origin: '59.0% 91.1%' },
   };
-  function catLayer(v, it) {
+  // Cats with a second pair of paws split from their pose art (see raw/cats/<cat>-<pose>-paws.png and
+  // process_cat_paws in process_art.py, which saves the aligned overlay to cats/<cat>/<pose>-paws.webp),
+  // so a held item can sit sandwiched between the body's own (resting) paws and this overlay -- body,
+  // then the item, then the paws on top, so it reads as the cat hugging the item rather than it just
+  // resting on top. left/top/w place the item's own (untrimmed) 480x400 canvas on the pose's shared
+  // 480x400 canvas (not baseline-anchored like a normal item). w is sized so the item's visible content
+  // renders at the SAME on-screen size it has sitting on the floor at its normal item scale (e.g.
+  // temaki-ball's 0.5) -- matched by measuring both on screen, not eyeballed -- and left/top are offset
+  // so that content, not the canvas's own empty-margin centre, lands in the gap between the paws. Only
+  // items with `hugged: true` use this (see spotHtml, which otherwise draws the item at its own normal
+  // baseline position in the spot).
+  const CAT_HUG = {
+    'barzel-belly2': { left: 27.41, top: 35.86, w: 45.45 },
+  };
+  function catLayer(v, it, itemId) {
     const pose = v.pose || it.pose;
     const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
     const po = (it.poseOffset && it.poseOffset[pose]) || { x: 0, y: 0 };
@@ -904,8 +922,11 @@
     const breathes = BREATHE_POSES.has(pose);
     const tail = CAT_TAILS[`${v.cat}-${pose}`];
     const tailImg = tail ? `<img class="tail-sway" src="cats/${v.cat}/${pose}-tail.webp" alt="" style="transform-origin:${tail.origin}">` : '';
+    const hug = it.hugged && itemId ? CAT_HUG[`${v.cat}-${pose}`] : null;
+    const hugImg = hug ? `<img class="layer" src="${art.item(itemId)}" alt="" style="position:absolute;left:${hug.left}%;top:${hug.top}%;width:${hug.w}%;height:auto">` : '';
+    const pawsImg = hug ? `<img class="layer" src="cats/${v.cat}/${pose}-paws.webp" alt="" style="position:absolute;inset:0;width:100%;height:100%">` : '';
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
-      shadow + `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt="">${tailImg}</div>`;
+      shadow + `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt="">${tailImg}${hugImg}${pawsImg}</div>`;
   }
 
   /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */
@@ -1041,12 +1062,17 @@
       const it = ITEMS[itemId], L = itemLayers(itemId, true);
       const water = it.water ? `<img class="water" src="objects/${itemId}-water.webp" alt="" style="left:${it.water.x}%;top:${it.water.y}%;width:${it.water.w}%">` : '';
       const steam = it.water ? steamHtml(it.water) : '';
-      const cat = v ? catLayer(v, it) : '';
+      const cat = v ? catLayer(v, it, itemId) : '';
+      // hugging: the visiting cat has a CAT_HUG entry for this item's pose, so catLayer() already drew
+      // the item sandwiched between the body and a second paws overlay -- the item's own normal
+      // baseline-anchored picture (L.img) would otherwise draw it a second time, floating on the floor.
+      const hugging = it.hugged && v && CAT_HUG[`${v.cat}-${v.pose || it.pose}`];
+      const itemImg = hugging ? '' : L.img;
       // it.inFront: the cat sits slightly behind this item (lantern, kazaguruma, sakura-vase -- all
       // decorative items a cat just sits beside, not in/on), so draw the item's own picture after the
       // cat instead of before, otherwise the cat's sprite -- much wider than the item -- paints over it.
       // The ground shadow stays under the cat either way; only the item's own picture reorders.
-      inner = it.inFront ? (L.shadow + cat + L.img + L.front + water + steam) : (L.shadow + L.img + water + cat + L.front + steam);
+      inner = it.inFront ? (L.shadow + cat + itemImg + L.front + water + steam) : (L.shadow + itemImg + water + cat + L.front + steam);
       label = v ? `${CATS[v.cat].tr} ${POSE_LABEL[v.pose || it.pose]} on the ${it.en}` : `${it.tr} (${it.en})`;
       if (v) v.fresh = false;
     }

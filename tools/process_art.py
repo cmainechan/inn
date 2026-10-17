@@ -114,6 +114,8 @@ FRONT_WALLS = {
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak|peer|full|belly1|belly2)(?:-(?P<n>\d+))?$')
 # A pose's body/tail split -- see process_cat_tail.
 TAIL_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-(?P<part>notail|tail)$')
+# A pose's own second pair of paws, drawn to sit in front of a held item -- see process_cat_paws.
+PAWS_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-paws$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
 CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
 # Items with a soft, low-saturation contact shadow baked into the raw art right where the subject
@@ -388,10 +390,12 @@ def head_width(rgba):
     return max(widths)
 
 
-def process_cat(cat, frames, log, tails=None):
+def process_cat(cat, frames, log, tails=None, paws=None):
     """frames: {(pose, n): raw path}. Every frame of one cat shares one scale factor.
     tails: optional {pose: (notail_path, tail_path)} -- see process_cat_tail. frames[(pose, 1)] is
     expected to already be the notail art for any pose listed here (see main()).
+    paws: optional {pose: paws_path} -- see process_cat_paws. Uses frames[(pose, 1)] as the body
+    as-is (no swap needed, unlike tails).
     Returns [(label, raw path, canvas)] for the contact sheet."""
     if ('sit', 1) not in frames:
         log(f'  SKIP {cat}: no sit pose (needed for the cat\'s scale)')
@@ -422,36 +426,63 @@ def process_cat(cat, frames, log, tails=None):
         if tails and pose in tails and n == 1:
             notail_path, tail_path = tails[pose]
             process_cat_tail(cat, name, notail_path, tail_path, scale, log)
+        if paws and pose in paws and n == 1:
+            process_cat_paws(cat, name, frames[key], paws[pose], scale, log)
     return rows
 
 
-def process_cat_tail(cat, name, notail_path, tail_path, scale, log):
-    """A tail drawn apart from its pose's body (see TAIL_RE: <cat>-<pose>-notail.png / -tail.png), so
-    it can sway independently at runtime instead of being baked still into the pose art (same idea as
-    the koinobori fish or gym charms -- see FLOATING -- but here the "body" half isn't floating, so it
-    can't just reuse process_floating). Re-derives the exact placement compose() would give the body
-    (scale, horizontal centring, baseline) and applies that same transform to the tail, using each
-    half's position in their shared raw canvas to find the offset between them -- so the tail lands
-    back on cats/<cat>/<name>.webp pixel-for-pixel where the artist drew it, with no manual tuning."""
-    body_rgba, *_ = cut_out(load(notail_path))
+def body_placement(body_path, scale):
+    """The exact placement compose() would give this body art: its scaled size, its canvas position
+    (x0, y0), and where its trimmed content starts in the raw image (x_raw, y_raw). Any overlay drawn
+    on the SAME raw canvas as this body (a tail, a pair of paws -- anything split out so it can move
+    independently at runtime) can be mapped onto the body's own cats/<cat>/<name>.webp pixel-for-pixel
+    using this, via align_overlay() below -- see process_cat_tail, process_cat_paws."""
+    body_rgba, *_ = cut_out(load(body_path))
     ys, xs = np.where(body_rgba[..., 3] > TRIM_ALPHA)
     x_raw, y_raw = xs.min(), ys.min()
     im_body = scale_img(trim(body_rgba), scale)
     h, w = im_body.shape[:2]
     cx = body_centre_x(im_body)
     x0, y0 = round(W / 2 - cx), H - BASELINE_PAD - h
+    return x0, y0, x_raw, y_raw, (xs, ys)
 
-    tail_rgba, *_ = cut_out(load(tail_path))
-    ys2, xs2 = np.where(tail_rgba[..., 3] > TRIM_ALPHA)
-    x_raw_t, y_raw_t = xs2.min(), ys2.min()
-    im_tail = scale_img(trim(tail_rgba), scale)
-    ht, wt = im_tail.shape[:2]
-    tx0 = x0 + (x_raw_t - x_raw) * scale
-    ty0 = y0 + (y_raw_t - y_raw) * scale
+
+def align_overlay(overlay_path, scale, placement):
+    """An overlay sharing a body's raw canvas, placed on the shared 480x400 canvas using the body's
+    own placement (see body_placement) -- same scale, offset by how far apart the two were in the raw
+    art. Returns (canvas, raw xs/ys of the overlay's own content, placed x0/y0) for callers that also
+    need the overlay's own position (see process_cat_paws's attach-point search)."""
+    x0, y0, x_raw, y_raw, _ = placement
+    ov_rgba, *_ = cut_out(load(overlay_path))
+    ys, xs = np.where(ov_rgba[..., 3] > TRIM_ALPHA)
+    x_raw_o, y_raw_o = xs.min(), ys.min()
+    im_ov = scale_img(trim(ov_rgba), scale)
+    h, w = im_ov.shape[:2]
+    tx0 = x0 + (x_raw_o - x_raw) * scale
+    ty0 = y0 + (y_raw_o - y_raw) * scale
+
+    canvas = np.zeros((H, W, 4), np.float32)
+    dx0, dy0 = max(0, round(tx0)), max(0, round(ty0))
+    dx1, dy1 = min(W, round(tx0) + w), min(H, round(ty0) + h)
+    canvas[dy0:dy1, dx0:dx1] = im_ov[dy0 - round(ty0):dy1 - round(ty0), dx0 - round(tx0):dx1 - round(tx0)]
+    return canvas, (xs, ys), (tx0, ty0)
+
+
+def process_cat_tail(cat, name, notail_path, tail_path, scale, log):
+    """A tail drawn apart from its pose's body (see TAIL_RE: <cat>-<pose>-notail.png / -tail.png), so
+    it can sway independently at runtime instead of being baked still into the pose art (same idea as
+    the koinobori fish or gym charms -- see FLOATING -- but here the "body" half isn't floating, so it
+    can't just reuse process_floating)."""
+    placement = body_placement(notail_path, scale)
+    x0, y0, x_raw, y_raw, (xs, ys) = placement
+    canvas, (xs2, ys2), _ = align_overlay(tail_path, scale, placement)
 
     # Where the tail meets the body: the closest pair of pixels between the two raw cutouts (coarsely
     # subsampled -- only needs to land within a few px). Logged as a ready-to-paste sway transform-
-    # origin (see CAT_TAILS in index.html), and used below to feather the tail's own alpha there.
+    # origin (see CAT_TAILS in index.html). An earlier version also faded the tail's alpha in near this
+    # point to hide the seam a rotation opens -- but the body's own cutout stops exactly at the seam (no
+    # overlap to fade into), so that fade just opened a hole straight through to the floor, visible even
+    # at rest. Left as a hard edge instead and relying on a small swing (see CSS) to keep it subtle.
     bxs, bys = xs[::7], ys[::7]
     best_d, attach = 1e18, (xs2[0], ys2[0])
     for txp, typ in zip(xs2[::3], ys2[::3]):
@@ -463,19 +494,19 @@ def process_cat_tail(cat, name, notail_path, tail_path, scale, log):
     attach_y = y0 + (attach[1] - y_raw) * scale
     log(f'  {tail_path.name}: sway origin {attach_x / W * 100:.1f}% {attach_y / H * 100:.1f}% (see CAT_TAILS)')
 
-    canvas = np.zeros((H, W, 4), np.float32)
-    dx0, dy0 = max(0, round(tx0)), max(0, round(ty0))
-    dx1, dy1 = min(W, round(tx0) + wt), min(H, round(ty0) + ht)
-    canvas[dy0:dy1, dx0:dx1] = im_tail[dy0 - round(ty0):dy1 - round(ty0), dx0 - round(tx0):dx1 - round(tx0)]
-
-    # A rigid 2D rotation can't preserve the seam where the two halves meet, so swinging it drags one
-    # edge of the base across the body every cycle. An earlier version faded the tail's alpha in near
-    # the attach point to blend that edge away -- but the body's own cutout stops exactly at the seam
-    # (no overlap to fade into), so that fade just opened a hole straight through to the floor, visible
-    # even at rest. Left as a hard edge instead and relying on a small swing (see CSS) to keep it subtle.
-
     save_webp(canvas, CATS_OUT / cat / f'{name}-tail.webp')
-    log(f'  {tail_path.name}: tail overlay aligned to {notail_path.name}, {wt}x{ht}')
+    log(f'  {tail_path.name}: tail overlay aligned to {notail_path.name}, {canvas.shape[1]}x{canvas.shape[0]}')
+
+
+def process_cat_paws(cat, name, body_path, paws_path, scale, log):
+    """A second pair of paws drawn apart from their pose's body (see PAWS_RE: <cat>-<pose>-paws.png),
+    meant to sit IN FRONT of a held item while the body's own paws stay behind it -- body, then the
+    item, then this overlay, sandwiching the item between the two (see CAT_HUG in index.html). Unlike
+    process_cat_tail, the body art isn't replaced -- its own paws are the resting pose underneath."""
+    placement = body_placement(body_path, scale)
+    canvas, _, _ = align_overlay(paws_path, scale, placement)
+    save_webp(canvas, CATS_OUT / cat / f'{name}-paws.webp')
+    log(f'  {paws_path.name}: paws overlay aligned to {body_path.name}, {canvas.shape[1]}x{canvas.shape[0]}')
 
 
 def process_item(name, path, scale, log):
@@ -637,6 +668,7 @@ def main():
 
     cat_frames = defaultdict(dict)
     cat_tails = defaultdict(dict)   # {cat: {pose: {'notail': path, 'tail': path}}} -- see TAIL_RE
+    cat_paws = defaultdict(dict)    # {cat: {pose: path}} -- see PAWS_RE
     items = {}
     for p in sorted((RAW / 'cats').glob('*.png')):
         m = POSE_RE.match(p.stem)
@@ -646,6 +678,10 @@ def main():
         m = TAIL_RE.match(p.stem)
         if m:
             cat_tails[m['cat']].setdefault(m['pose'], {})[m['part']] = p
+            continue
+        m = PAWS_RE.match(p.stem)
+        if m:
+            cat_paws[m['cat']][m['pose']] = p
             continue
         raise SystemExit(f'{p}: not a <cat>-<pose>[-<n>].png name, expected in raw/cats/')
     for p in sorted((RAW / 'objects').glob('*.png')):
@@ -675,7 +711,7 @@ def main():
                 tails[pose] = (parts['notail'], parts['tail'])
             else:
                 log(f'  WARNING {cat}-{pose}: only -{next(iter(parts))}.png present, need both -notail and -tail')
-        sheet_rows.extend(process_cat(cat, cat_frames[cat], log, tails=tails))
+        sheet_rows.extend(process_cat(cat, cat_frames[cat], log, tails=tails, paws=cat_paws.get(cat, {})))
 
     if items or floating:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
