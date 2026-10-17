@@ -605,7 +605,7 @@
     // sandwiched between the cat's body and a second paws overlay instead of at its own normal
     // baseline position -- see catLayer. belly2 isn't in `poses` yet (test on barzel first; every
     // other cat would get belly2's arms-up pose with the ball just resting in front of it, unheld).
-    'temaki-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', hugged: true, wobble: true, wobbleDeg: 13, scale: 0.5, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
+    'temaki-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', hugged: true, wobble: true, wobbleDeg: 13, scale: 0.425, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
     // belly1: the cat lies on its back underneath the flag, batting up at it.
     // fish: measured directly from the shared raw canvas before koinobori-stand.png/koinobori-fish.png
     // were split apart, so it lines back up with the pole exactly (see itemLayers' `fish`). origin is
@@ -905,7 +905,7 @@
   // items with `hugged: true` use this (see spotHtml, which otherwise draws the item at its own normal
   // baseline position in the spot).
   const CAT_HUG = {
-    'barzel-belly2': { left: 33.97, top: 35.86, w: 45.45 },
+    'barzel-belly2': { left: 37.51, top: 42.01, w: 38.64 },
   };
   function catLayer(v, it, itemId) {
     const pose = v.pose || it.pose;
