@@ -425,9 +425,6 @@ def process_cat(cat, frames, log, tails=None):
     return rows
 
 
-TAIL_FEATHER_RADIUS = 16   # canvas px (of 480x400) -- see process_cat_tail's feather
-
-
 def process_cat_tail(cat, name, notail_path, tail_path, scale, log):
     """A tail drawn apart from its pose's body (see TAIL_RE: <cat>-<pose>-notail.png / -tail.png), so
     it can sway independently at runtime instead of being baked still into the pose art (same idea as
@@ -471,14 +468,11 @@ def process_cat_tail(cat, name, notail_path, tail_path, scale, log):
     dx1, dy1 = min(W, round(tx0) + wt), min(H, round(ty0) + ht)
     canvas[dy0:dy1, dx0:dx1] = im_tail[dy0 - round(ty0):dy1 - round(ty0), dx0 - round(tx0):dx1 - round(tx0)]
 
-    # A rigid 2D rotation can't preserve the seam where the two halves meet -- the base has width, not
-    # just a point, so swinging it drags one edge of that width across the body's own fur every cycle,
-    # which reads as the tail clipping into the hip. Fading the tail's alpha in close to the attach
-    # point (full strength a short distance out) blends that edge into the fur underneath through the
-    # whole swing instead of butting a hard edge against it.
-    yy, xx = np.mgrid[0:H, 0:W]
-    feather = np.clip(np.hypot(xx - attach_x, yy - attach_y) / TAIL_FEATHER_RADIUS, 0.3, 1.0)
-    canvas[..., 3] *= feather
+    # A rigid 2D rotation can't preserve the seam where the two halves meet, so swinging it drags one
+    # edge of the base across the body every cycle. An earlier version faded the tail's alpha in near
+    # the attach point to blend that edge away -- but the body's own cutout stops exactly at the seam
+    # (no overlap to fade into), so that fade just opened a hole straight through to the floor, visible
+    # even at rest. Left as a hard edge instead and relying on a small swing (see CSS) to keep it subtle.
 
     save_webp(canvas, CATS_OUT / cat / f'{name}-tail.webp')
     log(f'  {tail_path.name}: tail overlay aligned to {notail_path.name}, {wt}x{ht}')
