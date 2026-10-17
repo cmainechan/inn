@@ -885,7 +885,11 @@
   // process_cat_tail's placement math, not guessed: the closest point between the two cutouts in
   // their shared raw canvas, converted to % of the 480x400 pose canvas (its log line prints it ready
   // to paste here). Add a '<cat>-<pose>' entry as each cat's tail is extracted.
-  const CAT_TAILS = { 'tapuz-belly1': { origin: '60.5% 88.2%' } };
+  const CAT_TAILS = {
+    'tapuz-belly1': { origin: '60.5% 88.2%' },
+    'sheleg-belly1': { origin: '59.0% 91.1%' },
+    'dvash-belly1': { origin: '65.3% 81.3%' },
+  };
   function catLayer(v, it) {
     const pose = v.pose || it.pose;
     const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
