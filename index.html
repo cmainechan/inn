@@ -163,6 +163,14 @@
   /* --wob-deg lets a specific item rock further than the 1.5deg default (see ITEMS' wobbleDeg,
      e.g. the temari ball, which otherwise barely reads as moving at its 0.5x in-room scale). */
   @keyframes wob { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(var(--wob-deg, 1.5deg)); } }
+  /* Tail swish (see CAT_TAILS): the tail is its own image, the same 480x400 canvas as its pose (see
+     process_cat_tail in process_art.py), stacked exactly over the body with inset:0 so no extra
+     positioning is needed here -- only a rotation around the base, where it meets the body. */
+  .cat-layer .tail-sway { position: absolute; inset: 0; width: 100%; height: 100%; animation: tail-swish 3.2s ease-in-out infinite; }
+  @keyframes tail-swish {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(6deg); }
+  }
   /* Carp streamer fish: rocks side to side in the wind, not spinning like the pinwheel -- see
      itemLayers' `fish`. Asymmetric amplitude (further one way than the other) and the extra
      keyframe stops read as wind gusts rather than a metronome. */
@@ -593,7 +601,7 @@
     // it back down toward the bottom of the icon.
     // wobbleDeg: rocks further than the 1.5deg default -- at this item's 0.5x in-room scale the
     // default amplitude was barely visible (see --wob-deg in @keyframes wob).
-    'temaki-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', wobble: true, wobbleDeg: 13, scale: 0.5, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 88.36 } },
+    'temaki-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', wobble: true, wobbleDeg: 13, scale: 0.5, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
     // belly1: the cat lies on its back underneath the flag, batting up at it.
     // fish: measured directly from the shared raw canvas before koinobori-stand.png/koinobori-fish.png
     // were split apart, so it lines back up with the pole exactly (see itemLayers' `fish`). origin is
@@ -871,6 +879,13 @@
   const catPortrait = (id, sil) => `<div class="portrait-cat${sil ? ' sil' : ''}"><img src="${art.cat(id, 'sit')}" alt=""></div>`;
   // Poses still enough to read as "resting" rather than mid-action -- see catLayer's `breathes`.
   const BREATHE_POSES = new Set(['sleep', 'sit', 'lie', 'peer', 'belly1', 'belly2', 'soak']);
+  // Cats with a tail split from their pose art so it can swish on its own (see raw/cats/<cat>-<pose>
+  // -notail.png + -tail.png, and process_cat_tail in process_art.py, which saves the aligned overlay
+  // to cats/<cat>/<pose>-tail.webp). origin is the tail's base -- where it meets the body -- found by
+  // process_cat_tail's placement math, not guessed: the closest point between the two cutouts in
+  // their shared raw canvas, converted to % of the 480x400 pose canvas (its log line prints it ready
+  // to paste here). Add a '<cat>-<pose>' entry as each cat's tail is extracted.
+  const CAT_TAILS = { 'tapuz-belly1': { origin: '60.5% 88.2%' } };
   function catLayer(v, it) {
     const pose = v.pose || it.pose;
     const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
@@ -884,8 +899,10 @@
     // poses (head/ride/face peeking or riding, half/full eating, soaking mid-motion) are left still
     // since a cat already doing something there doesn't also need an idle "alive" cue.
     const breathes = BREATHE_POSES.has(pose);
+    const tail = CAT_TAILS[`${v.cat}-${pose}`];
+    const tailImg = tail ? `<img class="tail-sway" src="cats/${v.cat}/${pose}-tail.webp" alt="" style="transform-origin:${tail.origin}">` : '';
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
-      shadow + `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
+      shadow + `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt="">${tailImg}</div>`;
   }
 
   /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */

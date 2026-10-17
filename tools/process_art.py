@@ -23,6 +23,11 @@ Reads inn/raw/ and writes:
 
 Raw names:
   raw/cats/<cat>-<pose>[-<n>].png   e.g. tapuz-sit.png, tapuz-sleep-2.png
+  raw/cats/<cat>-<pose>-notail.png, raw/cats/<cat>-<pose>-tail.png
+                                     optional pair, body/tail split so the tail can sway at runtime
+                                     (see process_cat_tail and CAT_TAILS in index.html). The notail
+                                     art replaces <pose>.png for that cat; -tail.png is saved as its
+                                     own cats/<cat>/<pose>-tail.webp, aligned pixel-for-pixel onto it.
   raw/objects/<item>.png            e.g. box.png
   raw/food/<item>.png               consumable food items, e.g. yakitori.png
   raw/scene/room-<id>.png           e.g. room-zashiki.png (see ROOM_IDS in index.html)
@@ -107,6 +112,8 @@ FRONT_WALLS = {
 }
 
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak|peer|full|belly1|belly2)(?:-(?P<n>\d+))?$')
+# A pose's body/tail split -- see process_cat_tail.
+TAIL_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-(?P<part>notail|tail)$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
 CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
 # Items with a soft, low-saturation contact shadow baked into the raw art right where the subject
@@ -381,8 +388,10 @@ def head_width(rgba):
     return max(widths)
 
 
-def process_cat(cat, frames, log):
+def process_cat(cat, frames, log, tails=None):
     """frames: {(pose, n): raw path}. Every frame of one cat shares one scale factor.
+    tails: optional {pose: (notail_path, tail_path)} -- see process_cat_tail. frames[(pose, 1)] is
+    expected to already be the notail art for any pose listed here (see main()).
     Returns [(label, raw path, canvas)] for the contact sheet."""
     if ('sit', 1) not in frames:
         log(f'  SKIP {cat}: no sit pose (needed for the cat\'s scale)')
@@ -410,7 +419,69 @@ def process_cat(cat, frames, log):
         canvas = compose(cut[key], scale, f'{cat}/{name}')
         save_webp(canvas, CATS_OUT / cat / f'{name}.webp')
         rows.append((f'{cat} {name}', frames[key], canvas))
+        if tails and pose in tails and n == 1:
+            notail_path, tail_path = tails[pose]
+            process_cat_tail(cat, name, notail_path, tail_path, scale, log)
     return rows
+
+
+TAIL_FEATHER_RADIUS = 16   # canvas px (of 480x400) -- see process_cat_tail's feather
+
+
+def process_cat_tail(cat, name, notail_path, tail_path, scale, log):
+    """A tail drawn apart from its pose's body (see TAIL_RE: <cat>-<pose>-notail.png / -tail.png), so
+    it can sway independently at runtime instead of being baked still into the pose art (same idea as
+    the koinobori fish or gym charms -- see FLOATING -- but here the "body" half isn't floating, so it
+    can't just reuse process_floating). Re-derives the exact placement compose() would give the body
+    (scale, horizontal centring, baseline) and applies that same transform to the tail, using each
+    half's position in their shared raw canvas to find the offset between them -- so the tail lands
+    back on cats/<cat>/<name>.webp pixel-for-pixel where the artist drew it, with no manual tuning."""
+    body_rgba, *_ = cut_out(load(notail_path))
+    ys, xs = np.where(body_rgba[..., 3] > TRIM_ALPHA)
+    x_raw, y_raw = xs.min(), ys.min()
+    im_body = scale_img(trim(body_rgba), scale)
+    h, w = im_body.shape[:2]
+    cx = body_centre_x(im_body)
+    x0, y0 = round(W / 2 - cx), H - BASELINE_PAD - h
+
+    tail_rgba, *_ = cut_out(load(tail_path))
+    ys2, xs2 = np.where(tail_rgba[..., 3] > TRIM_ALPHA)
+    x_raw_t, y_raw_t = xs2.min(), ys2.min()
+    im_tail = scale_img(trim(tail_rgba), scale)
+    ht, wt = im_tail.shape[:2]
+    tx0 = x0 + (x_raw_t - x_raw) * scale
+    ty0 = y0 + (y_raw_t - y_raw) * scale
+
+    # Where the tail meets the body: the closest pair of pixels between the two raw cutouts (coarsely
+    # subsampled -- only needs to land within a few px). Logged as a ready-to-paste sway transform-
+    # origin (see CAT_TAILS in index.html), and used below to feather the tail's own alpha there.
+    bxs, bys = xs[::7], ys[::7]
+    best_d, attach = 1e18, (xs2[0], ys2[0])
+    for txp, typ in zip(xs2[::3], ys2[::3]):
+        d = (bxs - txp) ** 2 + (bys - typ) ** 2
+        i = d.argmin()
+        if d[i] < best_d:
+            best_d, attach = d[i], (txp, typ)
+    attach_x = x0 + (attach[0] - x_raw) * scale
+    attach_y = y0 + (attach[1] - y_raw) * scale
+    log(f'  {tail_path.name}: sway origin {attach_x / W * 100:.1f}% {attach_y / H * 100:.1f}% (see CAT_TAILS)')
+
+    canvas = np.zeros((H, W, 4), np.float32)
+    dx0, dy0 = max(0, round(tx0)), max(0, round(ty0))
+    dx1, dy1 = min(W, round(tx0) + wt), min(H, round(ty0) + ht)
+    canvas[dy0:dy1, dx0:dx1] = im_tail[dy0 - round(ty0):dy1 - round(ty0), dx0 - round(tx0):dx1 - round(tx0)]
+
+    # A rigid 2D rotation can't preserve the seam where the two halves meet -- the base has width, not
+    # just a point, so swinging it drags one edge of that width across the body's own fur every cycle,
+    # which reads as the tail clipping into the hip. Fading the tail's alpha in close to the attach
+    # point (full strength a short distance out) blends that edge into the fur underneath through the
+    # whole swing instead of butting a hard edge against it.
+    yy, xx = np.mgrid[0:H, 0:W]
+    feather = np.clip(np.hypot(xx - attach_x, yy - attach_y) / TAIL_FEATHER_RADIUS, 0.3, 1.0)
+    canvas[..., 3] *= feather
+
+    save_webp(canvas, CATS_OUT / cat / f'{name}-tail.webp')
+    log(f'  {tail_path.name}: tail overlay aligned to {notail_path.name}, {wt}x{ht}')
 
 
 def process_item(name, path, scale, log):
@@ -569,13 +640,18 @@ def main():
     args = ap.parse_args()
 
     cat_frames = defaultdict(dict)
+    cat_tails = defaultdict(dict)   # {cat: {pose: {'notail': path, 'tail': path}}} -- see TAIL_RE
     items = {}
     for p in sorted((RAW / 'cats').glob('*.png')):
         m = POSE_RE.match(p.stem)
         if m:
             cat_frames[m['cat']][(m['pose'], int(m['n'] or 1))] = p
-        else:
-            raise SystemExit(f'{p}: not a <cat>-<pose>[-<n>].png name, expected in raw/cats/')
+            continue
+        m = TAIL_RE.match(p.stem)
+        if m:
+            cat_tails[m['cat']].setdefault(m['pose'], {})[m['part']] = p
+            continue
+        raise SystemExit(f'{p}: not a <cat>-<pose>[-<n>].png name, expected in raw/cats/')
     for p in sorted((RAW / 'objects').glob('*.png')):
         items[p.stem] = p
     # Food items live in their own subfolder, but process and output the same way as any other item.
@@ -596,7 +672,14 @@ def main():
     sheet_rows = []
     for cat in sorted(cat_frames):
         log(f'cat {cat}')
-        sheet_rows.extend(process_cat(cat, cat_frames[cat], log))
+        tails = {}
+        for pose, parts in cat_tails.get(cat, {}).items():
+            if 'notail' in parts and 'tail' in parts:
+                cat_frames[cat][(pose, 1)] = parts['notail']
+                tails[pose] = (parts['notail'], parts['tail'])
+            else:
+                log(f'  WARNING {cat}-{pose}: only -{next(iter(parts))}.png present, need both -notail and -tail')
+        sheet_rows.extend(process_cat(cat, cat_frames[cat], log, tails=tails))
 
     if items or floating:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
