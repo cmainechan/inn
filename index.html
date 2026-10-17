@@ -869,6 +869,8 @@
     return `<div class="thumb">${tf ? `<div class="thumb-fx" style="transform:${tf}">${inner}</div>` : inner}</div>`;
   };
   const catPortrait = (id, sil) => `<div class="portrait-cat${sil ? ' sil' : ''}"><img src="${art.cat(id, 'sit')}" alt=""></div>`;
+  // Poses still enough to read as "resting" rather than mid-action -- see catLayer's `breathes`.
+  const BREATHE_POSES = new Set(['sleep', 'sit', 'lie', 'peer', 'belly1', 'belly2', 'soak']);
   function catLayer(v, it) {
     const pose = v.pose || it.pose;
     const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
@@ -878,8 +880,12 @@
     // only pose that needs its own shadow -- every other pose sits on or in the item itself,
     // where the item's own shadow already covers the ground contact.
     const shadow = pose === 'lie' ? SHADOW_SVG : '';
+    // Resting poses get the same gentle breathing scale-pulse as sleep (see .breathe) -- active
+    // poses (head/ride/face peeking or riding, half/full eating, soaking mid-motion) are left still
+    // since a cat already doing something there doesn't also need an idle "alive" cue.
+    const breathes = BREATHE_POSES.has(pose);
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
-      shadow + `<img class="${pose === 'sleep' ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
+      shadow + `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt=""></div>`;
   }
 
   /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */
