@@ -108,7 +108,7 @@ FRONT_WALLS = {
 
 POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|half|soak|peer|full|belly1|belly2)(?:-(?P<n>\d+))?$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
-CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the mouth-ring opening and the gap between the pole and the flag's collar strap
+CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
 # Items with a soft, low-saturation contact shadow baked into the raw art right where the subject
 # meets the backdrop (e.g. under the gym's feet). It's dark enough that cut_out()'s colour-distance
 # test reads it as subject, leaving an opaque grey smudge once composited over a real room floor.
@@ -116,14 +116,19 @@ CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori'}  # mtchirashi: 
 # the backdrop colour so the normal background flood-fill removes it like the rest of the backdrop.
 DESHADOW = {'gym'}
 DESHADOW_CHROMA = 20
+# Items where cut_out() picks up a stray, disconnected generator artifact (a faint stray line, a
+# speck) nowhere near the actual subject -- keep only the single largest connected blob of content.
+MAIN_BLOB = {'koinobori'}
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
-ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration', 'kazaguruma': 'kazaguruma-stand'}
+ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration', 'kazaguruma': 'kazaguruma-stand', 'koinobori': 'koinobori-stand', 'gym': 'gym-stand'}
 # Free-floating overlay layers, like a bath's water: cut out and trimmed but NOT baseline-composed
 # onto the shared 480x400 canvas, because they're positioned independently at runtime by their own
-# x/y/w percent (see e.g. ITEMS.kazaguruma.wheel in index.html), not stood on the floor like an item.
-FLOATING = {'kazaguruma-wheel'}
+# x/y/w percent (see e.g. ITEMS.kazaguruma.wheel and ITEMS.koinobori.fish in index.html), not stood
+# on the floor like an item. koinobori-fish: the fish sways on its own, separate from the static pole.
+# gym-acc1/2/3: the gym's three hanging charms, each swaying independently off the crossbar.
+FLOATING = {'kazaguruma-wheel', 'koinobori-fish', 'gym-acc1', 'gym-acc2', 'gym-acc3'}
 # Items centred on their full bounding box, not the bottom band (see body_centre_x): a box drawn at
 # an angle, like the kaiseki's two offset tiers, has its near-bottom corner off to one side, which
 # throws off body-band centring in a way that never happens for a cat or a simple sitting object.
@@ -181,6 +186,31 @@ def edge_connected(mask):
         if np.array_equal(grow, reach):
             return reach
         reach = grow
+
+
+def largest_component(mask):
+    """The single largest 4-connected blob of `mask`, dropping every smaller, disconnected speck
+    (see MAIN_BLOB) -- e.g. a stray generator artifact nowhere near the actual subject."""
+    remaining = mask.copy()
+    best, best_size = np.zeros_like(mask), 0
+    while remaining.any():
+        ys, xs = np.where(remaining)
+        reach = np.zeros_like(mask)
+        reach[ys[0], xs[0]] = True
+        while True:
+            grow = reach.copy()
+            grow[1:] |= reach[:-1]
+            grow[:-1] |= reach[1:]
+            grow[:, 1:] |= reach[:, :-1]
+            grow[:, :-1] |= reach[:, 1:]
+            grow &= remaining
+            if np.array_equal(grow, reach):
+                break
+            reach = grow
+        if reach.sum() > best_size:
+            best, best_size = reach, reach.sum()
+        remaining &= ~reach
+    return best
 
 
 def cut_out(rgb, clear_holes=False):
@@ -398,6 +428,8 @@ def process_item(name, path, scale, log):
             img[chroma < DESHADOW_CHROMA, :3] = border_colour(img)
         rgba, bg, _ = cut_out(img, clear_holes=name in CLEAR_HOLES)
         bg_note = f'backdrop {bg.round().astype(int).tolist()}'
+    if name in MAIN_BLOB:
+        rgba = rgba * largest_component(rgba[..., 3] > TRIM_ALPHA)[..., None]
     if name in SHADOW_CUT:
         rgba = drop_shadow(rgba, from_frac=SHADOW_CUT[name])
     ys, xs = np.where(rgba[..., 3] > TRIM_ALPHA)
@@ -443,7 +475,7 @@ def process_floating(name, path, scale, log):
     if pre is not None:
         rgba, bg_note = pre, 'already transparent, no cutout needed'
     else:
-        rgba, bg, _ = cut_out(load(path))
+        rgba, bg, _ = cut_out(load(path), clear_holes=name in CLEAR_HOLES)
         bg_note = f'backdrop {bg.round().astype(int).tolist()}'
     rgba = trim(rgba)
     rgba = scale_img(rgba, scale * OBJECT_SIZE.get(name, 1.0))
