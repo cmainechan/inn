@@ -85,7 +85,7 @@ OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiya
 # mochi: sized up so its silhouette is convincingly wider than the cat's "head" pose peeking over it
 # (it was barely wider than the cat's own ears before -- compare taiyaki, which already reads right).
 SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
-OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12}  # canvas px, sideways. Keeps the ball out of the paw's reach (the cat sits to its right)
+OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12, 'temaki-ball': (10, 5)}  # canvas px: a plain number is sideways only (+right), or (dx, dy) for both (+down). ball/yarn/takoyaki/taiyaki: keeps the toy out of the paw's reach (the cat sits to its right)
 REF_CAT = 'tapuz'     # items use the same scale as this cat's sitting pose, so sizes carry over
 BODY_BAND = 0.08      # the bottom 8% of a cat's content is where its body rests (see body_centre_x)
 TRIM_ALPHA = 0.1      # alpha below this is ignored when finding the content box
@@ -511,10 +511,12 @@ def process_item(name, path, scale, log):
         f'scale {scale:.4f} -> {round(h * scale)}x{round(w * scale)} px')
     center_bbox = name in CENTER_BBOX or name.startswith(CENTER_BBOX_PREFIXES)
     canvas = compose(rgba, scale, name, center='bbox' if center_bbox else 'body')
-    dx = OBJECT_SHIFT.get(name, 0)
-    if dx:
+    shift = OBJECT_SHIFT.get(name, 0)
+    dx, dy = shift if isinstance(shift, tuple) else (shift, 0)
+    if dx or dy:
         moved = np.zeros_like(canvas)
-        moved[:, max(0, dx):W + min(0, dx)] = canvas[:, max(0, -dx):W - max(0, dx)]
+        moved[max(0, dy):H + min(0, dy), max(0, dx):W + min(0, dx)] = \
+            canvas[max(0, -dy):H - max(0, dy), max(0, -dx):W - max(0, dx)]
         canvas = moved
     outputs = [OBJ_OUT / f'{name}.webp']
     if name not in FRONT_WALLS and name not in FRONT_CURVES:
