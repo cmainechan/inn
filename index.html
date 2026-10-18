@@ -84,8 +84,8 @@
   @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.012, 1.02); } }
   .cat-in { animation: catin 1.2s ease-out both; }
   @keyframes catin { from { opacity: 0; } }
-  /* Ground-contact shadow: code-drawn, not baked into the art (the item prompt spec explicitly
-     excludes cast shadows for this reason -- see ART-PROMPTS-ROOMS.md / ART-PERSPECTIVE-SPEC.md).
+  /* Ground-contact shadow: code-drawn, not baked into the art (the item art prompts explicitly
+     exclude cast shadows for this reason).
      Items only, not cats -- a cat is always sitting on, in, or behind an item (never bare floor),
      so the item's own shadow already grounds the pair; a second shadow under the cat was both
      redundant and, for a pose whose art sits close to its own baseline (e.g. the "head" peeking
@@ -94,7 +94,7 @@
      empty-mark ovals already use, sits at the right spot under all of them with no per-item
      tuning. Warm brown, not black, multiply-blended so the floor's own colour and grain show
      through. Skewed and shifted toward the lower-left, away from the rooms' shared upper-right
-     light (ART-PROMPTS-ROOMS.md).
+     light.
      Strength: measured the panorama's own painted window-shadows directly (a lit floor patch vs
      a shadow-stripe patch in shokudo) at luminance ratio ~0.90, i.e. the art's own shadows only
      darken the floor by about 10%. The values below are tuned to roughly that same softness at
@@ -109,8 +109,8 @@
   .r-shokudo .shadow, .r-engawa .shadow { opacity: .15; filter: blur(.2cqw); }
   .r-onsen .shadow { opacity: .22; }
 
-  /* Reflection: shokudo's floor is the most polished of the four ("soft reflections of window
-     light" in ART-PROMPTS-ROOMS.md), so its items get a faint flipped echo of themselves that
+  /* Reflection: shokudo's floor is the most polished of the four (the room art paints soft
+     reflections of window light), so its items get a faint flipped echo of themselves that
      fades out going down, the same cheap trick as a rained-on street. Items only, not cats --
      a cat's own silhouette varies by pose too much for one flat mask to read well. */
   .r-shokudo .spot .reflection {
