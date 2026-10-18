@@ -537,6 +537,10 @@
     tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 400, pose: 'sit', cat: { x: 50, y: 94 } },
     lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 }, inFront: true },
     'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
+    // hugged belly2-only item, same mechanism as temari-ball -- see CAT_HUG. scale/cat/catScale start
+    // as a copy of temari-ball's tuned values (nearest existing hugged item) and want visual re-tuning
+    // once placed, since the bolster's cylindrical shape fills its canvas differently than a round ball.
+    bolster:  { room: 'zashiki', ja: '抱き枕', tr: 'dakimakura', en: 'hug pillow', price: 240, pose: 'belly2', poses: ['belly2'], hugged: true, hugScale: 2, hugOffset: { left: -19.32, top: -19.32 }, scale: 0.425, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
     // belly2: the cat lies on its back underneath, batting up at the hanging charms.
     // xlX: anchored to the room's right side regardless of row, so the 2x-scaled frame doesn't
     // overflow toward the left edge into the dining room next door (see spotHtml's use of xlX).
@@ -560,7 +564,7 @@
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
     taiyaki:  { room: 'shokudo', ja: 'たい焼き', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
     mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 52.9, y: 57.2 } },
-    mochibunny: { room: 'shokudo', ja: 'うさぎ餅', tr: 'usagi mochi', en: 'rabbit mochi', price: 170, pose: 'peer', cat: { x: 50, y: 85 } },
+    mochibunny: { room: 'shokudo', ja: 'うさぎ餅', tr: 'usagi mochi', en: 'rabbit mochi', price: 170, pose: 'peer', cat: { x: 67.64, y: 85 } },
     // XL: spans two spots (rowStart pairing). Shokudo's spot 0 is retired, so fits()/freeSpotFor
     // route this to the (2,3) pair -- see the fits() retired-check added alongside this item.
     counter:  { room: 'shokudo', xl: true, ja: '帳場', tr: 'chōba', en: 'counter', price: 550, pose: 'sit', scale: 1.5, catScale: 1.25, cat: { x: 50, y: 73.25 }, inFront: true },
@@ -894,8 +898,8 @@
   // their shared raw canvas, converted to % of the 480x400 pose canvas (its log line prints it ready
   // to paste here). Add a '<cat>-<pose>' entry as each cat's tail is extracted.
   const CAT_TAILS = {
-    'tapuz-belly1': { origin: '60.5% 88.2%' },
-    'sheleg-belly1': { origin: '59.0% 91.1%' },
+    'tapuz-belly1': { origin: '61.1% 87.8%' },
+    'sheleg-belly1': { origin: '59.0% 90.9%' },
   };
   // Cats with a second pair of paws split from their pose art (see raw/cats/<cat>-<pose>-paws.png and
   // process_cat_paws in process_art.py, which saves the aligned overlay to cats/<cat>/<pose>-paws.webp),
@@ -942,7 +946,16 @@
     const tail = CAT_TAILS[`${v.cat}-${pose}`];
     const tailImg = tail ? `<img class="tail-sway" src="cats/${v.cat}/${pose}-tail.webp" alt="" style="transform-origin:${tail.origin}">` : '';
     const hug = it.hugged && itemId ? CAT_HUG[`${v.cat}-${pose}`] : null;
-    const hugImg = hug ? `<img class="layer" src="${art.item(itemId)}" alt="" style="position:absolute;left:${hug.left}%;top:${hug.top}%;width:${hug.w}%;height:auto">` : '';
+    // hugScale: CAT_HUG's left/top/w is shared across every hugged item on one cat+pose (so a new
+    // hugged item gets a sane default for free), but an item that needs to render bigger or smaller
+    // than that shared size (e.g. the bolster) scales just its own hug image with this per-item
+    // multiplier instead of changing the shared value and affecting every other hugged item too.
+    // hugOffset: left/top is the TOP-LEFT corner of the (possibly hugScale'd) image, so growing the
+    // image from the shared left/top alone pushes its visible content away from the paw gap instead
+    // of growing around it -- hugOffset re-centers just this item, same reasoning as hugScale.
+    const hugW = hug ? hug.w * (it.hugScale || 1) : 0;
+    const hugOff = it.hugOffset || { left: 0, top: 0 };
+    const hugImg = hug ? `<img class="layer" src="${art.item(itemId)}" alt="" style="position:absolute;left:${hug.left + hugOff.left}%;top:${hug.top + hugOff.top}%;width:${hugW}%;height:auto">` : '';
     const pawsImg = hug ? `<img class="layer" src="cats/${v.cat}/${pose}-paws.webp" alt="" style="position:absolute;inset:0;width:100%;height:100%">` : '';
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
       shadow + `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt="">${tailImg}${hugImg}${pawsImg}</div>`;

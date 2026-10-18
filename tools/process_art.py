@@ -81,7 +81,7 @@ SIT_HEIGHT = 250      # each cat's sitting pose is scaled to this content height
 CAT_SIZE = 0.85       # cats in the layers are drawn at this fraction of SIT_HEIGHT. Measured
                       # against the Tapuz combos (the reference): their cat is about 0.85 of
                       # the layer's sitting height, while the objects match the combos at 1.0
-OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5, 'mochi': 1.35, 'sakura-toro': 0.95}  # extra size factor per object, on top of the shared item scale (cats are unchanged).
+OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5, 'mochi': 1.35, 'sakura-toro': 0.95, 'mochibunny': 0.5}  # extra size factor per object, on top of the shared item scale (cats are unchanged).
 # mochi: sized up so its silhouette is convincingly wider than the cat's "head" pose peeking over it
 # (it was barely wider than the cat's own ears before -- compare taiyaki, which already reads right).
 SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
@@ -379,6 +379,15 @@ def over_grass(canvas):
 # ---------- the two kinds of art ----------
 
 HEAD_MATCH = {'half', 'head'}   # cat poses whose head is matched to the sitting head (see process_cat)
+# Poses where the per-cat sit-based scale alone isn't enough: measured across the roster (see the
+# contact-sheet audit that found this), 'lie' varies +-23% in both width and height cat to cat, and
+# 'belly1' varies +-22% in height -- in each case because the raw art for that pose happens to draw
+# the cat filling more or less of its own frame, not because of any real difference in the pipeline's
+# per-cat scale. Matches each cat's content on the given dimension to the roster's median for that
+# pose, same idea as HEAD_MATCH but cross-cat instead of cross-pose. 'lie' matches width (it's a
+# wide, compact pose where width and height move together); 'belly1' matches height (width was
+# already tight at +-7% -- the real variance there is how far the paws reach up, i.e. height).
+BODY_MATCH = {'lie': 'width', 'belly1': 'height'}
 
 
 def head_width(rgba):
@@ -391,16 +400,13 @@ def head_width(rgba):
     return max(widths)
 
 
-def process_cat(cat, frames, log, tails=None, paws=None):
-    """frames: {(pose, n): raw path}. Every frame of one cat shares one scale factor.
-    tails: optional {pose: (notail_path, tail_path)} -- see process_cat_tail. frames[(pose, 1)] is
-    expected to already be the notail art for any pose listed here (see main()).
-    paws: optional {pose: paws_path} -- see process_cat_paws. Uses frames[(pose, 1)] as the body
-    as-is (no swap needed, unlike tails).
-    Returns [(label, raw path, canvas)] for the contact sheet."""
+def prepare_cat(cat, frames, log):
+    """frames: {(pose, n): raw path}. Cuts every frame and computes this cat's shared scale from its
+    sit pose. Split from compose_cat (below) because BODY_MATCH needs every cat's cut content before
+    any cat can be composed -- see main(). Returns (cut, s, sit_head), or None if there's no sit pose."""
     if ('sit', 1) not in frames:
         log(f'  SKIP {cat}: no sit pose (needed for the cat\'s scale)')
-        return []
+        return None
     cut = {}
     for key, path in sorted(frames.items()):
         cutter = cut_head if key[0] == 'head' else cut_out
@@ -411,6 +417,17 @@ def process_cat(cat, frames, log, tails=None, paws=None):
     s = SIT_HEIGHT * CAT_SIZE / cut[('sit', 1)].shape[0]
     log(f'  {cat}: scale {s:.4f} (sit height {cut[("sit", 1)].shape[0]} px -> {SIT_HEIGHT * CAT_SIZE:.0f} px)')
     sit_head = head_width(cut[('sit', 1)])
+    return cut, s, sit_head
+
+
+def compose_cat(cat, frames, cut, s, sit_head, pose_targets, log, tails=None, paws=None):
+    """Compose+save every frame of one cat, using the (cut, s, sit_head) prepare_cat returned.
+    pose_targets: {pose: target px} for BODY_MATCH poses (see main()), keyed by the same pose names.
+    tails: optional {pose: (notail_path, tail_path)} -- see process_cat_tail. frames[(pose, 1)] is
+    expected to already be the notail art for any pose listed here (see main()).
+    paws: optional {pose: paws_path} -- see process_cat_paws. Uses frames[(pose, 1)] as the body
+    as-is (no swap needed, unlike tails).
+    Returns [(label, raw path, canvas)] for the contact sheet."""
     rows = []
     for key in sorted(frames):
         pose, n = key
@@ -421,6 +438,11 @@ def process_cat(cat, frames, log, tails=None, paws=None):
             # matches the sitting head, so every cat reads at the same size.
             scale = s * sit_head / head_width(cut[key])
             log(f'  {cat} {name}: head matched to sitting head, scale x{sit_head / head_width(cut[key]):.3f}')
+        elif pose in BODY_MATCH and pose_targets.get(pose):
+            dim = 1 if BODY_MATCH[pose] == 'width' else 0
+            cur = cut[key].shape[dim] * s
+            scale = s * pose_targets[pose] / cur
+            log(f'  {cat} {name}: {BODY_MATCH[pose]} matched across the roster, scale x{pose_targets[pose] / cur:.3f}')
         canvas = compose(cut[key], scale, f'{cat}/{name}')
         save_webp(canvas, CATS_OUT / cat / f'{name}.webp')
         rows.append((f'{cat} {name}', frames[key], canvas))
@@ -703,6 +725,9 @@ def main():
 
     log = print
     sheet_rows = []
+    # Pass 1: cut every cat's frames and get its own sit-based scale. Needed in full before pass 2,
+    # since BODY_MATCH's cross-cat targets (below) depend on every cat's cut content.
+    prepared = {}
     for cat in sorted(cat_frames):
         log(f'cat {cat}')
         tails = {}
@@ -712,7 +737,26 @@ def main():
                 tails[pose] = (parts['notail'], parts['tail'])
             else:
                 log(f'  WARNING {cat}-{pose}: only -{next(iter(parts))}.png present, need both -notail and -tail')
-        sheet_rows.extend(process_cat(cat, cat_frames[cat], log, tails=tails, paws=cat_paws.get(cat, {})))
+        prep = prepare_cat(cat, cat_frames[cat], log)
+        if prep:
+            prepared[cat] = (prep, tails)
+
+    # BODY_MATCH targets: the roster's median content size (on the pose's own matched dimension, at
+    # each cat's own scale) for that pose, so the fix centres on the roster's existing look instead of
+    # an arbitrary constant.
+    pose_targets = {}
+    for pose, dim_name in BODY_MATCH.items():
+        dim = 1 if dim_name == 'width' else 0
+        sizes = sorted(cut[(pose, 1)].shape[dim] * s for (cut, s, _sit_head), _tails in prepared.values() if (pose, 1) in cut)
+        if sizes:
+            pose_targets[pose] = sizes[len(sizes) // 2]
+            log(f'{pose}: {dim_name} target {pose_targets[pose]:.1f}px (median of {len(sizes)} cats)')
+
+    # Pass 2: compose+save, now that pose_targets is known.
+    for cat in sorted(prepared):
+        (cut, s, sit_head), tails = prepared[cat]
+        sheet_rows.extend(compose_cat(cat, cat_frames[cat], cut, s, sit_head, pose_targets, log,
+                                       tails=tails, paws=cat_paws.get(cat, {})))
 
     if items or floating:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
