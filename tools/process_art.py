@@ -85,7 +85,7 @@ OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiya
 # mochi: sized up so its silhouette is convincingly wider than the cat's "head" pose peeking over it
 # (it was barely wider than the cat's own ears before -- compare taiyaki, which already reads right).
 SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
-OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12, 'temaki-ball': (10, 5)}  # canvas px: a plain number is sideways only (+right), or (dx, dy) for both (+down). ball/yarn/takoyaki/taiyaki: keeps the toy out of the paw's reach (the cat sits to its right)
+OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12, 'temari-ball': (10, 5), 'temari-ball-blue': (10, 5)}  # canvas px: a plain number is sideways only (+right), or (dx, dy) for both (+down). ball/yarn/takoyaki/taiyaki: keeps the toy out of the paw's reach (the cat sits to its right). temari-ball-blue: same shape as temari-ball, same shift
 REF_CAT = 'tapuz'     # items use the same scale as this cat's sitting pose, so sizes carry over
 BODY_BAND = 0.08      # the bottom 8% of a cat's content is where its body rests (see body_centre_x)
 TRIM_ALPHA = 0.1      # alpha below this is ignored when finding the content box
@@ -131,7 +131,8 @@ MAIN_BLOB = {'koinobori'}
 # Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
 ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
-ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration', 'kazaguruma': 'kazaguruma-stand', 'koinobori': 'koinobori-stand', 'gym': 'gym-stand'}
+# koinobori-fish2.png is the current fish art (replaces koinobori-fish.png, kept in raw/objects/ but not used -- same pattern as yarn/yarn2).
+ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration', 'kazaguruma': 'kazaguruma-stand', 'koinobori': 'koinobori-stand', 'gym': 'gym-stand', 'koinobori-fish': 'koinobori-fish2'}
 # Free-floating overlay layers, like a bath's water: cut out and trimmed but NOT baseline-composed
 # onto the shared 480x400 canvas, because they're positioned independently at runtime by their own
 # x/y/w percent (see e.g. ITEMS.kazaguruma.wheel and ITEMS.koinobori.fish in index.html), not stood
