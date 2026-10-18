@@ -43,6 +43,8 @@ as the 120:100 spot box in index.html, so one set of percentage anchors works
 for cats and items alike.
 """
 import argparse
+import hashlib
+import json
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -53,6 +55,7 @@ from PIL import Image, ImageDraw
 TOOLS = Path(__file__).resolve().parent
 YARD = TOOLS.parent
 RAW, CATS_OUT, OBJ_OUT = YARD / 'raw', YARD / 'cats', YARD / 'objects'
+CACHE_PATH = TOOLS / '.art-cache.json'   # per-file hashes from the last run, see load_cache()/main()
 SCENE_OUT = YARD / 'scene'
 POLA_OUT = YARD / 'polaroids'
 STAMP_OUT = YARD / 'stamps'
@@ -684,6 +687,78 @@ def contact_sheet(rows, path):
     sheet.save(path)
 
 
+# ---------- incremental cache ----------
+# Every run used to re-decode and re-cut every raw PNG regardless of whether it had changed. For most
+# asset kinds (items, floating overlays, scene/polaroid/stamp art) each output depends on nothing but
+# its own raw file, so skipping unchanged ones is a plain hash check. Cats are the one kind with real
+# cross-file dependencies: BODY_MATCH/HEAD_MATCH derive a cat's scale partly from the whole roster's
+# median content size for a pose, so one cat's raw art changing can change every other cat's output
+# for that pose. See the cat handling in main() for how that's still made safe to skip.
+
+def file_hash(path):
+    return hashlib.sha1(path.read_bytes()).hexdigest()
+
+
+def _script_hash():
+    """Any edit to this script (a new OBJECT_SIZE entry, a tweaked constant, new logic) can change an
+    output regardless of which raw file prompted it, so the whole cache is invalidated wholesale
+    whenever the script itself changes -- safer than trying to track which part of it matters."""
+    return hashlib.sha1(Path(__file__).read_bytes()).hexdigest()
+
+
+def load_cache():
+    try:
+        data = json.loads(CACHE_PATH.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    return data if data.get('script_hash') == _script_hash() else {}
+
+
+def save_cache(data):
+    data['script_hash'] = _script_hash()
+    CACHE_PATH.write_text(json.dumps(data))
+
+
+def expected_item_outputs(name):
+    """The output paths process_item(name, ...) will write, without actually processing it -- used to
+    sanity-check a cache hit (if one's missing on disk, treat it as changed)."""
+    outs = [OBJ_OUT / f'{name}.webp']
+    if name in FRONT_WALLS or name in FRONT_CURVES:
+        outs.append(OBJ_OUT / f'{name}-front.webp')
+    return outs
+
+
+def _outputs_exist(outputs):
+    return all((YARD / o).exists() for o in outputs)
+
+
+def _cat_key_str(key):
+    return f'{key[0]}|{key[1]}'
+
+
+def _cat_key_from_str(s):
+    pose, n = s.rsplit('|', 1)
+    return pose, int(n)
+
+
+def _cat_out_name(key):
+    pose, n = key
+    return pose if n == 1 else f'{pose}-{n}'
+
+
+def _cat_expected_outputs(cat, shapes, tails, paws):
+    outs = []
+    for key in shapes:
+        pose, n = key
+        name = _cat_out_name(key)
+        outs.append(CATS_OUT / cat / f'{name}.webp')
+        if tails and pose in tails and n == 1:
+            outs.append(CATS_OUT / cat / f'{name}-tail.webp')
+        if paws and pose in paws and n == 1:
+            outs.append(CATS_OUT / cat / f'{name}-paws.webp')
+    return outs
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--sheet', default=str(TOOLS / 'contact-sheet.png'), help='where to write the contact sheet')
@@ -725,11 +800,18 @@ def main():
 
     log = print
     sheet_rows = []
+    cache = load_cache()
+    cache_files = cache.get('files', {})   # independent per-file assets: items/floating/scene/polaroid/stamp
+    cache_cats = cache.get('cats', {})
+    new_cache_files = {}
+    new_cache_cats = {}
+
     # Pass 1: cut every cat's frames and get its own sit-based scale. Needed in full before pass 2,
-    # since BODY_MATCH's cross-cat targets (below) depend on every cat's cut content.
-    prepared = {}
+    # since BODY_MATCH's cross-cat targets (below) depend on every cat's cut content. A cat whose raw
+    # files all hash the same as last run doesn't need re-cutting here -- its cached shapes (just the
+    # trimmed content's height/width, not the pixels) are all the median calc below needs.
+    prepared = {}   # cat -> (cut_or_None, shapes, s, sit_head, tails, inputs_hash)
     for cat in sorted(cat_frames):
-        log(f'cat {cat}')
         tails = {}
         for pose, parts in cat_tails.get(cat, {}).items():
             if 'notail' in parts and 'tail' in parts:
@@ -737,9 +819,25 @@ def main():
                 tails[pose] = (parts['notail'], parts['tail'])
             else:
                 log(f'  WARNING {cat}-{pose}: only -{next(iter(parts))}.png present, need both -notail and -tail')
-        prep = prepare_cat(cat, cat_frames[cat], log)
-        if prep:
-            prepared[cat] = (prep, tails)
+        if ('sit', 1) not in cat_frames[cat]:
+            log(f'cat {cat}: SKIP, no sit pose (needed for the cat\'s scale)')
+            continue
+        all_paths = sorted(cat_frames[cat].values()) + \
+            [p for pair in tails.values() for p in pair] + sorted(cat_paws.get(cat, {}).values())
+        inputs_hash = hashlib.sha1(''.join(sorted(file_hash(p) for p in all_paths)).encode()).hexdigest()
+        cached = cache_cats.get(cat)
+        if cached and cached.get('inputs_hash') == inputs_hash:
+            log(f'cat {cat}: unchanged, reusing cached scale (skip cutout)')
+            shapes = {_cat_key_from_str(k): tuple(v) for k, v in cached['shapes'].items()}
+            prepared[cat] = (None, shapes, cached['s'], cached['sit_head'], tails, inputs_hash)
+        else:
+            log(f'cat {cat}')
+            prep = prepare_cat(cat, cat_frames[cat], log)
+            if not prep:
+                continue
+            cut, s, sit_head = prep
+            shapes = {k: v.shape[:2] for k, v in cut.items()}
+            prepared[cat] = (cut, shapes, s, sit_head, tails, inputs_hash)
 
     # BODY_MATCH targets: the roster's median content size (on the pose's own matched dimension, at
     # each cat's own scale) for that pose, so the fix centres on the roster's existing look instead of
@@ -747,17 +845,38 @@ def main():
     pose_targets = {}
     for pose, dim_name in BODY_MATCH.items():
         dim = 1 if dim_name == 'width' else 0
-        sizes = sorted(cut[(pose, 1)].shape[dim] * s for (cut, s, _sit_head), _tails in prepared.values() if (pose, 1) in cut)
+        sizes = sorted(shapes[(pose, 1)][dim] * s for (_cut, shapes, s, _sit_head, _tails, _ih) in prepared.values()
+                        if (pose, 1) in shapes)
         if sizes:
             pose_targets[pose] = sizes[len(sizes) // 2]
             log(f'{pose}: {dim_name} target {pose_targets[pose]:.1f}px (median of {len(sizes)} cats)')
 
-    # Pass 2: compose+save, now that pose_targets is known.
+    # Pass 2: compose+save, now that pose_targets is known. A cat can still skip this if it was unchanged
+    # above AND every BODY_MATCH target it actually uses came out the same as last run -- otherwise (its
+    # own art changed, or a roster median it depends on shifted) it needs real pixels, re-cutting first
+    # if pass 1 skipped that for it.
     for cat in sorted(prepared):
-        (cut, s, sit_head), tails = prepared[cat]
+        cut, shapes, s, sit_head, tails, inputs_hash = prepared[cat]
+        paws = cat_paws.get(cat, {})
+        cat_poses = {k[0] for k in shapes}
+        relevant_targets = {p: pose_targets[p] for p in BODY_MATCH if p in cat_poses and p in pose_targets}
+        cached = cache_cats.get(cat)
+        if cut is None and cached and cached.get('pose_targets_used', {}) == relevant_targets \
+                and _outputs_exist(_cat_expected_outputs(cat, shapes, tails, paws)):
+            new_cache_cats[cat] = cached
+            continue
+        if cut is None:
+            log(f'cat {cat}: cross-cat target changed (or output missing) since last run, re-cutting to recompose')
+            cut, s, sit_head = prepare_cat(cat, cat_frames[cat], log)
         sheet_rows.extend(compose_cat(cat, cat_frames[cat], cut, s, sit_head, pose_targets, log,
-                                       tails=tails, paws=cat_paws.get(cat, {})))
+                                       tails=tails, paws=paws))
+        new_cache_cats[cat] = {
+            'inputs_hash': inputs_hash, 's': float(s), 'sit_head': int(sit_head),
+            'shapes': {_cat_key_str(k): list(v.shape[:2]) for k, v in cut.items()},
+            'pose_targets_used': {p: float(v) for p, v in relevant_targets.items()},
+        }
 
+    item_scale = cache.get('item_scale')
     if items or floating:
         ref = cat_frames.get(REF_CAT, {}).get(('sit', 1))
         if ref is None:
@@ -765,57 +884,115 @@ def main():
         ref_h = trim(cut_out(load(ref))[0]).shape[0]
         item_scale = SIT_HEIGHT / ref_h
         log(f'shared item scale {item_scale:.4f} (from {REF_CAT} sit: {ref_h} px -> {SIT_HEIGHT} px)')
+        # Every item/floating overlay shares this one scale, so if it moved since last run (the
+        # reference cat's sit pose changed), no per-item cache hit below can be trusted.
+        rescaled = cache.get('item_scale') != item_scale
+        if rescaled and 'item_scale' in cache:
+            log(f'  item scale changed since last run -- reprocessing every item/floating overlay')
         for name in sorted(items):
+            path = items[name]
+            rel = str(path.relative_to(RAW))
+            outputs = expected_item_outputs(name)
+            cached = cache_files.get(rel)
+            if not rescaled and cached and cached.get('hash') == file_hash(path) and _outputs_exist(outputs):
+                log(f'item {name}: unchanged, skip')
+                new_cache_files[rel] = cached
+                continue
             log(f'item {name}')
-            _, canvas = process_item(name, items[name], item_scale, log)
-            sheet_rows.append((name, items[name], canvas))
+            outputs, canvas = process_item(name, path, item_scale, log)
+            sheet_rows.append((name, path, canvas))
+            new_cache_files[rel] = {'hash': file_hash(path), 'outputs': [str(o.relative_to(YARD)) for o in outputs]}
         for name in sorted(floating):
+            path = floating[name]
+            rel = str(path.relative_to(RAW))
+            out = OBJ_OUT / f'{name}.webp'
+            cached = cache_files.get(rel)
+            if not rescaled and cached and cached.get('hash') == file_hash(path) and out.exists():
+                log(f'floating {name}: unchanged, skip')
+                new_cache_files[rel] = cached
+                continue
             log(f'floating {name}')
-            process_floating(name, floating[name], item_scale, log)
+            process_floating(name, path, item_scale, log)
+            new_cache_files[rel] = {'hash': file_hash(path), 'outputs': [str(out.relative_to(YARD))]}
 
     for path in sorted((RAW / 'scene').glob('*.png')):
         # Scenes are full-bleed backgrounds: resize only, no background removal.
         # Room pictures are 9:16 and get their own size below. The four-room panorama keeps its own size.
         if path.stem.startswith(ROOM_PREFIX):
             continue
-        if path.stem == PANO_PREFIX or path.stem.startswith(PANO_PREFIX + '-'):
+        rel = str(path.relative_to(RAW))
+        out = SCENE_OUT / f'{path.stem}.webp'
+        is_pano = path.stem == PANO_PREFIX or path.stem.startswith(PANO_PREFIX + '-')
+        cached = cache_files.get(rel)
+        if cached and cached.get('hash') == file_hash(path) and out.exists():
+            log(f'{"panorama" if is_pano else "scene"} {path.name}: unchanged, skip')
+            new_cache_files[rel] = cached
+            continue
+        if is_pano:
             log(f'panorama {path.name}')
             img = Image.open(path).convert('RGB')
-            out = SCENE_OUT / f'{path.stem}.webp'
             img.save(out, 'WEBP', quality=PANO_QUALITY, method=6)
             log(f'  -> {out.relative_to(YARD)} {img.size[0]}x{img.size[1]}')
-            continue
-        log(f'scene {path.name}')
-        img = Image.open(path).convert('RGB').resize(SCENE_SIZE, Image.Resampling.LANCZOS)
-        out = SCENE_OUT / f'{path.stem}.webp'
-        out.parent.mkdir(parents=True, exist_ok=True)
-        img.save(out, 'WEBP', quality=SCENE_QUALITY, method=6)
-        log(f'  -> {out.relative_to(YARD)} {SCENE_SIZE[0]}x{SCENE_SIZE[1]}')
+        else:
+            log(f'scene {path.name}')
+            img = Image.open(path).convert('RGB').resize(SCENE_SIZE, Image.Resampling.LANCZOS)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            img.save(out, 'WEBP', quality=SCENE_QUALITY, method=6)
+            log(f'  -> {out.relative_to(YARD)} {SCENE_SIZE[0]}x{SCENE_SIZE[1]}')
+        new_cache_files[rel] = {'hash': file_hash(path), 'outputs': [str(out.relative_to(YARD))]}
 
     for p in sorted((RAW / 'polaroids').glob('*.png')):
         m = POLA_RE.match(p.stem)
         if not m:
             raise SystemExit(f'{p}: not a bg-<dest>.png or cat-<cat><n>.png name, expected in raw/polaroids/')
+        rel = str(p.relative_to(RAW))
+        if m['kind'] == 'bg':
+            out = POLA_OUT / f"{m['id']}{m['n'] or ''}-bg.webp"
+        else:
+            out = POLA_OUT / f"{m['id']}-selfie{m['n']}.webp"
+        cached = cache_files.get(rel)
+        if cached and cached.get('hash') == file_hash(p) and out.exists():
+            log(f'polaroid {p.name}: unchanged, skip')
+            new_cache_files[rel] = cached
+            continue
         log(f'polaroid {p.name}')
-        process_polaroid(m['kind'], m['id'], m['n'], p, log)
+        out_actual = process_polaroid(m['kind'], m['id'], m['n'], p, log)
+        new_cache_files[rel] = {'hash': file_hash(p), 'outputs': [str(out_actual.relative_to(YARD))]}
 
     for p in sorted((RAW / 'stamps').glob('stamp-*.png')):
         dest = p.stem.removeprefix('stamp-')
+        rel = str(p.relative_to(RAW))
+        out = STAMP_OUT / f'{dest}.webp'
+        cached = cache_files.get(rel)
+        if cached and cached.get('hash') == file_hash(p) and out.exists():
+            log(f'stamp {p.name}: unchanged, skip')
+            new_cache_files[rel] = cached
+            continue
         log(f'stamp {p.name}')
         process_stamp(dest, p, log)
+        new_cache_files[rel] = {'hash': file_hash(p), 'outputs': [str(out.relative_to(YARD))]}
 
     for path in sorted((RAW / 'scene').glob(f'{ROOM_PREFIX}*.png')):
         # Each room is a 9:16 portrait picture. The generator gives 941 x 1672, so 1080 x 1920 is an upscale.
+        rel = str(path.relative_to(RAW))
+        out = SCENE_OUT / f'{path.stem}.webp'
+        cached = cache_files.get(rel)
+        if cached and cached.get('hash') == file_hash(path) and out.exists():
+            log(f'room {path.name}: unchanged, skip')
+            new_cache_files[rel] = cached
+            continue
         log(f'room {path.name}')
         img = Image.open(path).convert('RGB').resize(ROOM_SIZE, Image.Resampling.LANCZOS)
-        out = SCENE_OUT / f'{path.stem}.webp'
         out.parent.mkdir(parents=True, exist_ok=True)
         img.save(out, 'WEBP', quality=ROOM_QUALITY, method=6)
         log(f'  -> {out.relative_to(YARD)} {ROOM_SIZE[0]}x{ROOM_SIZE[1]}')
+        new_cache_files[rel] = {'hash': file_hash(path), 'outputs': [str(out.relative_to(YARD))]}
 
     if sheet_rows:
         contact_sheet(sheet_rows, Path(args.sheet))
-        log(f'contact sheet: {args.sheet}')
+        log(f'contact sheet: {args.sheet} (skipped/unchanged assets from this run are not shown)')
+
+    save_cache({'files': new_cache_files, 'cats': new_cache_cats, 'item_scale': item_scale})
 
 
 if __name__ == '__main__':

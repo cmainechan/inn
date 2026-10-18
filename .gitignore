@@ -4,4 +4,5 @@ raw/
 # Local-only
 .DS_Store
 tools/contact-sheet.png
+tools/.art-cache.json
 __pycache__/

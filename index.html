@@ -540,7 +540,7 @@
     // hugged belly2-only item, same mechanism as temari-ball -- see CAT_HUG. scale/cat/catScale start
     // as a copy of temari-ball's tuned values (nearest existing hugged item) and want visual re-tuning
     // once placed, since the bolster's cylindrical shape fills its canvas differently than a round ball.
-    bolster:  { room: 'zashiki', ja: '抱き枕', tr: 'dakimakura', en: 'hug pillow', price: 240, pose: 'belly2', poses: ['belly2'], hugged: true, hugScale: 2, hugOffset: { left: -39, top: -27 }, scale: 0.425, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
+    bolster:  { room: 'zashiki', ja: '抱き枕', tr: 'dakimakura', en: 'hug pillow', price: 240, pose: 'belly2', poses: ['belly2'], hugged: true, hugScale: 2, hugOffset: { left: -39, top: -27 }, scale: 0.425, thumbScale: 1.6, thumbShift: -22.06, thumbShiftY: -30.89, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
     // belly2: the cat lies on its back underneath, batting up at the hanging charms.
     // xlX: anchored to the room's right side regardless of row, so the 2x-scaled frame doesn't
     // overflow toward the left edge into the dining room next door (see spotHtml's use of xlX).
@@ -564,7 +564,7 @@
     takoyaki: { room: 'shokudo', ja: 'たこ焼き', tr: 'takoyaki', en: 'takoyaki', price: 130, pose: 'lie', wobble: true, cat: { x: 80, y: 93 } },
     taiyaki:  { room: 'shokudo', ja: 'たい焼き', tr: 'taiyaki', en: 'taiyaki', price: 160, pose: 'head', cat: { x: 49.39, y: 69.75 } },
     mochi:    { room: 'shokudo', ja: '餅', tr: 'mochi', en: 'mochi', price: 180, pose: 'head', cat: { x: 52.9, y: 57.2 } },
-    mochibunny: { room: 'shokudo', ja: 'うさぎ餅', tr: 'usagi mochi', en: 'rabbit mochi', price: 170, pose: 'peer', cat: { x: 67.64, y: 85 } },
+    mochibunny: { room: 'shokudo', ja: 'うさぎ餅', tr: 'usagi mochi', en: 'rabbit mochi', price: 170, pose: 'peer', cat: { x: 73.53, y: 85 } },
     // XL: spans two spots (rowStart pairing). Shokudo's spot 0 is retired, so fits()/freeSpotFor
     // route this to the (2,3) pair -- see the fits() retired-check added alongside this item.
     counter:  { room: 'shokudo', xl: true, ja: '帳場', tr: 'chōba', en: 'counter', price: 550, pose: 'sit', scale: 1.5, catScale: 1.25, cat: { x: 50, y: 73.25 }, inFront: true },
@@ -610,8 +610,8 @@
     // cat's body and a second paws overlay instead of at its own normal baseline position -- see
     // catLayer. Now that CAT_HUG covers most of the roster (see its own comment), belly2 is a full
     // second pose here, not just the barzel-only test it started as.
-    'temari-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', poses: ['lie', 'belly2'], hugged: true, wobble: true, wobbleDeg: 13, scale: 0.425, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
-    'temari-ball-blue': { room: 'engawa', ja: '青毬', tr: 'ao mari', en: 'blue thread ball', price: 180, pose: 'lie', poses: ['lie', 'belly2'], hugged: true, wobble: true, wobbleDeg: 13, scale: 0.425, thumbScale: 0.5, thumbShiftY: 20, catScale: 1.1, cat: { x: 79.97, y: 81.4 } },
+    'temari-ball': { room: 'engawa', ja: '桜毬', tr: 'sakura mari', en: 'flowered thread ball', price: 180, pose: 'lie', poses: ['lie', 'belly2'], hugged: true, wobble: true, wobbleDeg: 13, scale: 0.425, thumbScale: 0.5, thumbShiftY: 20, cat: { x: 79.97, y: 81.4 } },
+    'temari-ball-blue': { room: 'engawa', ja: '青毬', tr: 'ao mari', en: 'blue thread ball', price: 180, pose: 'lie', poses: ['lie', 'belly2'], hugged: true, wobble: true, wobbleDeg: 13, scale: 0.425, thumbScale: 0.5, thumbShiftY: 20, cat: { x: 79.97, y: 81.4 } },
     // belly1: the cat lies on its back underneath the flag, batting up at it.
     // fish: measured directly from the shared raw canvas before koinobori-stand.png/koinobori-fish.png
     // were split apart, so it lines back up with the pole exactly (see itemLayers' `fish`). origin is
@@ -875,7 +875,7 @@
     // sits inside one wrapper carrying the scale transform, so a floating overlay enlarges and
     // repositions in lock-step with the main image instead of needing its own separate math.
     const wobDeg = it.wobble && it.wobbleDeg ? ` style="--wob-deg:${it.wobbleDeg}deg"` : '';
-    const body = `<img class="layer${it.wobble ? ' wobble' : ''}" src="${art.item(id)}" alt=""${wobDeg}>${wheel}${fish}${charms}`;
+    const body = `<img class="layer${it.wobble && inSpot ? ' wobble' : ''}" src="${art.item(id)}" alt=""${wobDeg}>${wheel}${fish}${charms}`;
     return {
       shadow,
       img: grow ? `<div class="layer"${grow}>${body}</div>${reflection}` : `${body}${reflection}`,
