@@ -43,6 +43,7 @@ as the 120:100 spot box in index.html, so one set of percentage anchors works
 for cats and items alike.
 """
 import argparse
+import ast
 import hashlib
 import json
 import re
@@ -84,10 +85,10 @@ SIT_HEIGHT = 250      # each cat's sitting pose is scaled to this content height
 CAT_SIZE = 0.85       # cats in the layers are drawn at this fraction of SIT_HEIGHT. Measured
                       # against the Tapuz combos (the reference): their cat is about 0.85 of
                       # the layer's sitting height, while the objects match the combos at 1.0
-OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'taiyaki-xl': 1.5, 'mochi': 1.35, 'sakura-toro': 0.95, 'mochibunny': 0.5}  # extra size factor per object, on top of the shared item scale (cats are unchanged).
+OBJECT_SIZE = {'ball': 0.8, 'yarn': 0.8, 'takoyaki': 0.7, 'onigiri': 1.2, 'taiyaki': 1.05, 'mochi': 1.35, 'sakura-toro': 0.95, 'mochibunny': 0.5}  # extra size factor per object, on top of the shared item scale (cats are unchanged).
 # mochi: sized up so its silhouette is convincingly wider than the cat's "head" pose peeking over it
 # (it was barely wider than the cat's own ears before -- compare taiyaki, which already reads right).
-SHADOW_CUT = {'mochi': 0, 'taiyaki': 0, 'taiyaki-xl': 0, 'redpanda': 0.8}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
+SHADOW_CUT = {'mochi': 0, 'taiyaki': 0}   # items whose ground shadow is removed, from this fraction of the height down (see drop_shadow)
 OBJECT_SHIFT = {'ball': -60, 'yarn': -20, 'takoyaki': -28, 'taiyaki': 12, 'temari-ball': (10, 5), 'temari-ball-blue': (10, 5)}  # canvas px: a plain number is sideways only (+right), or (dx, dy) for both (+down). ball/yarn/takoyaki/taiyaki: keeps the toy out of the paw's reach (the cat sits to its right). temari-ball-blue: same shape as temari-ball, same shift
 REF_CAT = 'tapuz'     # items use the same scale as this cat's sitting pose, so sizes carry over
 BODY_BAND = 0.08      # the bottom 8% of a cat's content is where its body rests (see body_centre_x)
@@ -131,11 +132,11 @@ DESHADOW_CHROMA = 20
 # Items where cut_out() picks up a stray, disconnected generator artifact (a faint stray line, a
 # speck) nowhere near the actual subject -- keep only the single largest connected blob of content.
 MAIN_BLOB = {'koinobori'}
-# Items made from another item's raw image, at their own size (e.g. the XL taiyaki the cat rides).
-ITEM_SOURCE = {'taiyaki-xl': 'taiyaki'}
+# Items made from another item's raw image, at their own size: {new item: source item}. None right now.
+ITEM_SOURCE = {}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
 # koinobori-fish2.png is the current fish art (replaces koinobori-fish.png, kept in raw/objects/ but not used -- same pattern as yarn/yarn2).
-ITEM_RAW_NAME = {'bath-stool': 'Japanese Wooden Bath Stool Illustration', 'kazaguruma': 'kazaguruma-stand', 'koinobori': 'koinobori-stand', 'gym': 'gym-stand', 'koinobori-fish': 'koinobori-fish2'}
+ITEM_RAW_NAME = {'kazaguruma': 'kazaguruma-stand', 'koinobori': 'koinobori-stand', 'gym': 'gym-stand', 'koinobori-fish': 'koinobori-fish2'}
 # Free-floating overlay layers, like a bath's water: cut out and trimmed but NOT baseline-composed
 # onto the shared 480x400 canvas, because they're positioned independently at runtime by their own
 # x/y/w percent (see e.g. ITEMS.kazaguruma.wheel and ITEMS.koinobori.fish in index.html), not stood
@@ -699,11 +700,53 @@ def file_hash(path):
     return hashlib.sha1(path.read_bytes()).hexdigest()
 
 
-def _script_hash():
-    """Any edit to this script (a new OBJECT_SIZE entry, a tweaked constant, new logic) can change an
-    output regardless of which raw file prompted it, so the whole cache is invalidated wholesale
-    whenever the script itself changes -- safer than trying to track which part of it matters."""
-    return hashlib.sha1(Path(__file__).read_bytes()).hexdigest()
+# Name-keyed config: each of these is only ever read inside process_item/process_floating, by the item's
+# own name, so an edit to one entry should only rebuild that item (see item_fingerprint) rather than
+# everything. Everything else in the script is treated as shared code (see _global_hash).
+PER_ITEM_CONFIG = {'OBJECT_SIZE', 'SHADOW_CUT', 'OBJECT_SHIFT', 'FRONT_CURVES', 'FRONT_WALLS', 'CLEAR_HOLES',
+                   'DESHADOW', 'MAIN_BLOB', 'ITEM_SOURCE', 'ITEM_RAW_NAME', 'FLOATING', 'CENTER_BBOX',
+                   'CENTER_BBOX_PREFIXES'}
+# Top-level names that never change what an output looks like: cache plumbing, the contact sheet, the
+# input validation and the post-run checker. Also main(), which only orchestrates -- if you change
+# something in main() that affects output pixels, bump CACHE_VERSION to force a full rebuild.
+CACHE_EXEMPT = {'CACHE_PATH', 'file_hash', '_global_hash', 'load_cache', 'save_cache', 'item_fingerprint',
+                'expected_item_outputs', '_outputs_exist', '_cat_key_str', '_cat_key_from_str', '_cat_out_name',
+                '_cat_expected_outputs', 'contact_sheet', 'validate_inputs', 'looks_like_fake_transparency',
+                'MAX_RAW_DIM', 'MIN_RAW_DIM', 'VALIDATION_SIG', 'main', 'PER_ITEM_CONFIG', 'CACHE_EXEMPT'}
+CACHE_VERSION = 1   # bump to force a full rebuild after a change the hash below can't see (see CACHE_EXEMPT)
+
+
+def _global_hash():
+    """Hash of the shared pixel code and constants. Hashes the parsed AST, not the text, so comments,
+    docstrings' whitespace and reformatting don't invalidate the cache; per-item config and cache/validation
+    plumbing (above) are left out, since they have their own, narrower handling."""
+    tree = ast.parse(Path(__file__).read_text())
+    h = hashlib.sha1(str(CACHE_VERSION).encode())
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+            continue   # module docstring
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            names = {node.name}
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            names = {t.id for t in targets if isinstance(t, ast.Name)}
+        else:
+            names = set()
+        if names and names <= (PER_ITEM_CONFIG | CACHE_EXEMPT):
+            continue
+        h.update(ast.dump(node).encode())
+    return h.hexdigest()
+
+
+def item_fingerprint(name):
+    """Everything in the name-keyed config that can change this one item's output."""
+    return json.dumps([
+        OBJECT_SIZE.get(name), SHADOW_CUT.get(name), OBJECT_SHIFT.get(name), FRONT_CURVES.get(name),
+        FRONT_WALLS.get(name), name in CLEAR_HOLES, name in DESHADOW, name in MAIN_BLOB,
+        name in CENTER_BBOX or name.startswith(CENTER_BBOX_PREFIXES), name in FLOATING,
+    ], sort_keys=True)
 
 
 def load_cache():
@@ -711,11 +754,11 @@ def load_cache():
         data = json.loads(CACHE_PATH.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
-    return data if data.get('script_hash') == _script_hash() else {}
+    return data if data.get('global_hash') == _global_hash() else {}
 
 
 def save_cache(data):
-    data['script_hash'] = _script_hash()
+    data['global_hash'] = _global_hash()
     CACHE_PATH.write_text(json.dumps(data))
 
 
@@ -759,10 +802,76 @@ def _cat_expected_outputs(cat, shapes, tails, paws):
     return outs
 
 
+# ---------- input validation ----------
+# Bad raw art has bitten this pipeline before: a 4096px export silently broke the shared item scale (it
+# assumes roughly the generator's native ~1254px density), and demo/preview exports with a baked-in
+# checkerboard "transparency" can't be cut out cleanly. Both are caught here, before anything is
+# processed or the cache is touched, so the fix is a re-export instead of a pipeline workaround.
+MIN_RAW_DIM, MAX_RAW_DIM = 600, 2000   # longest side, px. Real raw art so far runs 1254-1536.
+VALIDATION_SIG = f'{MIN_RAW_DIM},{MAX_RAW_DIM},v1'
+
+
+def looks_like_fake_transparency(path):
+    """True if an opaque RGB image has a two-tone alternating pattern around its edge -- the signature
+    of a transparency-preview checkerboard exported as pixels. A real flat backdrop has one tone."""
+    im = Image.open(path)
+    if im.mode == 'RGBA' and np.asarray(im)[..., 3].min() < 250:
+        return False   # genuine alpha, nothing to check
+    lum = np.asarray(im.convert('RGB'), dtype=np.float32).mean(-1)
+    t = max(8, int(min(lum.shape) * 0.03))
+    ring = np.concatenate([lum[:t].ravel(), lum[-t:].ravel()])
+    hist, _ = np.histogram(ring, bins=np.arange(0, 264, 8))
+    b1, b2 = np.argsort(hist)[::-1][:2]
+    if hist[b2] / ring.size < 0.15 or abs(int(b1) - int(b2)) * 8 < 16:
+        return False
+    lo, hi = sorted((int(b1), int(b2)))
+    rows = lum[:t]
+    tone = np.where(rows < (lo + 1) * 8 + 4, 0, np.where(rows >= hi * 8 - 4, 1, -1))
+    return (np.diff(tone, axis=1) != 0).mean() > 0.02
+
+
+def validate_inputs(paths, cache_validated, log):
+    """paths: raw PNGs that become cat/item/food/polaroid/stamp art. Returns {rel: hash} of the files
+    that passed (so unchanged ones skip the pixel check next run); exits with every problem listed if any
+    failed. Size is checked on cats/objects/food only -- scenes, polaroid plates and stamps have their own
+    sizes by design."""
+    ok = cache_validated.get('files', {}) if cache_validated.get('sig') == VALIDATION_SIG else {}
+    passed, problems = {}, []
+    for path in sorted(set(paths)):
+        rel = str(path.relative_to(RAW))
+        h = file_hash(path)
+        if ok.get(rel) == h:
+            passed[rel] = h
+            continue
+        w, hgt = Image.open(path).size
+        if rel.split('/')[0] in ('cats', 'objects', 'food') and not (MIN_RAW_DIM <= max(w, hgt) <= MAX_RAW_DIM):
+            problems.append(f'{rel}: {w}x{hgt}, longest side outside {MIN_RAW_DIM}-{MAX_RAW_DIM}px. The shared item '
+                            f'scale assumes ~1254px art; re-export or resize a COPY (e.g. sips -Z 1254), '
+                            f'don\'t edit raw/ in place.')
+        elif looks_like_fake_transparency(path):
+            problems.append(f'{rel}: opaque, with a two-tone checkerboard-like pattern around the edge. '
+                            f'Looks like a transparency preview exported as pixels -- re-export with real alpha.')
+        else:
+            passed[rel] = h
+    if problems:
+        log('INPUT VALIDATION FAILED -- nothing was processed:')
+        for msg in problems:
+            log(f'  {msg}')
+        log('(rerun with --skip-validation to process anyway)')
+        raise SystemExit(1)
+    return passed
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--sheet', default=str(TOOLS / 'contact-sheet.png'), help='where to write the contact sheet')
+    ap.add_argument('--check', action='store_true', help='only cross-check art on disk against index.html, then exit')
+    ap.add_argument('--no-check', action='store_true', help='skip the index.html cross-check normally run after processing')
+    ap.add_argument('--skip-validation', action='store_true', help='skip the raw-input size/transparency checks')
     args = ap.parse_args()
+    if args.check:
+        from check_art import run_checks
+        raise SystemExit(1 if run_checks(print) else 0)
 
     cat_frames = defaultdict(dict)
     cat_tails = defaultdict(dict)   # {cat: {pose: {'notail': path, 'tail': path}}} -- see TAIL_RE
@@ -801,6 +910,14 @@ def main():
     log = print
     sheet_rows = []
     cache = load_cache()
+    new_validated = {'sig': VALIDATION_SIG, 'files': {}}
+    if not args.skip_validation:
+        to_check = [p for d in (cat_frames, cat_paws) for v in d.values() for p in v.values()]
+        to_check += [p for v in cat_tails.values() for parts in v.values() for p in parts.values()]
+        to_check += list(items.values()) + list(floating.values())
+        to_check += [p for sub in ('polaroids', 'stamps') for p in (RAW / sub).glob('*.png')
+                     if not p.stem.startswith('bg-')]
+        new_validated['files'] = validate_inputs(to_check, cache.get('validated', {}), log)
     cache_files = cache.get('files', {})   # independent per-file assets: items/floating/scene/polaroid/stamp
     cache_cats = cache.get('cats', {})
     new_cache_files = {}
@@ -891,29 +1008,31 @@ def main():
             log(f'  item scale changed since last run -- reprocessing every item/floating overlay')
         for name in sorted(items):
             path = items[name]
-            rel = str(path.relative_to(RAW))
+            key = f'item:{name}'   # per name, not per raw path: aliases (ITEM_SOURCE) share one raw file
             outputs = expected_item_outputs(name)
-            cached = cache_files.get(rel)
-            if not rescaled and cached and cached.get('hash') == file_hash(path) and _outputs_exist(outputs):
+            cached = cache_files.get(key)
+            fp, h = item_fingerprint(name), file_hash(path)
+            if not rescaled and cached and cached.get('hash') == h and cached.get('cfg') == fp and _outputs_exist(outputs):
                 log(f'item {name}: unchanged, skip')
-                new_cache_files[rel] = cached
+                new_cache_files[key] = cached
                 continue
             log(f'item {name}')
             outputs, canvas = process_item(name, path, item_scale, log)
             sheet_rows.append((name, path, canvas))
-            new_cache_files[rel] = {'hash': file_hash(path), 'outputs': [str(o.relative_to(YARD)) for o in outputs]}
+            new_cache_files[key] = {'hash': h, 'cfg': fp, 'outputs': [str(o.relative_to(YARD)) for o in outputs]}
         for name in sorted(floating):
             path = floating[name]
-            rel = str(path.relative_to(RAW))
+            key = f'floating:{name}'
             out = OBJ_OUT / f'{name}.webp'
-            cached = cache_files.get(rel)
-            if not rescaled and cached and cached.get('hash') == file_hash(path) and out.exists():
+            cached = cache_files.get(key)
+            fp, h = item_fingerprint(name), file_hash(path)
+            if not rescaled and cached and cached.get('hash') == h and cached.get('cfg') == fp and out.exists():
                 log(f'floating {name}: unchanged, skip')
-                new_cache_files[rel] = cached
+                new_cache_files[key] = cached
                 continue
             log(f'floating {name}')
             process_floating(name, path, item_scale, log)
-            new_cache_files[rel] = {'hash': file_hash(path), 'outputs': [str(out.relative_to(YARD))]}
+            new_cache_files[key] = {'hash': h, 'cfg': fp, 'outputs': [str(out.relative_to(YARD))]}
 
     for path in sorted((RAW / 'scene').glob('*.png')):
         # Scenes are full-bleed backgrounds: resize only, no background removal.
@@ -992,7 +1111,12 @@ def main():
         contact_sheet(sheet_rows, Path(args.sheet))
         log(f'contact sheet: {args.sheet} (skipped/unchanged assets from this run are not shown)')
 
-    save_cache({'files': new_cache_files, 'cats': new_cache_cats, 'item_scale': item_scale})
+    save_cache({'files': new_cache_files, 'cats': new_cache_cats, 'item_scale': item_scale,
+                'validated': new_validated})
+    if not args.no_check:
+        from check_art import run_checks
+        log('')
+        run_checks(log)
 
 
 if __name__ == '__main__':
