@@ -576,14 +576,18 @@
     // duration is minutes until it is eaten up and removed from the bag. Ordered cheapest to most
     // expensive, kaiseki is the flagship. tamagoyaki joins here once its art arrives.
     // scale 0.75 on every food item: at full size they read too big next to the other items and cats.
-    ochazuke: { room: 'shokudo', food: true, duration: 15, ja: 'お茶漬け', tr: 'ochazuke', en: 'rice in tea broth', price: 90, scale: 0.75 },
-    tamagoyaki: { room: 'shokudo', food: true, duration: 20, ja: '卵焼き', tr: 'tamagoyaki', en: 'rolled omelette', price: 115, scale: 0.75 },
-    yakitori: { room: 'shokudo', food: true, duration: 30, ja: '焼き鳥', tr: 'yakitori', en: 'grilled skewers', price: 140, scale: 0.75 },
-    tempura:  { room: 'shokudo', food: true, duration: 40, ja: '天ぷら盛り合わせ', tr: 'tempura moriawase', en: 'assorted tempura', price: 220, scale: 0.75 },
-    chirashi: { room: 'shokudo', food: true, duration: 50, ja: 'ちらし寿司', tr: 'chirashizushi', en: 'scattered sushi bowl', price: 320, scale: 0.75 },
-    mtchirashi: { room: 'shokudo', food: true, duration: 55, ja: '海鮮ちらし', tr: 'kaisen chirashi', en: 'seafood chirashi bowl', price: 360, scale: 0.75 },
-    unadon:   { room: 'shokudo', food: true, duration: 65, ja: 'うな丼', tr: 'unadon', en: 'grilled eel rice bowl', price: 420, scale: 0.75 },
-    kaiseki:  { room: 'shokudo', food: true, duration: 90, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600, scale: 0.75 },
+    // gohan: free and always rebuyable once eaten -- the starter food, so a save with no money can still invite cats
+    // (visitors only arrive while food is out, see simulate()). Lasts an hour; every other food's duration is
+    // scaled in proportion (x6 from the original 10..90 min ladder), so it stays the shortest. scale 0.525 = 70% of the other foods' 0.75.
+    gohan:    { room: 'shokudo', food: true, duration: 60, ja: 'ご飯', tr: 'gohan', en: 'bowl of rice', price: 0, scale: 0.525 },
+    ochazuke: { room: 'shokudo', food: true, duration: 90, ja: 'お茶漬け', tr: 'ochazuke', en: 'rice in tea broth', price: 90, scale: 0.75 },
+    tamagoyaki: { room: 'shokudo', food: true, duration: 120, ja: '卵焼き', tr: 'tamagoyaki', en: 'rolled omelette', price: 115, scale: 0.75 },
+    yakitori: { room: 'shokudo', food: true, duration: 180, ja: '焼き鳥', tr: 'yakitori', en: 'grilled skewers', price: 140, scale: 0.75 },
+    tempura:  { room: 'shokudo', food: true, duration: 240, ja: '天ぷら盛り合わせ', tr: 'tempura moriawase', en: 'assorted tempura', price: 220, scale: 0.75 },
+    chirashi: { room: 'shokudo', food: true, duration: 300, ja: 'ちらし寿司', tr: 'chirashizushi', en: 'scattered sushi bowl', price: 320, scale: 0.75 },
+    mtchirashi: { room: 'shokudo', food: true, duration: 330, ja: '海鮮ちらし', tr: 'kaisen chirashi', en: 'seafood chirashi bowl', price: 360, scale: 0.75 },
+    unadon:   { room: 'shokudo', food: true, duration: 390, ja: 'うな丼', tr: 'unadon', en: 'grilled eel rice bowl', price: 420, scale: 0.75 },
+    kaiseki:  { room: 'shokudo', food: true, duration: 540, ja: '懐石', tr: 'kaiseki', en: 'formal multi-course set', price: 600, scale: 0.75 },
     stool:    { room: 'onsen', ja: '腰掛け', tr: 'koshikake', en: 'stool', price: 200, pose: 'sit', poses: ['sit', 'sleep'], cat: { x: 50, y: 68 }, poseOffset: { sleep: { x: 0, y: 2.8 } } },
     'sakura-toro': { room: 'onsen', ja: '灯籠', tr: 'tōrō', en: 'sakura lantern', price: 260, pose: 'peer', cat: { x: 73.8, y: 87.5 }, inFront: true },
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 350, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } }, offset: { sheleg: { x: 0, y: -1.1, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
@@ -774,13 +778,16 @@
   const setFish = (n) => { store.set(FISH_KEY, String(Math.max(0, Math.floor(n)))); renderWallet(true); };
 
   const freshSpots = () => { const o = {}; ROOMS.forEach((r) => { o[r.id] = SPOTS.map(() => null); }); return o; };
-  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, food: null, foodVisitor: null, trip: null, selfies: [], stamps: [] });
+  const freshState = () => ({ owned: [], spots: freshSpots(), visitors: {}, gifts: 0, seen: {}, lastCheck: null, welcomed: false, foodStarter: false, food: null, foodVisitor: null, trip: null, selfies: [], stamps: [] });
   function load() {
     const s = freshState();
     try { const raw = store.get(SAVE_KEY); if (raw) Object.assign(s, JSON.parse(raw)); } catch (e) { /* start fresh */ }
     ROOMS.forEach((r) => { if (!s.spots[r.id]) s.spots[r.id] = SPOTS.map(() => null); });
     // Owned items that were removed from the shop would break the spot picker, so drop them.
     s.owned = s.owned.filter((id) => ITEMS[id]);
+    // Cats only visit while food is out, so every save gets one free gohan, once, so nobody is stuck with
+    // an empty dining room. After that it's rebuyable for free from the Food shop page.
+    if (!s.foodStarter) { if (!s.owned.includes('gohan') && !(s.food && s.food.id === 'gohan')) s.owned.push('gohan'); s.foodStarter = true; }
     if (s.food && !(ITEMS[s.food.id] && ITEMS[s.food.id].food)) s.food = null;
     if (!s.food) s.foodVisitor = null;   // nothing to eat, so no one's eating
     // Tidy saves from before XL items and removed items: drop unknown ids, and give both spots of an XL row the item.
@@ -1018,6 +1025,10 @@
       const v = state.visitors[k], [room, i] = k.split(':');
       if (now >= v.leave || !state.spots[room][+i]) { state.gifts += v.gift; delete state.visitors[k]; ev.changed = true; }
     });
+    // Cats only visit while food is out. Work out when it was on the spot BEFORE the expiry below clears it,
+    // so a tick that runs after the food ran out still counts the part of the time it was out.
+    const fedFrom = state.food ? state.food.expiresAt - ITEMS[state.food.id].duration * 60e3 : null;
+    const fedTo = state.food ? state.food.expiresAt : null;
     // Food is eaten up after its duration: the spot goes empty and the item is gone from the Bag too.
     if (state.food && now >= state.food.expiresAt) {
       state.owned = state.owned.filter((id) => id !== state.food.id);
@@ -1047,14 +1058,17 @@
     }
     const present = new Set(Object.values(state.visitors).map((v) => v.cat));
     if (state.trip) present.add(state.trip.catId);   // a traveling cat can't also be visiting a room
-    if (span > 0) {
+    // The stretch of this check's time span during which food was out: arrivals only happen inside it.
+    const fedStart = fedFrom == null ? 0 : Math.max(start, fedFrom);
+    const fed = fedFrom == null ? 0 : Math.max(0, Math.min(now, fedTo) - fedStart);
+    if (fed > 0) {
       // A cat wandering over to eat whatever's out at the food spot -- same arrival odds as any
       // other visit, just keyed to state.foodVisitor instead of a room spot (see above).
-      if (state.food && !state.foodVisitor && Math.random() < 1 - Math.exp(-span / (ARRIVAL_MINUTES * 60e3))) {
+      if (state.food && !state.foodVisitor && Math.random() < 1 - Math.exp(-fed / (ARRIVAL_MINUTES * 60e3))) {
         const cat = pickFoodCat(present);
         if (cat) {
           present.add(cat);
-          const arrive = start + Math.random() * span, leave = arrive + rand(STAY_MIN, STAY_MAX) * 60e3;
+          const arrive = fedStart + Math.random() * fed, leave = arrive + rand(STAY_MIN, STAY_MAX) * 60e3;
           const gift = randInt(CATS[cat].gift[0], CATS[cat].gift[1]);
           state.seen[cat] = (state.seen[cat] || 0) + 1;
           ev.arrived.push({ cat, room: FOOD_CAT_SPOT.room });
@@ -1065,11 +1079,11 @@
       ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
         const k = key(r.id, i);
         if (!itemId || state.visitors[k] || isSecondary(r.id, i) || isRetired(r.id, i)) return;
-        if (Math.random() >= 1 - Math.exp(-span / (ARRIVAL_MINUTES * 60e3))) return;
+        if (Math.random() >= 1 - Math.exp(-fed / (ARRIVAL_MINUTES * 60e3))) return;
         const cat = pickCat(itemId, present);
         if (!cat) return;
         present.add(cat);
-        const arrive = start + Math.random() * span, leave = arrive + rand(STAY_MIN, STAY_MAX) * 60e3;
+        const arrive = fedStart + Math.random() * fed, leave = arrive + rand(STAY_MIN, STAY_MAX) * 60e3;
         const gift = randInt(CATS[cat].gift[0], CATS[cat].gift[1]);
         state.seen[cat] = (state.seen[cat] || 0) + 1;
         ev.arrived.push({ cat, room: r.id });
@@ -1136,7 +1150,7 @@
     let inner = '', label;
     if (!f) {
       inner = `<svg class="layer" viewBox="0 0 120 100" aria-hidden="true"><g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(246,185,59,.28)" stroke="#F6B93B" stroke-width="2" stroke-dasharray="5 5"/><path d="M60 84 V96 M54 90 H66" stroke="#F6B93B" stroke-width="2.6" stroke-linecap="round"/></g></svg>`;
-      label = 'Food spot, empty. Set out food for the cats here.';
+      label = 'Food spot, empty. Set out food to invite cats.';
     } else {
       const it = ITEMS[f.id], L = itemLayers(f.id, true);
       inner = L.shadow + L.img + L.front;
@@ -1345,7 +1359,7 @@
     } : (id) => {
       const it = ITEMS[id], owned = state.owned.includes(id);
       const act = owned ? `<div class="tag">${isPlaced(id) ? 'Out in a room' : 'Owned'}</div>`
-        : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price} 🐟</button>`;
+        : `<button class="btn" data-buy="${id}" ${fish < it.price ? 'disabled' : ''}>${it.price ? `${it.price} 🐟` : 'Free'}</button>`;
       return `<div class="card">${thumb(id)}${jaSpan(it.ja)}<div class="en">${it.en}</div>${act}</div>`;
     };
     openSheet(`<button class="btn plain sheet-x" data-act="close" aria-label="Close">✕</button>` +
@@ -1688,7 +1702,7 @@
   function start() {
     if (!state.welcomed) {
       state.welcomed = true; save(); setFish(getFish() + WELCOME_FISH);
-      toast(`Welcome to the Ryokan! Swipe sideways to visit the rooms.`);
+      toast(`Welcome to the Ryokan! Cats come when food is out: put your free rice out in the dining room. Swipe sideways to visit the rooms.`);
     }
     applyPano(); renderRooms(); renderChrome(); renderWallet(); tick(true);
   }
