@@ -183,6 +183,17 @@ def run_checks(log=print):
              f'READY_POSES, not the cat\'s art, so a visitor given that pose would show a broken image unless '
              f'something else filters them out')
 
+    # -- food pool: every non-`only` cat with full (eating) art should be able to eat at the food spot --
+    pool = set(str_list(const_body(js, 'FOOD_CAT_POOL')))
+    for cid in sorted(pool):
+        if cid not in cats:
+            err(f'FOOD_CAT_POOL has "{cid}", which is not in CATS')
+        elif not exists(f'cats/{cid}/full.webp'):
+            err(f'FOOD_CAT_POOL has "{cid}" but cats/{cid}/full.webp is missing (broken image at the food spot)')
+    for cid in cats:
+        if cid not in pool and not re.search(r'\bonly\s*:', cats[cid]) and exists(f'cats/{cid}/full.webp'):
+            warn(f'cat {cid}: has full art but is not in FOOD_CAT_POOL, so it never eats at the food spot')
+
     # -- hug / tail overlays --
     for key in hug:
         cid, _, pose = key.partition('-')
