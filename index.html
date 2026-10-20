@@ -743,6 +743,9 @@
     // Hirosaki (Aomori), both being far-flung multi-hour trips -- priced just under it accordingly.
     miyajima:    { ja: '宮島',     tr: 'Miyajima',    en: 'Miyajima',          price: 860,  duration: 330 },
   };
+  // Every list of destinations (shop trips page, polaroid filter chips, stamp passport) uses this one order: cheapest
+  // (nearest) first, since price follows distance from Takayama. Ties fall back to the id so the order is stable.
+  const DEST_ORDER = Object.keys(DESTINATIONS).sort((a, b) => DESTINATIONS[a].price - DESTINATIONS[b].price || a.localeCompare(b));
   // Destinations with more than one background plate: one is picked at random when a cat's trip
   // there completes (see tick()), then stuck with for that cat/destination pair like the pose is.
   // Each variant key is its own entry in TRIP_OFFSET and its own raw/polaroids/bg-<key>.png.
@@ -1390,7 +1393,7 @@
     const section = SHOP_SECTIONS[shopIdx], fish = getFish();
     const label = section.kind === 'food' ? { ja: '食', en: 'food' } : section.kind === 'trip' ? { ja: '旅', en: 'day trips' } : { ja: section.room.ja, en: section.room.en };
     const all = (section.kind === 'food' ? Object.keys(ITEMS).filter((id) => ITEMS[id].food)
-      : section.kind === 'trip' ? Object.keys(DESTINATIONS)
+      : section.kind === 'trip' ? DEST_ORDER.slice()
       : Object.keys(ITEMS).filter((id) => ITEMS[id].room === section.room.id && !ITEMS[id].food && !ITEMS[id].delisted)
     ).sort((a, b) => (section.kind === 'trip' ? DESTINATIONS[a].price - DESTINATIONS[b].price : ITEMS[a].price - ITEMS[b].price));
     const pages = Math.max(1, Math.ceil(all.length / SHOP_PAGE));
@@ -1503,7 +1506,7 @@
     .filter(({ d }) => destHasArt(d));
   const bookCells = () => collectedSelfies().filter(({ c, d }) => (!bookFilter.cat || bookFilter.cat === c) && (!bookFilter.dest || bookFilter.dest === d));
   function bookHtml() {
-    const cats = TRIPPABLE, dests = Object.keys(DESTINATIONS);
+    const cats = TRIPPABLE, dests = DEST_ORDER;
     const collected = collectedSelfies();
     const catsWithPhotos = new Set(collected.map((p) => p.c));
     const destsWithPhotos = new Set(collected.map((p) => p.d));
@@ -1545,7 +1548,7 @@
   // slot until collected, then the stamp art in a solid ink-red frame -- a passport-book feel rather
   // than a filterable grid, since there's only ever one slot per destination.
   function stampsHtml() {
-    const slots = Object.keys(DESTINATIONS).map((id) => {
+    const slots = DEST_ORDER.map((id) => {
       const d = DESTINATIONS[id], got = state.stamps.includes(id);
       const face = got ? `<img src="${art.stamp(id)}" alt="${d.en}" onerror="this.outerHTML='&lt;span&gt;?&lt;/span&gt;'">` : `<span>?</span>`;
       return `<div class="stamp-slot${got ? ' got' : ''}"><div class="stamp-face">${face}</div>` +
