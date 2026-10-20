@@ -1447,9 +1447,9 @@
       const c = CATS[id], n = state.seen[id] || 0;
       const pic = `<div class="cat-pic"><img src="${art.cat(id, 'sit')}" alt=""></div>`;
       if (!n) return `<div class="cat-tile unmet" title="Not met yet">${pic}<div class="cat-name">?</div><div class="cat-visits">Not met yet</div></div>`;
-      // The favourite item isn't on the tile any more; it's in the tooltip.
+      // The meaning is shown on the tile; the tooltip carries the cat's Hebrew name (CATS[id].tr) and favourite item.
       const fav = Object.keys(c.likes).sort((a, b) => c.likes[b] - c.likes[a])[0];
-      return `<div class="cat-tile" title="“${c.en}” · loves ${ITEMS[fav].tr} (${ITEMS[fav].en})">${pic}<div class="cat-name">${c.tr}</div><div class="cat-mean">“${c.en}”</div><div class="cat-visits">Visits ${n}</div></div>`;
+      return `<div class="cat-tile" title="${c.tr} · loves ${ITEMS[fav].tr} (${ITEMS[fav].en})">${pic}<div class="cat-name">${c.tr}</div><div class="cat-mean">“${c.en}”</div><div class="cat-visits">Visits ${n}</div></div>`;
     }).join('')}</div>`;
   }
   // state.selfies holds "<cat>:<dest>:<pose>:<bg>" keys actually collected (see tick()/simulate()).
