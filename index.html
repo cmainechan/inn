@@ -296,6 +296,18 @@
   .card .ja { font-size: 1.45rem; line-height: 1.3; }
   .card .en { color: var(--muted); font-size: .88rem; line-height: 1.25; min-height: 2.5em; margin-bottom: 8px; }
   .card .btn { margin-top: auto; padding: 4px 12px; font-size: .95rem; }
+  /* Cats roster: compact square tiles showing just the portrait, name and visit count. The cat only fills
+     about x .31-.68, y .44-.97 of its 480x400 canvas (measured from cats/<cat>/sit.webp), so .cat-pic crops to
+     the 240x240 region x 118-358, y 160-400 (left/top/width below are that crop, in the pic box's own cq units)
+     instead of showing the whole mostly-empty canvas the way .portrait-cat does. */
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .cat-tile { min-width: 0; display: flex; flex-direction: column; background: #fff; border: 2px solid var(--line); border-radius: 14px; padding: 4px 4px 6px; text-align: center; overflow: hidden; }
+  .cat-pic { position: relative; flex: none; width: 100%; aspect-ratio: 3 / 2; container-type: size; overflow: hidden; }
+  .cat-pic img { position: absolute; display: block; max-width: none; width: 200cqh; height: auto; left: calc(50cqw - 99cqh); top: -66.7cqh; }
+  .cat-tile.unmet .cat-pic img { filter: brightness(0); opacity: .18; }
+  .cat-name { font-weight: 600; font-size: 1.02rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cat-mean { color: var(--muted); font-size: .8rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cat-visits { color: var(--muted); font-size: .78rem; line-height: 1.2; }
   .tag { margin-top: auto; font-weight: 600; color: var(--leaf); padding: 5px 0; }
   .polaroid { width: 100%; max-width: 360px; margin: 10px auto; background: #fff; border-radius: 4px;
     padding: 14px 14px 36px; box-shadow: 0 4px 14px rgba(0,0,0,.18); transform: rotate(-1.5deg); }
@@ -1431,11 +1443,13 @@
       tab('roster', 'Cats') + tab('book', 'Polaroids') + tab('stamps', 'Stamps') + `</div>`;
   }
   function rosterHtml() {
-    return `<div class="grid">${CAT_ORDER.map((id) => {
+    return `<div class="cat-grid">${CAT_ORDER.map((id) => {
       const c = CATS[id], n = state.seen[id] || 0;
-      if (!n) return `<div class="card">${catPortrait(id, true)}<div class="ja">?</div><div class="en">Not met yet</div></div>`;
+      const pic = `<div class="cat-pic"><img src="${art.cat(id, 'sit')}" alt=""></div>`;
+      if (!n) return `<div class="cat-tile unmet" title="Not met yet">${pic}<div class="cat-name">?</div><div class="cat-visits">Not met yet</div></div>`;
+      // The favourite item isn't on the tile any more; it's in the tooltip.
       const fav = Object.keys(c.likes).sort((a, b) => c.likes[b] - c.likes[a])[0];
-      return `<div class="card">${catPortrait(id)}<div class="ja">${c.tr}</div><div class="en">“${c.en}”</div><div class="muted" style="font-size:.82rem">Visits ${n} · loves ${jaSpan(ITEMS[fav].ja)}</div></div>`;
+      return `<div class="cat-tile" title="“${c.en}” · loves ${ITEMS[fav].tr} (${ITEMS[fav].en})">${pic}<div class="cat-name">${c.tr}</div><div class="cat-mean">“${c.en}”</div><div class="cat-visits">Visits ${n}</div></div>`;
     }).join('')}</div>`;
   }
   // state.selfies holds "<cat>:<dest>:<pose>:<bg>" keys actually collected (see tick()/simulate()).
