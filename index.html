@@ -181,6 +181,14 @@
     80%  { transform: rotate(6deg); }
     100% { transform: rotate(-4deg); }
   }
+  /* the chime bell: koi-sway's shape at a gentler 4deg peak (koi-sway peaks at 7deg) */
+  @keyframes bell-sway {
+    0%   { transform: rotate(-2.3deg); }
+    30%  { transform: rotate(4deg); }
+    55%  { transform: rotate(1.1deg); }
+    80%  { transform: rotate(3.4deg); }
+    100% { transform: rotate(-2.3deg); }
+  }
 
   /* Falling leaves: clipped to each room's window/outside view (WEATHER_ZONES in index.html's
      script, measured against raw/scene/ryokan-pano.png), so they drift past glass or open air,
@@ -485,7 +493,7 @@
   // Cats with 'full' (eating) pose art -- every cat except nitzan/mattu, the `only`-gated rare cats (see CATS),
   // who have no full art. tools/check_art.py flags a cat that gains full art but isn't listed here.
   const FOOD_CAT_POOL = ['tapuz', 'pilpel', 'sheleg', 'dvash', 'shoko', 'rimon', 'kokhav', 'zayit', 'kafe', 'namer', 'tchelet', 'barzel',
-    'kinamon', 'lilach', 'silan', 'zohar', 'ashan', 'mishmish'];
+    'kinamon', 'lilach', 'silan', 'zohar', 'ashan', 'mishmish', 'armon', 'chemah', 'nakod'];
   // Cats with more than one 'full' frame (tapuz-full.png + tapuz-full-2.png), picked at random per
   // visit rather than stuck with one forever -- same idea as a selfie's pose (see randomPose).
   const FULL_FRAMES = { tapuz: 2 };
@@ -548,6 +556,10 @@
     box:      { room: 'zashiki', ja: '箱', tr: 'hako', en: 'box', price: 150, pose: 'sit', hasFront: true, cat: { x: 50, y: 87.5 } },
     basket:   { room: 'zashiki', ja: '籠', tr: 'kago', en: 'basket', price: 300, pose: 'sit', hasFront: true, cat: { x: 50, y: 80 } },
     tent:     { room: 'zashiki', ja: 'テント', tr: 'tento', en: 'tent', price: 400, pose: 'sit', cat: { x: 50, y: 94 } },
+    // dorayaki / souffle: the cat naps ON TOP of the cake, so cat.y is the height of the cake's top face rather
+    // than the floor (cat layers draw after the item, so the cat paints over it).
+    dorayaki: { room: 'shokudo', ja: 'どら焼き', tr: 'dorayaki', en: 'dorayaki pancake', price: 170, pose: 'sleep', cat: { x: 48.5, y: 84.5 } },
+    souffle:  { room: 'shokudo', ja: 'スフレ', tr: 'sufure', en: 'soufflé pancakes', price: 210, pose: 'sleep', cat: { x: 48.5, y: 72.4 } },
     lantern:  { room: 'zashiki', ja: '提灯', tr: 'chōchin', en: 'paper lantern', price: 240, pose: 'sit', cat: { x: 80, y: 87.5 }, inFront: true },
     'sakura-vase': { room: 'zashiki', ja: '桜花瓶', tr: 'sakura kabin', en: 'cherry blossom vase', price: 280, pose: 'sit', cat: { x: 78, y: 87.5 }, inFront: true },
     // hugged belly2-only item, same mechanism as temari-ball -- see CAT_HUG. scale/cat/catScale start
@@ -606,13 +618,20 @@
     'onsen-clay': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 23.9, w: 92.6, steamDy: 10.6 }, ja: '土風呂', tr: 'tsuchi-buro', en: 'clay bath', price: 350, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, poseOffset: { half: { x: -7.4, y: -28.1 }, soak: { x: -7.4, y: -28.1 } }, offset: { sheleg: { x: 0, y: -1.1, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
     'onsen-hex': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 28.4, w: 93.0, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: 1.8 } }, ja: '六角風呂', tr: 'rokkaku-buro', en: 'hexagonal bath', price: 400, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
     'onsen-hinoki': { room: 'onsen', xl: true, poses: ['half', 'soak'], water: { x: 50, y: 31.5, w: 80.5, steamDy: 10.6 }, poseOffset: { half: { x: 0, y: -15.8 }, soak: { x: 0, y: -21.1 } }, ja: '檜風呂', tr: 'hinoki-buro', en: 'hinoki bath', price: 520, pose: 'half', scale: 2, cat: { x: 50, y: 62 }, offset: { sheleg: { x: 0, y: 0, s: 0.95 }, tapuz: { x: 0, y: 0, s: 0.95 } } },
+    // yukata: a folded cotton robe; the cat naps on top of it (cat.y = the robe's top face, not the floor).
+    yukata:   { room: 'onsen', ja: '浴衣', tr: 'yukata', en: 'cotton bath robe', price: 220, pose: 'sleep', cat: { x: 50, y: 81.5 } },
     eggs:     { room: 'onsen', ja: '温泉卵かご', tr: 'onsen tamago kago', en: 'hot-spring egg basket', price: 240, pose: 'peer', cat: { x: 86.2, y: 85 } },
 
     // thumbShift: shifted left in-canvas (see OBJECT_SHIFT in process_art.py, to keep it out of the
     // cat's paw reach), which only reads off-centre in the plain square shop icon -- see thumb().
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, thumbShift: 12.6, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
-    // delisted: no longer sold, but kept defined so it doesn't break a save that already owns/placed it.
+    // tanabata bamboo: belly1, the cat lies on its back beside it batting up at the paper strips.
+    // xl: spans two spots like koinobori, drawn 1.75x. cat x is in spot-box % (~3.4px per 1%).
+    bamboo:   { room: 'engawa', xl: true, ja: '七夕竹', tr: 'tanabata-take', en: 'star festival bamboo', price: 280, pose: 'belly1', scale: 1.75, cat: { x: 82.9, y: 98.5 } },
+    // wind chime on a stand: belly1, the cat lies on its back beside the stand batting up at the hanging strip the cat is in front of the stand but behind the bell (the bell is a separate front layer, see itemLayers' `bell`).
+    chime:    { room: 'engawa', ja: '風鈴', tr: 'fūrin', en: 'wind chime', price: 190, pose: 'belly1', cat: { x: 74.4, y: 105.5 }, bell: { x: 39.16, y: 31.48, w: 22.08, origin: '69% 0%', dur: 4.4, delay: 1.2 } },
+    //delisted: no longer sold, but kept defined so it doesn't break a save that already owns/placed it.
     bonsai:   { room: 'engawa', ja: '盆栽', tr: 'bonsai', en: 'pine bonsai', price: 260, pose: 'sit', cat: { x: 24, y: 87.5 }, delisted: true },
     // wheel: the spinning pinwheel head, a separate free-floating layer from the stand (see FLOATING
     // in process_art.py) so it can be positioned at the stick's tip and rotated independently in CSS,
@@ -673,6 +692,14 @@
     // (0.85 -> [1,3], rimon 0.5 -> [3,5], kokhav 0.25 -> [5,8]).
     ashan:  { tr: 'Ashan', en: 'smoke', rarity: .65, likes: { bolster: 3, 'temari-ball-blue': 2 }, gift: [2, 4] },
     mishmish: { tr: 'Mishmish', en: 'apricot', rarity: .4, likes: { mochibunny: 4, bolster: 2 }, gift: [4, 6] },
+    // The three newest cats take the five toys nobody favoured yet (yukata, bamboo, souffle, dorayaki, chime), and fill
+    // more rarity gaps: chemah .75 (between sheleg .8 and ashan .65), armon .55 (between ashan .65 and rimon .5),
+    // nakod .3 (between mishmish .4 and kokhav .25). Gift ranges follow the same ladder.
+    // noPose: poses the cat has no art for yet (no `head` art, so no taiyaki/mochi) -- pickCat() skips it for an item
+    // whose every pose is listed. Remove the entry once the art exists.
+    armon:  { tr: 'Armon', en: 'chestnut', rarity: .55, likes: { yukata: 3, bamboo: 2 }, gift: [2, 4], noPose: ['head'] },
+    chemah: { tr: 'Chemah', en: 'butter', rarity: .75, likes: { souffle: 3, dorayaki: 2 }, gift: [1, 3], noPose: ['head'] },
+    nakod:  { tr: 'Nakod', en: 'speckled', rarity: .3, likes: { chime: 4, dorayaki: 2 }, gift: [5, 7], noPose: ['head'] },
     // Common tier now that she's not lantern-only any more -- see pickCat() for how `likes` weights
     // a visit; lantern stays her favourite but she can show up anywhere like any other common cat.
     zohar:  { tr: 'Zohar', en: 'light', rarity: .85, likes: { lantern: 5 }, gift: [1, 3] },
@@ -752,7 +779,7 @@
   };
   // How many selfie poses each trippable cat has art for (raw/polaroids/cat-<cat><n>.png -> process_art.py).
   // A trip photo picks one of these at random (see randomPose) so the book doesn't look monotonous.
-  const SELFIE_POSES = { tapuz: 3, pilpel: 2, sheleg: 2, dvash: 2, shoko: 2, rimon: 2, kokhav: 2, zayit: 2, kafe: 2, namer: 1, tchelet: 1, barzel: 1, kinamon: 1, zohar: 2, lilach: 1, silan: 2, ashan: 1, mishmish: 2 };
+  const SELFIE_POSES = { tapuz: 3, pilpel: 2, sheleg: 2, dvash: 2, shoko: 2, rimon: 2, kokhav: 2, zayit: 2, kafe: 2, namer: 1, tchelet: 1, barzel: 1, kinamon: 1, zohar: 2, lilach: 1, silan: 2, ashan: 1, mishmish: 2, armon: 2, chemah: 2, nakod: 1 };
   const randomPose = (catId) => 1 + Math.floor(Math.random() * (SELFIE_POSES[catId] || 1));
   // Stamps: a second, smaller day-trip collectible -- one per destination (not per cat), see
   // state.stamps. Every trip home still guarantees its polaroid; on top of that there's a
@@ -904,12 +931,19 @@
     // Everything that should scale together (the main picture plus any wheel/fish/charms riding on it)
     // sits inside one wrapper carrying the scale transform, so a floating overlay enlarges and
     // repositions in lock-step with the main image instead of needing its own separate math.
+    // bell: a separate FLOATING layer (objects/${id}-bell.webp) drawn in `front`, i.e. over a visiting cat while the
+    // stand itself stays behind it (the chime's glass bell and strip hang in front of the cat). x/y/w place it in
+    // the shared 480x400 item canvas, measured from the raw stand/bell frame before they were split. It rides in
+    // the same scale wrapper as the main image so it enlarges with it. It sways like a gym charm but gentler (bell-sway, 4deg peak; origin = where the cord meets the arm).
+    const bellBody = it.bell ? `<div class="gym-charm-wrap${inSpot ? ' sway' : ''}" style="left:${it.bell.x}%;top:${it.bell.y}%;width:${it.bell.w}%">` +
+      `<img src="objects/${id}-bell.webp" alt="" style="transform-origin:${it.bell.origin};animation-name:bell-sway;animation-duration:${it.bell.dur}s;animation-delay:-${it.bell.delay}s"></div>` : '';
+    const bell = bellBody ? (grow ? `<div class="layer"${grow}>${bellBody}</div>` : bellBody) : '';
     const wobDeg = it.wobble && it.wobbleDeg ? ` style="--wob-deg:${it.wobbleDeg}deg"` : '';
     const body = `<img class="layer${it.wobble && inSpot ? ' wobble' : ''}" src="${art.item(id)}" alt=""${wobDeg}>${wheel}${fish}${charms}`;
     return {
       shadow,
       img: grow ? `<div class="layer"${grow}>${body}</div>${reflection}` : `${body}${reflection}`,
-      front: it.hasFront ? `<img class="layer" src="${art.front(id)}" alt="">` : ''
+      front: it.hasFront ? `<img class="layer" src="${art.front(id)}" alt="">` : bell
     };
   }
   const thumb = (id) => {
@@ -944,6 +978,9 @@
   // baseline position in the spot).
   const CAT_HUG = {
     'ashan-belly2': { left: 37.51, top: 42.01, w: 38.64 },
+    'armon-belly2': { left: 37.51, top: 42.01, w: 38.64 },
+    'chemah-belly2': { left: 37.51, top: 42.01, w: 38.64 },
+    'nakod-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'barzel-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'dvash-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'kafe-belly2': { left: 36.26, top: 44.51, w: 38.64 },
@@ -1014,7 +1051,9 @@
   // (e.g. nitzan/zohar, sit-only so far) would otherwise be picked for an item needing a pose it
   // has no art for. Also doubles as the "gate by item, not season" mechanism for a seasonal cat.
   function pickCat(itemId, present) {
-    const pool = CAT_ORDER.filter((id) => !present.has(id) && (!CATS[id].only || CATS[id].only.includes(itemId)))
+    const itemPoses = ITEMS[itemId] && (ITEMS[itemId].poses || [ITEMS[itemId].pose]);
+    const pool = CAT_ORDER.filter((id) => !present.has(id) && (!CATS[id].only || CATS[id].only.includes(itemId))
+      && !(CATS[id].noPose && itemPoses && itemPoses.every((p) => CATS[id].noPose.includes(p))))
       .map((id) => ({ id, w: CATS[id].rarity * (CATS[id].likes[itemId] || 0.4) }));
     const total = pool.reduce((a, b) => a + b.w, 0);
     if (!total) return null;

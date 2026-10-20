@@ -121,7 +121,10 @@ TAIL_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-(?P<part>notail|tail
 # A pose's own second pair of paws, drawn to sit in front of a held item -- see process_cat_paws.
 PAWS_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-paws$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
-CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
+CLEAR_HOLES = {'bamboo', 'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # bamboo: the grey backdrop trapped between leaves, stem and paper strips; mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
+# CLEAR_HOLES only above this share of the subject's height (0 = top, 1 = bottom): bamboo's pot is pale and
+# patterned, and clearing holes there punched transparent speckles into its glaze.
+HOLES_ABOVE = {'bamboo': 0.84}
 # Items with a soft, low-saturation contact shadow baked into the raw art right where the subject
 # meets the backdrop (e.g. under the gym's feet). It's dark enough that cut_out()'s colour-distance
 # test reads it as subject, leaving an opaque grey smudge once composited over a real room floor.
@@ -136,13 +139,13 @@ MAIN_BLOB = {'koinobori'}
 ITEM_SOURCE = {}
 # Items whose raw file name is not a plain slug (spaces, or a name from the generator), under the name the game uses.
 # koinobori-fish2.png is the current fish art (replaces koinobori-fish.png, kept in raw/objects/ but not used -- same pattern as yarn/yarn2).
-ITEM_RAW_NAME = {'kazaguruma': 'kazaguruma-stand', 'koinobori': 'koinobori-stand', 'gym': 'gym-stand', 'koinobori-fish': 'koinobori-fish2'}
+ITEM_RAW_NAME = {'kazaguruma': 'kazaguruma-stand', 'koinobori': 'koinobori-stand', 'gym': 'gym-stand', 'koinobori-fish': 'koinobori-fish2', 'chime': 'chime-stand'}
 # Free-floating overlay layers, like a bath's water: cut out and trimmed but NOT baseline-composed
 # onto the shared 480x400 canvas, because they're positioned independently at runtime by their own
 # x/y/w percent (see e.g. ITEMS.kazaguruma.wheel and ITEMS.koinobori.fish in index.html), not stood
 # on the floor like an item. koinobori-fish: the fish sways on its own, separate from the static pole.
 # gym-acc1/2/3: the gym's three hanging charms, each swaying independently off the crossbar.
-FLOATING = {'kazaguruma-wheel', 'koinobori-fish', 'gym-acc1', 'gym-acc2', 'gym-acc3'}
+FLOATING = {'kazaguruma-wheel', 'koinobori-fish', 'chime-bell', 'gym-acc1', 'gym-acc2', 'gym-acc3'}
 # Items centred on their full bounding box, not the bottom band (see body_centre_x): a box drawn at
 # an angle, like the kaiseki's two offset tiers, has its near-bottom corner off to one side, which
 # throws off body-band centring in a way that never happens for a cat or a simple sitting object.
@@ -550,6 +553,11 @@ def process_item(name, path, scale, log):
             img = img.copy()
             img[chroma < DESHADOW_CHROMA, :3] = border_colour(img)
         rgba, bg, _ = cut_out(img, clear_holes=name in CLEAR_HOLES)
+        if name in HOLES_ABOVE:
+            # below this share of the subject's height keep interior holes opaque (see HOLES_ABOVE)
+            ys_all = np.where(rgba[..., 3] > TRIM_ALPHA)[0]
+            cut_row = int(ys_all.min() + HOLES_ABOVE[name] * (ys_all.max() - ys_all.min()))
+            rgba[cut_row:] = cut_out(img, clear_holes=False)[0][cut_row:]
         bg_note = f'backdrop {bg.round().astype(int).tolist()}'
     if name in MAIN_BLOB:
         rgba = rgba * largest_component(rgba[..., 3] > TRIM_ALPHA)[..., None]
@@ -705,7 +713,7 @@ def file_hash(path):
 # everything. Everything else in the script is treated as shared code (see _global_hash).
 PER_ITEM_CONFIG = {'OBJECT_SIZE', 'SHADOW_CUT', 'OBJECT_SHIFT', 'FRONT_CURVES', 'FRONT_WALLS', 'CLEAR_HOLES',
                    'DESHADOW', 'MAIN_BLOB', 'ITEM_SOURCE', 'ITEM_RAW_NAME', 'FLOATING', 'CENTER_BBOX',
-                   'CENTER_BBOX_PREFIXES'}
+                   'CENTER_BBOX_PREFIXES', 'HOLES_ABOVE'}
 # Top-level names that never change what an output looks like: cache plumbing, the contact sheet, the
 # input validation and the post-run checker. Also main(), which only orchestrates -- if you change
 # something in main() that affects output pixels, bump CACHE_VERSION to force a full rebuild.
@@ -744,7 +752,7 @@ def item_fingerprint(name):
     """Everything in the name-keyed config that can change this one item's output."""
     return json.dumps([
         OBJECT_SIZE.get(name), SHADOW_CUT.get(name), OBJECT_SHIFT.get(name), FRONT_CURVES.get(name),
-        FRONT_WALLS.get(name), name in CLEAR_HOLES, name in DESHADOW, name in MAIN_BLOB,
+        FRONT_WALLS.get(name), name in CLEAR_HOLES, HOLES_ABOVE.get(name), name in DESHADOW, name in MAIN_BLOB,
         name in CENTER_BBOX or name.startswith(CENTER_BBOX_PREFIXES), name in FLOATING,
     ], sort_keys=True)
 

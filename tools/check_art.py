@@ -150,8 +150,8 @@ def run_checks(log=print):
             err(f'item {iid}: hasFront but objects/{iid}-front.webp is missing')
         if re.search(r'\bwater\s*:', body) and not exists(f'objects/{iid}-water.webp'):
             err(f'item {iid}: has a water layer but objects/{iid}-water.webp is missing')
-        # Floating layers are named by pattern in itemLayers(): <id>-wheel, <id>-fish, <id>-acc<N>.
-        overlays = [f'{iid}-wheel'] * bool(re.search(r'\bwheel\s*:', body)) + [f'{iid}-fish'] * bool(re.search(r'\bfish\s*:', body))
+        # Floating layers are named by pattern in itemLayers(): <id>-wheel, <id>-fish, <id>-bell, <id>-acc<N>.
+        overlays = [f'{iid}-wheel'] * bool(re.search(r'\bwheel\s*:', body)) + [f'{iid}-fish'] * bool(re.search(r'\bfish\s*:', body)) + [f'{iid}-bell'] * bool(re.search(r'\bbell\s*:', body))
         n_charms = len(re.findall(r'\{\s*x\s*:', (re.search(r'\bcharms\s*:\s*\[(.*)\]', body, re.S) or [None, ''])[1]))
         overlays += [f'{iid}-acc{n}' for n in range(1, n_charms + 1)]
         for ov in overlays:
@@ -175,9 +175,12 @@ def run_checks(log=print):
         if re.search(r'\bonly\s*:', cats[cid]):
             continue
         have = {f.stem for f in (YARD / 'cats' / cid).glob('*.webp')} if (YARD / 'cats' / cid).exists() else set()
+        skipped = set(re.findall(r"'([a-z0-9-]+)'", (re.search(r'noPose\s*:\s*\[([^\]]*)\]', cats[cid]) or [None, ''])[1]))
         for pose in sorted(poses_used & ready):
-            if pose not in have:
+            if pose not in have and pose not in skipped:
                 lacking.setdefault(pose, []).append(cid)
+        for pose in sorted(skipped & have):
+            warn(f'CATS {cid}: noPose lists "{pose}" but cats/{cid}/{pose}.webp exists, so the cat is being skipped for no reason')
     for pose, who in lacking.items():
         warn(f'pose "{pose}" is offered by an item but has no art for: {", ".join(who)}. pickPose only checks '
              f'READY_POSES, not the cat\'s art, so a visitor given that pose would show a broken image unless '
