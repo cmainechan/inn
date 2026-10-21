@@ -493,7 +493,7 @@
   // Cats with 'full' (eating) pose art -- every cat except nitzan/mattu, the `only`-gated rare cats (see CATS),
   // who have no full art. tools/check_art.py flags a cat that gains full art but isn't listed here.
   const FOOD_CAT_POOL = ['tapuz', 'pilpel', 'sheleg', 'dvash', 'shoko', 'rimon', 'kokhav', 'zayit', 'kafe', 'namer', 'tchelet', 'barzel',
-    'kinamon', 'lilach', 'silan', 'zohar', 'ashan', 'mishmish', 'armon', 'chemah', 'nakod'];
+    'kinamon', 'lilach', 'silan', 'zohar', 'ashan', 'mishmish', 'armon', 'chemah', 'nakod', 'kesef'];
   // Cats with more than one 'full' frame (tapuz-full.png + tapuz-full-2.png), picked at random per
   // visit rather than stuck with one forever -- same idea as a selfie's pose (see randomPose).
   const FULL_FRAMES = { tapuz: 2 };
@@ -599,7 +599,7 @@
     counter:  { room: 'shokudo', xl: true, ja: '帳場', tr: 'chōba', en: 'counter', price: 550, pose: 'sit', scale: 1.5, catScale: 1.25, cat: { x: 50, y: 73.25 }, inFront: true },
     // Food: set out at FOOD_SPOT, not one of the four spots above. No cat pose or visitor — see openFood().
     // duration is minutes until it is eaten up and removed from the bag. Ordered cheapest to most
-    // expensive, kaiseki is the flagship. tamagoyaki joins here once its art arrives.
+    // expensive, kaiseki is the flagship.
     // scale 0.75 on every food item: at full size they read too big next to the other items and cats.
     // gohan: free and always rebuyable once eaten -- the starter food, so a save with no money can still invite cats
     // (visitors only arrive while food is out, see simulate()). Lasts an hour; every other food's duration is
@@ -700,6 +700,8 @@
     armon:  { tr: 'Armon', en: 'chestnut', rarity: .55, likes: { yukata: 3, bamboo: 2 }, gift: [2, 4], noPose: ['head'] },
     chemah: { tr: 'Chemah', en: 'butter', rarity: .75, likes: { souffle: 3, dorayaki: 2 }, gift: [1, 3], noPose: ['head'] },
     nakod:  { tr: 'Nakod', en: 'speckled', rarity: .3, likes: { chime: 4, dorayaki: 2 }, gift: [5, 7], noPose: ['head'] },
+    // kesef: another rarity gap (.5-.4) and two items that were only ever a second favourite (fan, bamboo). No `head` art yet.
+    kesef:  { tr: 'Kesef', en: 'silver', rarity: .45, likes: { fan: 3, bamboo: 2 }, gift: [3, 5], noPose: ['head'] },
     // Common tier now that she's not lantern-only any more -- see pickCat() for how `likes` weights
     // a visit; lantern stays her favourite but she can show up anywhere like any other common cat.
     zohar:  { tr: 'Zohar', en: 'light', rarity: .85, likes: { lantern: 5 }, gift: [1, 3] },
@@ -782,7 +784,7 @@
   };
   // How many selfie poses each trippable cat has art for (raw/polaroids/cat-<cat><n>.png -> process_art.py).
   // A trip photo picks one of these at random (see randomPose) so the book doesn't look monotonous.
-  const SELFIE_POSES = { tapuz: 3, pilpel: 2, sheleg: 2, dvash: 2, shoko: 2, rimon: 2, kokhav: 2, zayit: 2, kafe: 2, namer: 1, tchelet: 1, barzel: 1, kinamon: 1, zohar: 2, lilach: 1, silan: 2, ashan: 1, mishmish: 2, armon: 2, chemah: 2, nakod: 1 };
+  const SELFIE_POSES = { tapuz: 3, pilpel: 2, sheleg: 2, dvash: 2, shoko: 2, rimon: 2, kokhav: 2, zayit: 2, kafe: 2, namer: 1, tchelet: 1, barzel: 1, kinamon: 1, zohar: 2, lilach: 1, silan: 2, ashan: 1, mishmish: 2, armon: 2, chemah: 2, nakod: 1, kesef: 2 };
   const randomPose = (catId) => 1 + Math.floor(Math.random() * (SELFIE_POSES[catId] || 1));
   // Stamps: a second, smaller day-trip collectible -- one per destination (not per cat), see
   // state.stamps. Every trip home still guarantees its polaroid; on top of that there's a
@@ -986,6 +988,7 @@
     'nakod-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'barzel-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'dvash-belly2': { left: 37.51, top: 42.01, w: 38.64 },
+    'kesef-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'kafe-belly2': { left: 36.26, top: 44.51, w: 38.64 },
     'kinamon-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'kokhav-belly2': { left: 37.51, top: 42.01, w: 38.64 },
