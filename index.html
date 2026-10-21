@@ -937,9 +937,9 @@
     // bell: a separate FLOATING layer (objects/${id}-bell.webp) drawn in `front`, i.e. over a visiting cat while the
     // stand itself stays behind it (the chime's glass bell and strip hang in front of the cat). x/y/w place it in
     // the shared 480x400 item canvas, measured from the raw stand/bell frame before they were split. It rides in
-    // the same scale wrapper as the main image so it enlarges with it. It sways like a gym charm but gentler (bell-sway, 4deg peak; origin = where the cord meets the arm).
+    // the same scale wrapper as the main image so it enlarges with it. Animate only when inSpot: shop/bag thumbnails must never move. It sways like a gym charm but gentler (bell-sway, 4deg peak; origin = where the cord meets the arm).
     const bellBody = it.bell ? `<div class="gym-charm-wrap${inSpot ? ' sway' : ''}" style="left:${it.bell.x}%;top:${it.bell.y}%;width:${it.bell.w}%">` +
-      `<img src="objects/${id}-bell.webp" alt="" style="transform-origin:${it.bell.origin};animation-name:bell-sway;animation-duration:${it.bell.dur}s;animation-delay:-${it.bell.delay}s"></div>` : '';
+      `<img src="objects/${id}-bell.webp" alt="" style="transform-origin:${it.bell.origin}${inSpot ? `;animation:bell-sway ${it.bell.dur}s ease-in-out -${it.bell.delay}s infinite` : ''}"></div>` : '';
     const bell = bellBody ? (grow ? `<div class="layer"${grow}>${bellBody}</div>` : bellBody) : '';
     const wobDeg = it.wobble && it.wobbleDeg ? ` style="--wob-deg:${it.wobbleDeg}deg"` : '';
     const body = `<img class="layer${it.wobble && inSpot ? ' wobble' : ''}" src="${art.item(id)}" alt=""${wobDeg}>${wheel}${fish}${charms}`;
