@@ -627,8 +627,9 @@
     ball:     { room: 'engawa', ja: '毬', tr: 'temari', en: 'ball', price: 120, pose: 'lie', wobble: true, thumbShift: 12.6, cat: { x: 73, y: 93 } },
     yarn:     { room: 'engawa', ja: '毛糸', tr: 'keito', en: 'ball of yarn', price: 200, pose: 'lie', wobble: true, cat: { x: 73, y: 94 } },
     // tanabata bamboo: belly1, the cat lies on its back beside it batting up at the paper strips.
-    // xl: spans two spots like koinobori, drawn 1.75x. cat x is in spot-box % (~3.4px per 1%).
-    bamboo:   { room: 'engawa', xl: true, ja: '七夕竹', tr: 'tanabata-take', en: 'star festival bamboo', price: 280, pose: 'belly1', scale: 1.75, cat: { x: 82.9, y: 98.5 } },
+    // xl: spans two spots like koinobori, drawn 2.625x (1.75 x 1.5, so the pot reads as big as the gym stand). cat x is in spot-box % (~3.4px per 1%),
+    // pushed out in step with the scale (50 + 32.9 x 1.5). xlXBottom: on the bottom row it sits at the room's centre instead of the bottom-right XL_X.
+    bamboo:   { room: 'engawa', xl: true, xlXBottom: 50, ja: '七夕竹', tr: 'tanabata-take', en: 'star festival bamboo', price: 280, pose: 'belly1', scale: 2.625, cat: { x: 99.4, y: 98.5 } },
     // wind chime on a stand: belly1, the cat lies on its back beside the stand batting up at the hanging strip the cat is in front of the stand but behind the bell (the bell is a separate front layer, see itemLayers' `bell`).
     chime:    { room: 'engawa', ja: '風鈴', tr: 'fūrin', en: 'wind chime', price: 190, pose: 'belly1', cat: { x: 74.4, y: 105.5 }, bell: { x: 39.16, y: 31.48, w: 22.08, origin: '69% 0%', dur: 4.4, delay: 1.2 } },
     //delisted: no longer sold, but kept defined so it doesn't break a save that already owns/placed it.
@@ -1183,7 +1184,7 @@
     // An XL item is drawn at the middle of its row. Rows can sit left or right, so the baths form a
     // diagonal -- unless the item pins its own side via xlX (gym: always the right, so the 2x-scaled
     // frame never overflows toward the dining room next door).
-    const p = isXL(itemId) ? { x: (ITEMS[itemId].xlX != null ? ITEMS[itemId].xlX : XL_X[i >= 2 ? 1 : 0]), y: (SPOTS[i].y + SPOTS[i + 1].y) / 2 + XL_DROP } : SPOTS[i];
+    const p = isXL(itemId) ? { x: (i >= 2 && ITEMS[itemId].xlXBottom != null ? ITEMS[itemId].xlXBottom : ITEMS[itemId].xlX != null ? ITEMS[itemId].xlX : XL_X[i >= 2 ? 1 : 0]), y: (SPOTS[i].y + SPOTS[i + 1].y) / 2 + XL_DROP } : SPOTS[i];
     let inner, label;
     if (!itemId) {
       inner = `<svg class="layer" viewBox="0 0 120 100" aria-hidden="true"><g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(255,255,255,.28)" stroke="#fff" stroke-width="2" stroke-dasharray="5 5"/><path d="M60 84 V96 M54 90 H66" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></g></svg>`;
