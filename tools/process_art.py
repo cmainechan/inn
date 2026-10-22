@@ -28,6 +28,13 @@ Raw names:
                                      (see process_cat_tail and CAT_TAILS in index.html). The notail
                                      art replaces <pose>.png for that cat; -tail.png is saved as its
                                      own cats/<cat>/<pose>-tail.webp, aligned pixel-for-pixel onto it.
+  raw/cats/<cat>-<pose>-nopaw.png, raw/cats/<cat>-<pose>-paw.png
+                                     optional pair, body-without-arm / raised arm alone (transparent PNGs
+                                     on the SAME canvas as <cat>-<pose>.png, which stays the normal pose).
+                                     Saved as cats/<cat>/<pose>-nopaw.webp and <pose>-paw.webp, aligned
+                                     pixel-for-pixel onto <pose>.webp, so the arm can swipe at runtime
+                                     (see process_cat_arm and CAT_ARMS in index.html). Stray specks
+                                     in the arm art are dropped.
   raw/objects/<item>.png            e.g. box.png
   raw/food/<item>.png               consumable food items, e.g. yakitori.png
   raw/scene/room-<id>.png           e.g. room-zashiki.png (see ROOM_IDS in index.html)
@@ -120,6 +127,11 @@ POSE_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>sit|sleep|lie|head|ride|face|ha
 TAIL_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-(?P<part>notail|tail)$')
 # A pose's own second pair of paws, drawn to sit in front of a held item -- see process_cat_paws.
 PAWS_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-paws$')
+# A pose's batting arm, split from its body so it can swipe at runtime: <cat>-<pose>-nopaw.png is the body
+# with the arm removed, <cat>-<pose>-paw.png is the raised arm alone -- see process_cat_arm.
+ARM_PIVOT_DEFAULT = (51.5, 44.0)   # shoulder pivot, % of the raw canvas; cats drawn larger need their own
+ARM_PIVOT = {'pilpel': (54.6, 43.5), 'shoko': (53.0, 43.5)}
+ARM_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-(?P<part>nopaw|paw)$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
 CLEAR_HOLES = {'bamboo', 'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # bamboo: the grey backdrop trapped between leaves, stem and paper strips; mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
 # CLEAR_HOLES only above this share of the subject's height (0 = top, 1 = bottom): bamboo's pot is pale and
@@ -427,7 +439,7 @@ def prepare_cat(cat, frames, log):
     return cut, s, sit_head
 
 
-def compose_cat(cat, frames, cut, s, sit_head, pose_targets, log, tails=None, paws=None):
+def compose_cat(cat, frames, cut, s, sit_head, pose_targets, log, tails=None, paws=None, arms=None):
     """Compose+save every frame of one cat, using the (cut, s, sit_head) prepare_cat returned.
     pose_targets: {pose: target px} for BODY_MATCH poses (see main()), keyed by the same pose names.
     tails: optional {pose: (notail_path, tail_path)} -- see process_cat_tail. frames[(pose, 1)] is
@@ -458,7 +470,15 @@ def compose_cat(cat, frames, cut, s, sit_head, pose_targets, log, tails=None, pa
             process_cat_tail(cat, name, notail_path, tail_path, scale, log)
         if paws and pose in paws and n == 1:
             process_cat_paws(cat, name, frames[key], paws[pose], scale, log)
+        if arms and pose in arms and n == 1:
+            process_cat_arm(cat, name, frames[key], arms[pose], scale, log)
     return rows
+
+
+def cut_overlay(path):
+    """rgba for an overlay raw: the artist's own alpha if it has real transparency, else cut_out()."""
+    pre = pre_cut_rgba(path)
+    return pre if pre is not None else cut_out(load(path))[0]
 
 
 def body_placement(body_path, scale):
@@ -477,13 +497,15 @@ def body_placement(body_path, scale):
     return x0, y0, x_raw, y_raw, (xs, ys)
 
 
-def align_overlay(overlay_path, scale, placement):
+def align_overlay(overlay_path, scale, placement, main_blob=False):
     """An overlay sharing a body's raw canvas, placed on the shared 480x400 canvas using the body's
     own placement (see body_placement) -- same scale, offset by how far apart the two were in the raw
     art. Returns (canvas, raw xs/ys of the overlay's own content, placed x0/y0) for callers that also
     need the overlay's own position (see process_cat_paws's attach-point search)."""
     x0, y0, x_raw, y_raw, _ = placement
-    ov_rgba, *_ = cut_out(load(overlay_path))
+    ov_rgba = cut_overlay(overlay_path)
+    if main_blob:   # keep only the largest piece, dropping isolated specks (see process_cat_arm)
+        ov_rgba = ov_rgba * largest_component(ov_rgba[..., 3] > TRIM_ALPHA)[..., None]
     ys, xs = np.where(ov_rgba[..., 3] > TRIM_ALPHA)
     x_raw_o, y_raw_o = xs.min(), ys.min()
     im_ov = scale_img(trim(ov_rgba), scale)
@@ -537,6 +559,28 @@ def process_cat_paws(cat, name, body_path, paws_path, scale, log):
     canvas, _, _ = align_overlay(paws_path, scale, placement)
     save_webp(canvas, CATS_OUT / cat / f'{name}-paws.webp')
     log(f'  {paws_path.name}: paws overlay aligned to {body_path.name}, {canvas.shape[1]}x{canvas.shape[0]}')
+
+
+def process_cat_arm(cat, name, body_path, arm, scale, log):
+    """A batting arm drawn apart from its pose's body (see ARM_RE: <cat>-<pose>-nopaw.png / -paw.png), so
+    it can swipe at runtime. Both overlays share the raw canvas of the full pose art (body_path, which
+    stays the normal pose), so each is aligned onto it with that body's own placement, and cats/<cat>/
+    <pose>-nopaw.webp + <pose>-paw.webp stack pixel-for-pixel over the pose's 480x400 canvas. The arm
+    keeps only its largest connected piece, which drops the isolated flecks the art generator leaves
+    near it. Logs the shoulder pivot as a % of the canvas, ready to paste into CAT_ARMS."""
+    placement = body_placement(body_path, scale)
+    nopaw, _, _ = align_overlay(arm['nopaw'], scale, placement)
+    paw, (axs, ays), (tx0, ty0) = align_overlay(arm['paw'], scale, placement, main_blob=True)
+    save_webp(nopaw, CATS_OUT / cat / f'{name}-nopaw.webp')
+    save_webp(paw, CATS_OUT / cat / f'{name}-paw.webp')
+    # The shoulder pivot was tuned per cat on the raw canvas (% of its width/height, default ARM_PIVOT);
+    # map it through the same placement as the art to get % of the shared 480x400 canvas.
+    x0, y0, x_raw, y_raw, _ = placement
+    px_pct, py_pct = ARM_PIVOT.get(cat, ARM_PIVOT_DEFAULT)
+    rw, rh = Image.open(body_path).size
+    cx = x0 + (px_pct / 100 * rw - x_raw) * scale
+    cy = y0 + (py_pct / 100 * rh - y_raw) * scale
+    log(f'  {arm["paw"].name}: arm overlay aligned to {body_path.name}; pivot {cx / W * 100:.1f}% {cy / H * 100:.1f}% (see CAT_ARMS)')
 
 
 def process_item(name, path, scale, log):
@@ -797,7 +841,7 @@ def _cat_out_name(key):
     return pose if n == 1 else f'{pose}-{n}'
 
 
-def _cat_expected_outputs(cat, shapes, tails, paws):
+def _cat_expected_outputs(cat, shapes, tails, paws, arms=None):
     outs = []
     for key in shapes:
         pose, n = key
@@ -807,6 +851,8 @@ def _cat_expected_outputs(cat, shapes, tails, paws):
             outs.append(CATS_OUT / cat / f'{name}-tail.webp')
         if paws and pose in paws and n == 1:
             outs.append(CATS_OUT / cat / f'{name}-paws.webp')
+        if arms and pose in arms and n == 1:
+            outs += [CATS_OUT / cat / f'{name}-nopaw.webp', CATS_OUT / cat / f'{name}-paw.webp']
     return outs
 
 
@@ -884,6 +930,7 @@ def main():
     cat_frames = defaultdict(dict)
     cat_tails = defaultdict(dict)   # {cat: {pose: {'notail': path, 'tail': path}}} -- see TAIL_RE
     cat_paws = defaultdict(dict)    # {cat: {pose: path}} -- see PAWS_RE
+    cat_arms = defaultdict(dict)    # {cat: {pose: {'nopaw': path, 'paw': path}}} -- see ARM_RE
     items = {}
     for p in sorted((RAW / 'cats').glob('*.png')):
         m = POSE_RE.match(p.stem)
@@ -897,6 +944,10 @@ def main():
         m = PAWS_RE.match(p.stem)
         if m:
             cat_paws[m['cat']][m['pose']] = p
+            continue
+        m = ARM_RE.match(p.stem)
+        if m:
+            cat_arms[m['cat']].setdefault(m['pose'], {})[m['part']] = p
             continue
         raise SystemExit(f'{p}: not a <cat>-<pose>[-<n>].png name, expected in raw/cats/')
     for p in sorted((RAW / 'objects').glob('*.png')):
@@ -921,6 +972,7 @@ def main():
     new_validated = {'sig': VALIDATION_SIG, 'files': {}}
     if not args.skip_validation:
         to_check = [p for d in (cat_frames, cat_paws) for v in d.values() for p in v.values()]
+        to_check += [p for v in cat_arms.values() for parts in v.values() for p in parts.values()]
         to_check += [p for v in cat_tails.values() for parts in v.values() for p in parts.values()]
         to_check += list(items.values()) + list(floating.values())
         to_check += [p for sub in ('polaroids', 'stamps') for p in (RAW / sub).glob('*.png')
@@ -948,7 +1000,8 @@ def main():
             log(f'cat {cat}: SKIP, no sit pose (needed for the cat\'s scale)')
             continue
         all_paths = sorted(cat_frames[cat].values()) + \
-            [p for pair in tails.values() for p in pair] + sorted(cat_paws.get(cat, {}).values())
+            [p for pair in tails.values() for p in pair] + sorted(cat_paws.get(cat, {}).values()) + \
+            [p for parts in cat_arms.get(cat, {}).values() for p in parts.values()]
         inputs_hash = hashlib.sha1(''.join(sorted(file_hash(p) for p in all_paths)).encode()).hexdigest()
         cached = cache_cats.get(cat)
         if cached and cached.get('inputs_hash') == inputs_hash:
@@ -983,18 +1036,22 @@ def main():
     for cat in sorted(prepared):
         cut, shapes, s, sit_head, tails, inputs_hash = prepared[cat]
         paws = cat_paws.get(cat, {})
+        arms = {pose: parts for pose, parts in cat_arms.get(cat, {}).items() if len(parts) == 2}
+        for pose, parts in cat_arms.get(cat, {}).items():
+            if len(parts) < 2:
+                log(f'  WARNING {cat}-{pose}: only -{next(iter(parts))}.png present, need both -nopaw and -paw')
         cat_poses = {k[0] for k in shapes}
         relevant_targets = {p: pose_targets[p] for p in BODY_MATCH if p in cat_poses and p in pose_targets}
         cached = cache_cats.get(cat)
         if cut is None and cached and cached.get('pose_targets_used', {}) == relevant_targets \
-                and _outputs_exist(_cat_expected_outputs(cat, shapes, tails, paws)):
+                and _outputs_exist(_cat_expected_outputs(cat, shapes, tails, paws, arms)):
             new_cache_cats[cat] = cached
             continue
         if cut is None:
             log(f'cat {cat}: cross-cat target changed (or output missing) since last run, re-cutting to recompose')
             cut, s, sit_head = prepare_cat(cat, cat_frames[cat], log)
         sheet_rows.extend(compose_cat(cat, cat_frames[cat], cut, s, sit_head, pose_targets, log,
-                                       tails=tails, paws=paws))
+                                       tails=tails, paws=paws, arms=arms))
         new_cache_cats[cat] = {
             'inputs_hash': inputs_hash, 's': float(s), 'sit_head': int(sit_head),
             'shapes': {_cat_key_str(k): list(v.shape[:2]) for k, v in cut.items()},

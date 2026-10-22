@@ -136,6 +136,20 @@
      unlike the wheel above it needs no translateX(-50%) centring. */
   .koinobori-fish-wrap { position: absolute; pointer-events: none; }
   .koinobori-fish-wrap img { display: block; width: 100%; height: auto; }
+  /* Patted by a cat's batting arm (see itemLayers' `patted`): still until the strike at 31% of the arm's loop, then
+     swings up and settles, shaped like the tested toy swing (see arm-bat). */
+  .koinobori-fish-wrap.pat img { animation: fish-pat var(--arm-dur, 3.6s) var(--arm-delay, 0s) infinite; }
+  @keyframes fish-pat {
+    0%, 30% { transform: rotate(0); }
+    31% { transform: rotate(0); animation-timing-function: ease-out; }
+    42% { transform: rotate(-9deg); animation-timing-function: ease-in-out; }
+    57.5% { transform: rotate(2deg); }
+    58% { transform: rotate(2deg); animation-timing-function: ease-out; }
+    68% { transform: rotate(-6deg); animation-timing-function: ease-in-out; }
+    79% { transform: rotate(3deg); animation-timing-function: ease-in-out; }
+    90% { transform: rotate(-1deg); }
+    100% { transform: rotate(0); }
+  }
   .koinobori-fish-wrap.sway img { animation: koi-sway 3.6s ease-in-out infinite; }
   /* Gym charms (see itemLayers' `charms`): same wind-gust sway as the koinobori fish, reused since a
      hanging tassel charm moves the same way a windsock does. Duration/delay come in per-charm inline
@@ -171,6 +185,22 @@
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(6deg); }
   }
+  /* Batting arm (see CAT_ARMS): the belly1 pose's raised arm is its own image behind the body (the body
+     art is the pose minus that arm), the same 480x400 canvas as the pose, so it only needs a rotation
+     about the shoulder. Keyframes are the tested swipe at size 0.55 over a 3.6s loop: wind back, strike,
+     rebound, settle, then rest. */
+  .cat-layer .arm-rig { position: relative; }
+  .cat-layer .arm-rig .arm-paw { position: absolute; inset: 0; height: 100%; animation: arm-bat var(--arm-dur, 3.6s) var(--arm-delay, 0s) infinite; }
+  @keyframes arm-bat {
+    0%   { transform: none; animation-timing-function: cubic-bezier(.3, 0, .5, 1); }
+    14%  { transform: rotate(-2.75deg); animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+    24%  { transform: rotate(-2.75deg); animation-timing-function: cubic-bezier(.4, 0, .3, 1); }
+    31%  { transform: rotate(3.3deg) translate(.4%, -.3%) scale(1.01); animation-timing-function: cubic-bezier(.3, 0, .5, 1); }
+    42%  { transform: rotate(-.55deg); animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+    52%  { transform: rotate(-1.93deg); animation-timing-function: cubic-bezier(.4, 0, .3, 1); }
+    58%  { transform: rotate(1.93deg) translate(.25%, -.2%); animation-timing-function: cubic-bezier(.3, 0, .5, 1); }
+    70%, 100% { transform: none; }
+  }
   /* Carp streamer fish: rocks side to side in the wind, not spinning like the pinwheel -- see
      itemLayers' `fish`. Asymmetric amplitude (further one way than the other) and the extra
      keyframe stops read as wind gusts rather than a metronome. */
@@ -180,6 +210,19 @@
     55%  { transform: rotate(2deg); }
     80%  { transform: rotate(6deg); }
     100% { transform: rotate(-4deg); }
+  }
+  /* the chime bell patted by a cat's batting arm: still until the strike at 31% of the arm's loop, then swings
+     out (away from the cat) and settles, the fish-pat shape at a smaller angle */
+  @keyframes bell-pat {
+    0%, 30% { transform: rotate(0); }
+    31% { transform: rotate(0); animation-timing-function: ease-out; }
+    42% { transform: rotate(-8deg); animation-timing-function: ease-in-out; }
+    57.5% { transform: rotate(2deg); }
+    58% { transform: rotate(2deg); animation-timing-function: ease-out; }
+    68% { transform: rotate(-5deg); animation-timing-function: ease-in-out; }
+    79% { transform: rotate(2.5deg); animation-timing-function: ease-in-out; }
+    90% { transform: rotate(-1deg); }
+    100% { transform: rotate(0); }
   }
   /* the chime bell: koi-sway's shape at a gentler 4deg peak (koi-sway peaks at 7deg) */
   @keyframes bell-sway {
@@ -632,9 +675,9 @@
     // tanabata bamboo: belly1, the cat lies on its back beside it batting up at the paper strips.
     // xl: spans two spots like koinobori, drawn 2.625x (1.75 x 1.5, so the pot reads as big as the gym stand). cat x is in spot-box % (~3.4px per 1%),
     // pushed out in step with the scale (50 + 32.9 x 1.5). Sits at the XL default x (the room's centre) on both rows, pot centred.
-    bamboo:   { room: 'engawa', xl: true, ja: '七夕竹', tr: 'tanabata-take', en: 'star festival bamboo', price: 280, pose: 'belly1', scale: 2.625, cat: { x: 99.4, y: 98.5 } },
+    bamboo:   { room: 'engawa', xl: true, ja: '七夕竹', tr: 'tanabata-take', en: 'star festival bamboo', price: 280, pose: 'belly1', scale: 2.625, cat: { x: 86.4, y: 98.9 }, inFront: true },
     // wind chime on a stand: belly1, the cat lies on its back beside the stand batting up at the hanging strip the cat is in front of the stand but behind the bell (the bell is a separate front layer, see itemLayers' `bell`).
-    chime:    { room: 'engawa', ja: '風鈴', tr: 'fūrin', en: 'wind chime', price: 190, pose: 'belly1', cat: { x: 74.4, y: 105.5 }, bell: { x: 39.16, y: 31.48, w: 22.08, origin: '69% 0%', dur: 4.4, delay: 1.2 } },
+    chime:    { room: 'engawa', ja: '風鈴', tr: 'fūrin', en: 'wind chime', price: 190, pose: 'belly1', cat: { x: 61.2, y: 113.8 }, bell: { x: 39.16, y: 31.48, w: 22.08, origin: '69% 0%', dur: 4.4, delay: 1.2 } },
     //delisted: no longer sold, but kept defined so it doesn't break a save that already owns/placed it.
     bonsai:   { room: 'engawa', ja: '盆栽', tr: 'bonsai', en: 'pine bonsai', price: 260, pose: 'sit', cat: { x: 24, y: 87.5 }, delisted: true },
     // wheel: the spinning pinwheel head, a separate free-floating layer from the stand (see FLOATING
@@ -661,7 +704,7 @@
     // fish: measured directly from the shared raw canvas before koinobori-stand.png/koinobori-fish.png
     // were split apart, so it lines back up with the pole exactly (see itemLayers' `fish`). origin is
     // the cord's tip (where it ties to the pole), as % of the fish's own trimmed image box.
-    koinobori: { room: 'engawa', xl: true, ja: '鯉のぼり', tr: 'koinobori', en: 'carp streamer', price: 320, pose: 'belly1', scale: 1.5, catScale: 1.1, fish: { x: 51.3, y: 46.5, w: 44.6, origin: '0.1% 0%' }, cat: { x: 97.2, y: 100.5 }, inFront: true },
+    koinobori: { room: 'engawa', xl: true, ja: '鯉のぼり', tr: 'koinobori', en: 'carp streamer', price: 320, pose: 'belly1', scale: 1.5, catScale: 1.1, fish: { x: 51.3, y: 46.5, w: 44.6, origin: '0.1% 0%' }, cat: { x: 95, y: 102.5 }, inFront: true },
   };
   const POSE_LABEL = { sit: 'sitting', sleep: 'napping', lie: 'lying', head: 'peeking', ride: 'riding', face: 'looking out of', half: 'soaking in', soak: 'soaking', peer: 'peering', full: 'eating', belly1: 'playing', belly2: 'playing' };
   // 'full'/'full-2'/... frames (see FULL_FRAMES) all read as the same label, so strip the frame suffix first.
@@ -908,7 +951,7 @@
   // Shadow and reflection are only drawn in the world (inSpot), not the shop/bag thumbnail. XL baths skip the
   // shadow -- the basin shape already grounds them, and the ellipse would just smudge across two spot-widths.
   const SHADOW_SVG = `<svg class="layer shadow" viewBox="0 0 120 100" aria-hidden="true"><ellipse cx="60" cy="90" rx="30" ry="7"/></svg>`;
-  function itemLayers(id, inSpot) {
+  function itemLayers(id, inSpot, v) {
     // XL items scale up from a bottom anchor, so the image overflows above its own spot box into
     // whatever spot sits above it (shokudo mixes an XL row with ordinary spots, unlike onsen where
     // XL always fills the whole room). pointer-events:none on the overflowing image stops it from
@@ -927,7 +970,10 @@
     // cut from the pole it hangs off of so it can rock independently (see FLOATING in process_art.py).
     // x/y/w/origin were measured in the shared raw canvas before the two were split, so the fish
     // lines back up with the pole's cord exactly (see koinobori-fish.png's cord tip in ITEMS.koinobori).
-    const fish = it.fish ? `<div class="koinobori-fish-wrap${inSpot ? ' sway' : ''}" style="left:${it.fish.x}%;top:${it.fish.y}%;width:${it.fish.w}%">` +
+    // A visiting belly1 cat with a batting arm pats the fish: it holds still until that cat's strike, then swings
+    // on the cat's own timing (fish-pat shares the arm's loop length and phase), instead of the wind sway.
+    const patted = inSpot && v && (v.pose || it.pose) === 'belly1' && CAT_ARMS[`${v.cat}-belly1`];
+    const fish = it.fish ? `<div class="koinobori-fish-wrap${patted ? ' pat' : inSpot ? ' sway' : ''}" style="left:${it.fish.x}%;top:${it.fish.y}%;width:${it.fish.w}%${patted ? ';' + armTimingVars(v.cat) : ''}">` +
       `<img src="objects/${id}-fish.webp" alt="" style="transform-origin:${it.fish.origin}"></div>` : '';
     // The gym's three hanging charms: each its own FLOATING layer (objects/${id}-accN.webp), x/y/w/origin
     // measured the same way as the fish above, against the shared raw canvas before the stand and the
@@ -944,8 +990,10 @@
     // stand itself stays behind it (the chime's glass bell and strip hang in front of the cat). x/y/w place it in
     // the shared 480x400 item canvas, measured from the raw stand/bell frame before they were split. It rides in
     // the same scale wrapper as the main image so it enlarges with it. Animate only when inSpot: shop/bag thumbnails must never move. It sways like a gym charm but gentler (bell-sway, 4deg peak; origin = where the cord meets the arm).
-    const bellBody = it.bell ? `<div class="gym-charm-wrap${inSpot ? ' sway' : ''}" style="left:${it.bell.x}%;top:${it.bell.y}%;width:${it.bell.w}%">` +
-      `<img src="objects/${id}-bell.webp" alt="" style="transform-origin:${it.bell.origin}${inSpot ? `;animation:bell-sway ${it.bell.dur}s ease-in-out -${it.bell.delay}s infinite` : ''}"></div>` : '';
+    // Patted like the koinobori fish (see `patted` above): the bell holds still until the cat's strike, then swings on the cat's own timing.
+    const bellAnim = patted ? ';animation:bell-pat var(--arm-dur) var(--arm-delay) infinite' : inSpot ? `;animation:bell-sway ${it.bell.dur}s ease-in-out -${it.bell.delay}s infinite` : '';
+    const bellBody = it.bell ? `<div class="gym-charm-wrap${inSpot ? ' sway' : ''}" style="left:${it.bell.x}%;top:${it.bell.y}%;width:${it.bell.w}%${patted ? ';' + armTimingVars(v.cat) : ''}">` +
+      `<img src="objects/${id}-bell.webp" alt="" style="transform-origin:${it.bell.origin}${bellAnim}"></div>` : '';
     const bell = bellBody ? (grow ? `<div class="layer"${grow}>${bellBody}</div>` : bellBody) : '';
     const wobDeg = it.wobble && it.wobbleDeg ? ` style="--wob-deg:${it.wobbleDeg}deg"` : '';
     const body = `<img class="layer${it.wobble && inSpot ? ' wobble' : ''}" src="${art.item(id)}" alt=""${wobDeg}>${wheel}${fish}${charms}`;
@@ -971,7 +1019,34 @@
   // their shared raw canvas, converted to % of the 480x400 pose canvas (its log line prints it ready
   // to paste here). Add a '<cat>-<pose>' entry as each cat's tail is extracted.
   const CAT_TAILS = {
-    'tapuz-belly1': { origin: '61.1% 87.8%' },
+  };
+  // Cats whose belly1 batting arm is split from the body (see raw/cats/<cat>-belly1-nopaw.png + -paw.png,
+  // and process_cat_arm in process_art.py, which saves cats/<cat>/belly1-nopaw.webp and belly1-paw.webp
+  // on the pose's own 480x400 canvas). origin is the shoulder pivot as a % of that canvas -- process_art
+  // logs it ready to paste. The arm sits behind the body and swipes on its own (see .arm-paw).
+  const CAT_ARMS = {
+    'armon-belly1': { origin: '43.4% 73.7%' },
+    'ashan-belly1': { origin: '43.5% 73.8%' },
+    'barzel-belly1': { origin: '43.0% 73.7%' },
+    'chemah-belly1': { origin: '43.5% 73.7%' },
+    'dvash-belly1': { origin: '43.6% 73.7%' },
+    'kafe-belly1': { origin: '43.1% 73.8%' },
+    'kesef-belly1': { origin: '43.3% 73.7%' },
+    'kinamon-belly1': { origin: '43.4% 73.7%' },
+    'kokhav-belly1': { origin: '43.5% 73.7%' },
+    'lilach-belly1': { origin: '43.5% 73.8%' },
+    'mishmish-belly1': { origin: '43.5% 73.7%' },
+    'nakod-belly1': { origin: '43.4% 73.7%' },
+    'namer-belly1': { origin: '42.7% 73.4%' },
+    'pilpel-belly1': { origin: '43.7% 73.1%' },
+    'rimon-belly1': { origin: '43.6% 74.2%' },
+    'sheleg-belly1': { origin: '43.4% 73.7%' },
+    'shoko-belly1': { origin: '43.7% 73.7%' },
+    'silan-belly1': { origin: '43.4% 73.7%' },
+    'tapuz-belly1': { origin: '43.4% 73.7%' },
+    'tchelet-belly1': { origin: '43.2% 73.8%' },
+    'zayit-belly1': { origin: '43.4% 73.7%' },
+    'zohar-belly1': { origin: '43.6% 73.7%' },
   };
   // Cats with a second pair of paws split from their pose art (see raw/cats/<cat>-<pose>-paws.png and
   // process_cat_paws in process_art.py, which saves the aligned overlay to cats/<cat>/<pose>-paws.webp),
@@ -1008,6 +1083,11 @@
     'zayit-belly2': { left: 37.51, top: 42.01, w: 38.64 },
     'zohar-belly2': { left: 37.51, top: 42.01, w: 38.64 },
   };
+  // Each belly1 cat swipes on its own beat (see catLayer); an item that reacts to the swipe reads the same vars.
+  function armTimingVars(cat) {
+    const seed = [...cat].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    return `--arm-delay:-${(seed % 40) / 10}s;--arm-dur:${(3.3 + (seed % 9) / 10).toFixed(1)}s;`;
+  }
   function catLayer(v, it, itemId) {
     const pose = v.pose || it.pose;
     const o = (it.offset && it.offset[v.cat]) || { x: 0, y: 0, s: 1 };
@@ -1037,6 +1117,13 @@
     // since a cat already doing something there doesn't also need an idle "alive" cue.
     const breathes = BREATHE_POSES.has(pose);
     const tail = CAT_TAILS[`${v.cat}-${pose}`];
+    const arm = CAT_ARMS[`${v.cat}-${pose}`];
+    // Each cat swipes on its own beat: a stable per-cat phase and a loop of 3.3-4.1s, so cats on screen together
+    // don't wave in unison (the same cat always has the same rhythm).
+    const armTiming = armTimingVars(v.cat);
+    const bodyImg = arm
+      ? `<div class="arm-rig breathe"><img class="arm-paw" src="cats/${v.cat}/${pose}-paw.webp" alt="" style="transform-origin:${arm.origin};${armTiming}"><img src="cats/${v.cat}/${pose}-nopaw.webp" alt=""></div>`
+      : `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt="">`;
     const tailImg = tail ? `<img class="tail-sway" src="cats/${v.cat}/${pose}-tail.webp" alt="" style="transform-origin:${tail.origin}">` : '';
     const hug = it.hugged && itemId ? CAT_HUG[`${v.cat}-${pose}`] : null;
     // hugScale: CAT_HUG's left/top/w is shared across every hugged item on one cat+pose (so a new
@@ -1051,7 +1138,7 @@
     const hugImg = hug ? `<img class="layer" src="${art.item(itemId)}" alt="" style="position:absolute;left:${hug.left + hugOff.left}%;top:${hug.top + hugOff.top}%;width:${hugW}%;height:auto">` : '';
     const pawsImg = hug ? `<img class="layer" src="cats/${v.cat}/${pose}-paws.webp" alt="" style="position:absolute;inset:0;width:100%;height:100%">` : '';
     return `<div class="cat-layer${v.fresh ? ' cat-in' : ''}" style="left:${x - w * 0.5}%;top:${y - w * 0.97}%;width:${w}%">` +
-      shadow + `<img class="${breathes ? 'breathe' : ''}" src="${art.cat(v.cat, pose)}" alt="">${tailImg}${hugImg}${pawsImg}</div>`;
+      shadow + `${bodyImg}${tailImg}${hugImg}${pawsImg}</div>`;
   }
 
   /* ---------- Visiting logic (same rules as the yard, now per room) ---------- */
@@ -1191,7 +1278,7 @@
       inner = `<svg class="layer" viewBox="0 0 120 100" aria-hidden="true"><g class="empty-mark"><ellipse cx="60" cy="90" rx="30" ry="8" fill="rgba(255,255,255,.28)" stroke="#fff" stroke-width="2" stroke-dasharray="5 5"/><path d="M60 84 V96 M54 90 H66" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></g></svg>`;
       label = 'Empty spot. Put out an item.';
     } else {
-      const it = ITEMS[itemId], L = itemLayers(itemId, true);
+      const it = ITEMS[itemId], L = itemLayers(itemId, true, v);
       const water = it.water ? `<img class="water" src="objects/${itemId}-water.webp" alt="" style="left:${it.water.x}%;top:${it.water.y}%;width:${it.water.w}%">` : '';
       const steam = it.water ? steamHtml(it.water) : '';
       const cat = v ? catLayer(v, it, itemId) : '';
