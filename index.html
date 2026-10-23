@@ -991,7 +991,7 @@
     // the shared 480x400 item canvas, measured from the raw stand/bell frame before they were split. It rides in
     // the same scale wrapper as the main image so it enlarges with it. Animate only when inSpot: shop/bag thumbnails must never move. It sways like a gym charm but gentler (bell-sway, 4deg peak; origin = where the cord meets the arm).
     // Patted like the koinobori fish (see `patted` above): the bell holds still until the cat's strike, then swings on the cat's own timing.
-    const bellAnim = patted ? ';animation:bell-pat var(--arm-dur) var(--arm-delay) infinite' : inSpot ? `;animation:bell-sway ${it.bell.dur}s ease-in-out -${it.bell.delay}s infinite` : '';
+    const bellAnim = !it.bell ? '' : patted ? ';animation:bell-pat var(--arm-dur) var(--arm-delay) infinite' : inSpot ? `;animation:bell-sway ${it.bell.dur}s ease-in-out -${it.bell.delay}s infinite` : '';
     const bellBody = it.bell ? `<div class="gym-charm-wrap${inSpot ? ' sway' : ''}" style="left:${it.bell.x}%;top:${it.bell.y}%;width:${it.bell.w}%${patted ? ';' + armTimingVars(v.cat) : ''}">` +
       `<img src="objects/${id}-bell.webp" alt="" style="transform-origin:${it.bell.origin}${bellAnim}"></div>` : '';
     const bell = bellBody ? (grow ? `<div class="layer"${grow}>${bellBody}</div>` : bellBody) : '';
