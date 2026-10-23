@@ -133,10 +133,10 @@ ARM_PIVOT_DEFAULT = (51.5, 44.0)   # shoulder pivot, % of the raw canvas; cats d
 ARM_PIVOT = {'pilpel': (54.6, 43.5), 'shoko': (53.0, 43.5)}
 ARM_RE = re.compile(r'^(?P<cat>[a-z]+)-(?P<pose>[a-z0-9]+)-(?P<part>nopaw|paw)$')
 # Items where the backdrop seen through gaps (e.g. between a stool's legs) should be transparent too.
-CLEAR_HOLES = {'bamboo', 'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # bamboo: the grey backdrop trapped between leaves, stem and paper strips; mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
-# CLEAR_HOLES only above this share of the subject's height (0 = top, 1 = bottom): bamboo's pot is pale and
-# patterned, and clearing holes there punched transparent speckles into its glaze.
-HOLES_ABOVE = {'bamboo': 0.84}
+CLEAR_HOLES = {'stool', 'mtchirashi', 'fan', 'gym', 'koinobori', 'koinobori-fish'}  # mtchirashi: the gap between the prawn's feelers; fan: the gap between the ribs where they meet the handle; gym: the triangular gaps inside each A-frame leg; koinobori: the gap between the pole and the string loop tied around it (processed from koinobori-stand.png -- see ITEM_RAW_NAME; koinobori-fish: the gap between the two cord struts where they converge to a single point, above the fish's mouth ring)
+# CLEAR_HOLES only above this share of the subject's height (0 = top, 1 = bottom), for an item whose lower part
+# would get speckled by hole-clearing (none at the moment).
+HOLES_ABOVE = {}
 # Items with a soft, low-saturation contact shadow baked into the raw art right where the subject
 # meets the backdrop (e.g. under the gym's feet). It's dark enough that cut_out()'s colour-distance
 # test reads it as subject, leaving an opaque grey smudge once composited over a real room floor.
