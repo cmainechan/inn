@@ -1210,6 +1210,7 @@
       ev.changed = true;
     }
     const present = new Set(Object.values(state.visitors).map((v) => v.cat));
+    if (state.foodVisitor) present.add(state.foodVisitor.cat);   // a cat eating can't also be on a toy
     if (state.trip) present.add(state.trip.catId);   // a traveling cat can't also be visiting a room
     // The stretch of this check's time span during which food was out: arrivals only happen inside it.
     const fedStart = fedFrom == null ? 0 : Math.max(start, fedFrom);
@@ -1455,6 +1456,7 @@
     const destId = tripPickDest, d = DESTINATIONS[destId], fish = getFish();
     if (!d || state.trip || fish < d.price) return;   // stale sheet (e.g. a trip started in another tab/tick)
     Object.keys(state.visitors).forEach((k) => { if (state.visitors[k].cat === catId) delete state.visitors[k]; });
+    if (state.foodVisitor && state.foodVisitor.cat === catId) state.foodVisitor = null;
     state.trip = { catId, destId, returnsAt: Date.now() + d.duration * 60e3 };
     setFish(fish - d.price);
     save(); renderRooms(); renderTripBadge();
@@ -1791,6 +1793,7 @@
       if (b.dataset.test === 'fish') setFish(getFish() + 50);
       if (b.dataset.test === 'summon') {
         const present = new Set(Object.values(state.visitors).map((v) => v.cat));
+        if (state.foodVisitor) present.add(state.foodVisitor.cat);
         ROOMS.forEach((r) => state.spots[r.id].forEach((itemId, i) => {
           const k = key(r.id, i);
           if (!itemId || state.visitors[k] || isSecondary(r.id, i) || isRetired(r.id, i)) return;
